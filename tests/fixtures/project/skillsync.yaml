@@ -1,0 +1,29 @@
+version: 1
+sources:
+  - name: personal
+    type: local
+    path: ~/.claude/skills
+  - name: team
+    type: git
+    url: git@github.com:myorg/team-skills.git
+    ref: main
+skills:
+  - code
+  - test
+  - SHARED/commit-framework
+profile: python-backend
+targets:
+  claude: .claude/skills
+  codex: .codex/skills
+install_mode: mirror
+config:
+  test:
+    runner: uv run pytest
+    test_dir: tests/
+    coverage_package: skillsync
+  code:
+    verify: npm run test:run
+overrides:
+  test:
+    install_mode: copy
+

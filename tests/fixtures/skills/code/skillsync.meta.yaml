@@ -1,0 +1,21 @@
+tags:
+  - code
+  - review
+category: development
+depends:
+  - SHARED/commit-framework
+config_inputs:
+  - key: code.verify
+    type: string
+    description: Verification command
+    default: npm run test:run
+targets:
+  claude: true
+  codex: true
+  generic-mcp: true
+source:
+  type: local
+  name: personal
+  path: /Users/test/.claude/skills/code
+  fetched_at: "2026-03-06T10:00:00Z"
+

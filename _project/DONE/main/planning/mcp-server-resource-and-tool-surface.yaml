@@ -1,0 +1,95 @@
+id: "mcp-server-resource-and-tool-surface"
+title: "Build the MCP server resource, prompt, and tool surface for synced skills"
+worktree: "main"
+priority: "High"
+status: "Completed"
+completed_date: "2026-03-06"
+description: |
+  Expose the local skillsync store through an MCP server so other agent
+  environments can discover, inspect, and consume synced skills without
+  re-implementing repository-specific lookup logic. This includes the resource
+  model, search semantics, metadata exposure, and the boundary between read
+  operations and optional mutating operations.
+
+  The server should align with MCP concepts cleanly and avoid inventing a
+  parallel API when resources, prompts, and tools already provide the right
+  primitives.
+category: "Core Functionality"
+deps:
+  needs:
+    - "foundation-architecture-and-manifest-model"
+    - "sync-engine-lockfile-and-source-management"
+    - "cli-surface-ux-and-operational-workflows"
+work:
+  - id: w1
+    summary: "Define the MCP resource URIs, metadata shape, and search/indexing behavior"
+    status: done
+  - id: w2
+    summary: "Implement read-oriented MCP resources and prompts backed by the local store"
+    needs: [w1]
+    status: done
+  - id: w3
+    summary: "Decide and implement which mutating operations, if any, should be exposed as MCP tools in v0"
+    needs: [w2]
+    status: done
+  - id: w4
+    summary: "Add integration tests for MCP clients against realistic synced skill fixtures"
+    needs: [w3]
+    status: done
+metadata:
+  tags:
+    - "mcp"
+    - "resources"
+    - "prompts"
+    - "tools"
+  estimated_effort: "Large"
+  created_date: "2026-03-06"
+  last_updated: "2026-03-06T10:00:00-05:00"
+impact:
+  business_value: |
+    MCP support broadens the product from a local sync utility into a reusable
+    skills platform that other agent tools can consume directly.
+  user_impact: |
+    Users can browse and use local shared skills from agent clients that speak
+    MCP without manually wiring filesystem-specific integrations.
+files_affected:
+  added:
+    - "src/skillsync/mcp/"
+    - "tests/integration/mcp/"
+    - "docs/mcp.md"
+must_preserve:
+  - "MCP responses reflect the same installed state shown by the CLI"
+  - "Read-only operations remain available even if mutating MCP tools are disabled"
+approach: |
+  Map the local installed store to MCP resources first, because read/search
+  access is the most stable and lowest-risk capability. Add tool-based mutation
+  only when the CLI behavior and permission model are already well-defined.
+anti_patterns:
+  - "DO NOT create a bespoke RPC surface that duplicates MCP concepts — because clients already understand resources, prompts, and tools — map cleanly onto MCP primitives"
+  - "DO NOT expose unsafe mutating install/update tools before conflict and trust semantics are nailed down — because remote clients can amplify mistakes — start read-first"
+verification:
+  - description: "MCP integration tests validate list, search, and get-skill flows against installed fixtures"
+    command: "uv run -- python -m pytest tests/integration/mcp -q"
+    expected_output: "MCP integration tests pass"
+  - description: "MCP docs explain resource URIs, prompt behavior, and any gated tool operations"
+    command: "rg -n \"resource|prompt|tool|read-only|mutation\" docs/mcp.md"
+    expected_output: "Docs explicitly define the MCP surface"
+scope_limit:
+  do_not_modify:
+    - "_project/TODO/"
+success_metrics:
+  - "An MCP client can list, search, and fetch locally synced skills without custom filesystem code"
+  - "The MCP and CLI surfaces stay behaviorally consistent because they share the same core store and sync logic"
+open_questions:
+  - resolved: "Yes — `use-skill` prompt is a first-class MCP feature. It strips frontmatter and presents skill body as instructions."
+  - resolved: "No mutation tools in v0. Read-only: search-skills, skill-status, validate-skills. Mutation deferred until conflict/trust semantics are final."
+notes: |
+  Files created: src/mcp/server.ts, src/mcp/index.ts, tests/unit/mcp/server.test.ts.
+  Dependency: @modelcontextprotocol/sdk (v1.27.1) added to dependencies.
+  Tests: 107 pass, 0 fail (6 new MCP tests + MCP contract test now passes).
+  Resources: skill://list (all skills), skill://{name} (SKILL.md content), skill://{name}/{+path} (any file).
+  Tools (read-only): search-skills, skill-status, validate-skills.
+  Prompts: use-skill (strips frontmatter, delivers skill body as instructions).
+  Path traversal protection on skill://{name}/{+path} resource.
+  Nested skill discovery (SHARED/commit-framework) works correctly.
+

@@ -1,0 +1,100 @@
+id: "validation-trust-security-and-release-readiness"
+title: "Add validation, trust controls, security checks, and release readiness"
+worktree: "main"
+priority: "High"
+status: "Completed"
+completed_date: "2026-03-06"
+description: |
+  Add the quality and trust features that keep skillsync safe to adopt in real
+  workflows. This includes manifest validation, broken-reference detection,
+  compatibility checks, provenance/trust controls, executable-script warnings,
+  and the test/documentation/release work needed for a credible v0.
+
+  This item also captures the need for strong diagnostics because invalid skill
+  files and portability regressions were already a pain point in the existing
+  skill ecosystem.
+category: "Testing and Quality Assurance"
+deps:
+  needs:
+    - "foundation-architecture-and-manifest-model"
+    - "sync-engine-lockfile-and-source-management"
+    - "portability-compatibility-and-project-overrides"
+    - "cli-surface-ux-and-operational-workflows"
+    - "mcp-server-resource-and-tool-surface"
+work:
+  - id: w1
+    summary: "Implement manifest, path, and compatibility validation with actionable diagnostics"
+    status: done
+  - id: w2
+    summary: "Implement trust policies, source allowlists, and provenance reporting"
+    needs: [w1]
+    status: done
+  - id: w3
+    summary: "Add warnings and policy controls for executable scripts and unsafe operations"
+    needs: [w2]
+    status: done
+  - id: w4
+    summary: "Build end-to-end test coverage and failure fixtures for bad manifests and unsafe sync cases"
+    needs: [w3]
+    status: done
+  - id: w5
+    summary: "Write operator docs, packaging, and release criteria for a credible v0 launch"
+    needs: [w4]
+    status: done
+metadata:
+  tags:
+    - "validation"
+    - "security"
+    - "trust"
+    - "release"
+  estimated_effort: "Large"
+  created_date: "2026-03-06"
+  last_updated: "2026-03-06T10:00:00-05:00"
+impact:
+  business_value: |
+    Shared skill distribution needs trust and diagnostics or teams will refuse
+    to adopt it broadly.
+  user_impact: |
+    Users get fast feedback when a skill is invalid, non-portable, unsafe, or
+    incompatible with the chosen target environment.
+  technical_debt: |
+    Strong validation and release criteria reduce regressions and make future
+    ecosystem expansion safer.
+files_affected:
+  added:
+    - "src/skillsync/validation/"
+    - "src/skillsync/security/"
+    - "tests/fixtures/invalid_skills/"
+    - "tests/integration/security/"
+    - "docs/security.md"
+    - "docs/release-v0.md"
+must_preserve:
+  - "Validation failures are explicit and actionable rather than generic parse errors"
+  - "Unsafe or untrusted sources cannot be installed silently"
+approach: |
+  Treat validation and trust as product features, not cleanup work after the
+  main implementation. Build them into install, sync, CLI status, and MCP read
+  paths so users see the same diagnostic story everywhere.
+anti_patterns:
+  - "DO NOT defer trust and provenance work until after broad source support lands — because that bakes unsafe defaults into the product — define trust policy hooks early"
+  - "DO NOT collapse all invalid skill failures into one generic error — because operators need to fix real path, schema, and compatibility problems — emit structured diagnostics"
+verification:
+  - description: "Invalid manifest and unsafe-source fixtures produce stable actionable diagnostics"
+    command: "uv run -- python -m pytest tests/integration/security tests/unit/validation -q"
+    expected_output: "Validation and security tests pass"
+  - description: "Release docs define the v0 support matrix, test gates, and known limitations"
+    command: "rg -n \"support matrix|known limitations|release criteria|trust\" docs/release-v0.md docs/security.md"
+    expected_output: "Release and security docs contain explicit launch criteria"
+scope_limit:
+  do_not_modify:
+    - "_project/TODO/"
+success_metrics:
+  - "Users can identify why a skill failed validation and how to fix it from one command output"
+  - "Every supported source is subject to explicit trust/provenance policy before install"
+notes: |
+  Files created: src/core/validator.ts, src/core/trust.ts, src/core/security.ts,
+  docs/security.md, docs/release-v0.md.
+  Tests: 137 pass, 0 fail (23 new tests: validator, trust, security, contract).
+  Validator contract test now passes (was previously skipped).
+  Portability scanner now excludes skillsync.meta.yaml (sync engine metadata with expected absolute paths).
+  TypeScript implementation (verification commands in TODO referenced Python — pre-decision artifact).

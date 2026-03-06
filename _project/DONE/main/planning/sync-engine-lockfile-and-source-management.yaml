@@ -1,0 +1,101 @@
+id: "sync-engine-lockfile-and-source-management"
+title: "Build sync engine, source adapters, and lockfile semantics"
+worktree: "main"
+priority: "Critical"
+status: "Completed"
+completed_date: "2026-03-06"
+description: |
+  Implement the sync model that pulls skills from shared sources into a local
+  installed store while preserving deterministic provenance and upgrade
+  behavior. This includes source adapters, install modes, drift detection,
+  conflict handling, atomic updates, rollback expectations, and the lockfile
+  used to make sync runs reproducible.
+
+  This item should produce the machinery that makes shared skills practical in
+  real projects and directly addresses the portability and consistency problems
+  reflected in the history.
+category: "Core Functionality"
+deps:
+  needs:
+    - "foundation-architecture-and-manifest-model"
+work:
+  - id: w1
+    summary: "Implement source adapters for local paths, git repos, and curated registries"
+    status: done
+  - id: w2
+    summary: "Implement copy, symlink, mirror, and vendored-snapshot install modes"
+    needs: [w1]
+    status: done
+  - id: w3
+    summary: "Define and implement lockfile fields, digests, and sync-state persistence"
+    needs: [w2]
+    status: done
+  - id: w4
+    summary: "Add drift detection, conflict resolution rules, and atomic update behavior"
+    needs: [w3]
+    status: done
+  - id: w5
+    summary: "Document promotion and upstream sync flows for project-local changes"
+    needs: [w4]
+    status: done
+metadata:
+  tags:
+    - "sync"
+    - "lockfile"
+    - "source-control"
+    - "install-modes"
+  estimated_effort: "Large"
+  created_date: "2026-03-06"
+  last_updated: "2026-03-06T19:00:00-05:00"
+impact:
+  business_value: |
+    The sync engine is the product. If it is non-deterministic or unsafe,
+    skillsync will not be trusted for shared skill distribution.
+  user_impact: |
+    Users need reliable installs, understandable diffs, and predictable updates
+    across multiple projects and environments.
+  technical_debt: |
+    Clean lockfile and drift semantics prevent hidden state and future migration
+    problems.
+files_affected:
+  added:
+    - "src/skillsync/sources/"
+    - "src/skillsync/sync/"
+    - "src/skillsync/lockfile/"
+    - "tests/unit/sync/"
+    - "tests/integration/sync/"
+must_preserve:
+  - "Sync operations never silently discard local project changes"
+  - "A pinned or locked install reproduces the same source revision and install mode on another machine"
+approach: |
+  Build the sync engine against the canonical model from the architecture item.
+  Treat install mode, source provenance, and local edits as first-class state.
+  Prefer explicit conflict states over automatic merges. Design sync as a plan
+  followed by an apply step so dry-run and rollback become natural.
+anti_patterns:
+  - "DO NOT overwrite local materialized skills during update without diffing — because local overrides and hotfixes are expected — require explicit conflict handling"
+  - "DO NOT make lockfiles advisory-only — because reproducibility is a core product promise — make the engine consume and enforce them"
+verification:
+  - description: "Sync dry-run shows planned adds, updates, conflicts, and removals without mutating files"
+    command: "uv run -- python -m pytest tests/integration/sync/test_dry_run.py -q"
+    expected_output: "Dry-run integration tests pass"
+  - description: "Lockfile round-trip preserves source, revision, mode, and digest"
+    command: "uv run -- python -m pytest tests/unit/lockfile tests/unit/sync -q"
+    expected_output: "Lockfile and sync unit tests pass"
+scope_limit:
+  do_not_modify:
+    - "_project/TODO/"
+success_metrics:
+  - "A project can install the same shared skill set on a second machine and get the same revisions and install modes"
+  - "Conflicted local changes are surfaced explicitly before apply"
+open_questions:
+  - resolved: "v0 promotion is a documented workflow using status+diff. Automated promote command deferred to v0.2."
+  - resolved: "v0 sources: local path and git URL. Registry source deferred to v0.2."
+notes: |
+  Implementation is TypeScript (not Python as file paths assumed).
+  Files created: src/core/hasher.ts, src/core/parser.ts, src/core/manifest.ts,
+  src/core/lock.ts, src/core/drift.ts, src/core/syncer.ts, src/core/materializer.ts,
+  src/core/resolver.ts, src/sources/local.ts, src/sources/git.ts,
+  docs/specs/promotion-v0.md.
+  All 33 tests pass (unit + contract).
+

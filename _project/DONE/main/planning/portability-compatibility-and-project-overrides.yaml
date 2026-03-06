@@ -1,0 +1,93 @@
+id: "portability-compatibility-and-project-overrides"
+title: "Design portability, agent compatibility, and project-specific override layering"
+worktree: "main"
+priority: "High"
+status: "Completed"
+completed_date: "2026-03-06"
+description: |
+  Solve the specific portability problem that drove this project: shared skills
+  must remain locally available and usable in environments that do not have
+  access to machine-global skill directories. This includes repo-local
+  materialization, compatibility mapping across agent ecosystems, and a clean
+  way for projects to inject local configuration into shared skills without
+  forking the entire skill body.
+
+  This work should define how shared, mirrored, local, and overridden skills
+  coexist and how a portable install differs from a symlink-oriented local
+  development install.
+category: "Core Functionality"
+deps:
+  needs:
+    - "foundation-architecture-and-manifest-model"
+    - "sync-engine-lockfile-and-source-management"
+work:
+  - id: w1
+    summary: "Define compatibility targets and adapter rules for Claude, Codex, and generic MCP-facing skills"
+    status: done
+  - id: w2
+    summary: "Design project-local config injection and override layering without full skill forks"
+    needs: [w1]
+    status: done
+  - id: w3
+    summary: "Implement portable materialization rules for web-safe and CI-safe skill installs"
+    needs: [w2]
+    status: done
+  - id: w4
+    summary: "Document fallback behavior when a target agent cannot support part of a skill package"
+    needs: [w3]
+    status: done
+metadata:
+  tags:
+    - "portability"
+    - "compatibility"
+    - "overrides"
+    - "configuration"
+  estimated_effort: "Medium"
+  created_date: "2026-03-06"
+  last_updated: "2026-03-06T10:00:00-05:00"
+impact:
+  business_value: |
+    Portability is the differentiator for skillsync. Shared skills are much
+    less valuable if they fail outside one local workstation setup.
+  user_impact: |
+    Users can reuse the same skills in local CLIs, CI, and web/remote contexts
+    without manually rebuilding wrappers for each environment.
+  technical_debt: |
+    A clean override model avoids duplicated skill trees and fragile patching.
+files_affected:
+  added:
+    - "docs/specs/compatibility-v0.md"
+    - "src/skillsync/adapters/"
+    - "tests/integration/portability/"
+must_preserve:
+  - "Portable installs do not depend on hidden machine-global directories at runtime"
+  - "Project-specific config can customize shared skills without mutating upstream shared source files"
+approach: |
+  Model portability as a first-class install target, not as a post-processing
+  hack. Keep compatibility adapters explicit so unsupported features can be
+  warned on rather than silently dropped. Make override layering data-driven
+  and diffable.
+anti_patterns:
+  - "DO NOT make portability depend on symlinks into home-directory skill stores — because web and CI contexts cannot rely on those paths — materialize portable installs inside the project"
+  - "DO NOT require full copies of upstream skills for minor path or target overrides — because that creates divergence — support narrow local override layers"
+verification:
+  - description: "Portable install integration tests prove no runtime dependency on home-directory skill roots"
+    command: "uv run -- python -m pytest tests/integration/portability -q"
+    expected_output: "Portability integration tests pass"
+  - description: "Compatibility adapters preserve required metadata across supported targets"
+    command: "uv run -- python -m pytest tests/unit/adapters -q"
+    expected_output: "Adapter unit tests pass"
+scope_limit:
+  do_not_modify:
+    - "_project/TODO/"
+success_metrics:
+  - "A portable project checkout can use installed skills without access to ~/.claude or ~/.codex"
+  - "Local config overrides are represented as explicit layered state rather than manual post-edit drift"
+open_questions:
+  - resolved: "Structured parameter injection via project-config.yaml. Templating/patches deferred to v0.2."
+  - resolved: "Warnings by default; errors only for explicit incompatibility declarations. Never silently drop content."
+notes: |
+  Files created: src/core/compatibility.ts, src/core/config-generator.ts,
+  src/core/portability.ts, docs/specs/compatibility-v0.md.
+  Tests: 51 pass, 0 fail (18 new tests for compatibility, config-generator, portability).
+

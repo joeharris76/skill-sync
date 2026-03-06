@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "lockedAt": "2026-03-06T10:30:00Z",
+  "skills": {
+    "code": {
+      "source": {
+        "type": "local",
+        "name": "personal",
+        "path": "/Users/test/.claude/skills/code",
+        "fetchedAt": "2026-03-06T10:00:00Z"
+      },
+      "installMode": "mirror",
+      "files": {
+        "SKILL.md": {
+          "sha256": "aaaabbbbcccc1111222233334444555566667777888899990000aaaabbbbcccc",
+          "size": 4210
+        },
+        "skillsync.meta.yaml": {
+          "sha256": "ddddeeeeffff1111222233334444555566667777888899990000ddddeeeeffff",
+          "size": 312
+        }
+      }
+    }
+  }
+}
+

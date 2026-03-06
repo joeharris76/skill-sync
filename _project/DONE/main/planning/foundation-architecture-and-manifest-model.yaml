@@ -1,0 +1,94 @@
+id: "foundation-architecture-and-manifest-model"
+title: "Define skillsync foundation architecture and canonical skill manifest"
+worktree: "main"
+priority: "Critical"
+status: "Completed"
+completed_date: "2026-03-06"
+description: |
+  Define the core product model for skillsync before implementation starts.
+  This item covers the canonical skill package shape, repository layout,
+  metadata/manifest structure, local store model, source abstraction, and the
+  shared library boundaries that will be used by both the CLI and MCP server.
+
+  The output should be a concrete v0 spec that eliminates ambiguity around how
+  skills are represented, discovered, materialized locally, and adapted across
+  agent environments. It should also define what belongs in the core library
+  versus the CLI and MCP layers so those surfaces stay behaviorally aligned.
+category: "Core Functionality"
+work:
+  - id: w1
+    summary: "Define the canonical skill package contents and directory layout"
+    status: done
+  - id: w2
+    summary: "Specify the manifest schema, required metadata, and compatibility fields"
+    needs: [w1]
+    status: done
+  - id: w3
+    summary: "Design the local installed-store model and source abstraction interfaces"
+    needs: [w2]
+    status: done
+  - id: w4
+    summary: "Write the v0 architecture spec covering core library, CLI, and MCP boundaries"
+    needs: [w3]
+    status: done
+metadata:
+  tags:
+    - "architecture"
+    - "manifest"
+    - "packaging"
+    - "v0"
+  estimated_effort: "Large"
+  created_date: "2026-03-06"
+  last_updated: "2026-03-06T18:00:00-05:00"
+impact:
+  business_value: |
+    A precise package and architecture model is the prerequisite for every
+    other feature. Without it, sync semantics, compatibility behavior, and MCP
+    exposure will drift and become expensive to change.
+  user_impact: |
+    Users need skill installs and updates to be predictable and inspectable.
+    A canonical manifest is what makes that possible.
+  technical_debt: |
+    Locking the model early reduces future migration pain across install modes,
+    multiple agents, and local override behavior.
+files_affected:
+  added:
+    - "docs/specs/architecture-v0.md"
+    - "docs/specs/manifest-v0.md"
+    - "src/skillsync/models/"
+    - "src/skillsync/core/"
+must_preserve:
+  - "The same core skill representation can power both CLI and MCP behaviors without duplicate business logic"
+  - "Installed skills remain local, inspectable files rather than opaque database-only state"
+approach: |
+  Start from the observed problems in the prompt history: portability, shared
+  source of truth, local materialization, project-specific config injection,
+  and cross-agent compatibility. Design the manifest around those needs rather
+  than around one existing vendor format. Separate the neutral internal model
+  from import/export adapters for Claude-, Codex-, or MCP-specific views.
+anti_patterns:
+  - "DO NOT make the CLI manifest format identical to a single vendor's wrapper format — because that couples the project to one agent model — define an internal canonical model and add adapters"
+  - "DO NOT hide installed state in an internal-only cache — because users need local portability and debuggability — store canonical materialized files plus explicit sync metadata"
+verification:
+  - description: "Architecture and manifest specs cover package layout, install modes, compatibility metadata, source metadata, and local-store rules"
+    command: "rg -n \"install mode|compatibility|source|local store|manifest\" docs/specs/architecture-v0.md docs/specs/manifest-v0.md"
+    expected_output: "Spec files explicitly define each required concept"
+  - description: "Core models and architecture docs remain aligned"
+    command: "uv run -- python -m pytest tests/unit/models tests/unit/core -q"
+    expected_output: "Model and core-library tests pass"
+scope_limit:
+  do_not_modify:
+    - "_project/TODO/"
+success_metrics:
+  - "A new contributor can answer what a skill package is, how it is installed, and where sync state lives by reading one spec"
+  - "The same model can represent shared, local, mirrored, and overridden skills without ad hoc exceptions"
+open_questions:
+  - resolved: "Sidecar file (skillsync.meta.yaml). SKILL.md frontmatter is never modified."
+  - resolved: "References validated (existence). Scripts tracked + trust policy. Assets passthrough."
+notes: |
+  Language decision: TypeScript (not Python as originally assumed in file paths).
+  Actual files created: docs/specs/manifest-v0.md, docs/specs/architecture-v0.md,
+  src/core/types.ts, src/core/index.ts, src/index.ts, package.json, tsconfig.json.
+  The verification command referencing Python pytest will not apply; TypeScript
+  type-checking (tsc --noEmit) passes cleanly.
+

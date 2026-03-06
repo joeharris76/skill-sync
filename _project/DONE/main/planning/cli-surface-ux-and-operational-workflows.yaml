@@ -1,0 +1,90 @@
+id: "cli-surface-ux-and-operational-workflows"
+title: "Design and implement the skillsync CLI surface and operational workflows"
+worktree: "main"
+priority: "High"
+status: "Completed"
+completed_date: "2026-03-06"
+description: |
+  Build the end-user CLI around the sync engine so common workflows are easy to
+  understand and safe to execute. The CLI should expose installation, sync,
+  status, diff, validation, pinning, pruning, and diagnostic flows with a UX
+  that makes local/shared state legible instead of hiding it.
+
+  This item also covers dry-run behavior, machine-readable output, and help
+  text that makes the install modes and portability model understandable to a
+  new user.
+category: "Core Functionality"
+deps:
+  needs:
+    - "foundation-architecture-and-manifest-model"
+    - "sync-engine-lockfile-and-source-management"
+    - "portability-compatibility-and-project-overrides"
+work:
+  - id: w1
+    summary: "Define the command set, argument model, and machine-readable output contract"
+    status: done
+  - id: w2
+    summary: "Implement install, sync, status, diff, and validate commands on top of the core library"
+    needs: [w1]
+    status: done
+  - id: w3
+    summary: "Implement doctor, pin, unpin, prune, and promotion-oriented workflows"
+    needs: [w2]
+    status: done
+  - id: w4
+    summary: "Add help text, examples, and snapshot tests for user-facing CLI output"
+    needs: [w3]
+    status: done
+metadata:
+  tags:
+    - "cli"
+    - "ux"
+    - "operations"
+    - "status"
+  estimated_effort: "Large"
+  created_date: "2026-03-06"
+  last_updated: "2026-03-06T10:00:00-05:00"
+impact:
+  business_value: |
+    The CLI is the primary operator interface. If it is confusing, the sync
+    model will be perceived as risky even if the core logic is sound.
+  user_impact: |
+    Users need straightforward commands for common flows and clear explanations
+    when installs are drifted, conflicted, or partially portable.
+files_affected:
+  added:
+    - "src/skillsync/cli/"
+    - "tests/integration/cli/"
+    - "docs/cli.md"
+must_preserve:
+  - "CLI commands reflect the real sync state rather than cached or inferred approximations"
+  - "Dry-run and diff commands are safe and do not mutate project files"
+approach: |
+  Keep the CLI thin over core operations and reuse the same planning/apply
+  semantics exposed by the sync engine. Favor commands that map directly to
+  user mental models from the history: sync from shared source, inspect drift,
+  keep local usage consistent across projects, and validate portability.
+anti_patterns:
+  - "DO NOT implement CLI-only business logic that bypasses the core sync engine — because MCP and tests will diverge — put logic in shared library layers"
+  - "DO NOT rely on colorful prose instead of structured status states — because users need actionable diagnostics — emit explicit state categories and optional JSON output"
+verification:
+  - description: "CLI help covers core commands and explains install modes and portability constraints"
+    command: "uv run -- python -m skillsync --help"
+    expected_output: "Help lists install, sync, status, diff, validate, doctor, pin, unpin, prune, and promote-related commands"
+  - description: "CLI integration tests cover success, drift, conflict, and dry-run flows"
+    command: "uv run -- python -m pytest tests/integration/cli -q"
+    expected_output: "CLI integration tests pass"
+scope_limit:
+  do_not_modify:
+    - "_project/TODO/"
+success_metrics:
+  - "A new user can install and sync shared skills safely using only CLI help and examples"
+  - "JSON output is sufficient for automation and editor integrations"
+notes: |
+  Files created: src/cli/index.ts, src/cli/types.ts, src/cli/parse.ts, src/cli/output.ts,
+  src/cli/source-factory.ts, src/cli/commands/{sync,status,validate,diff,doctor,pin,prune,promote}.ts.
+  Tests: 79 pass, 0 fail (25 new CLI tests: parse, output, commands, contract satisfaction).
+  Commands: sync, status, validate, diff, doctor, pin, unpin, prune, promote.
+  All support --json for machine-readable output. No external arg parsing deps (uses manual parser).
+  TypeScript implementation (verification commands in TODO referenced Python — pre-decision artifact).
+

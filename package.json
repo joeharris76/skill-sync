@@ -1,0 +1,43 @@
+{
+  "name": "skillsync",
+  "version": "0.0.1",
+  "description": "Local-first skill distribution system for AI agents",
+  "type": "module",
+  "bin": {
+    "skillsync": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./core": "./dist/core/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "check": "tsc --noEmit",
+    "lint": "biome check src/"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "agent",
+    "skills",
+    "mcp",
+    "sync",
+    "claude",
+    "codex"
+  ],
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "yaml": "^2.8.2"
+  }
+}

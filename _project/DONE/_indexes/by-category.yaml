@@ -1,0 +1,39 @@
+generated_at: '2026-03-06T14:51:08.536432'
+total_categories: 2
+categories:
+  Core Functionality:
+    count: 5
+    items:
+    - id: sync-engine-lockfile-and-source-management
+      file: DONE/main/planning/sync-engine-lockfile-and-source-management.yaml
+      title: Build sync engine, source adapters, and lockfile semantics
+      priority: Critical
+      status: Completed
+    - id: mcp-server-resource-and-tool-surface
+      file: DONE/main/planning/mcp-server-resource-and-tool-surface.yaml
+      title: Build the MCP server resource, prompt, and tool surface for synced skills
+      priority: High
+      status: Completed
+    - id: foundation-architecture-and-manifest-model
+      file: DONE/main/planning/foundation-architecture-and-manifest-model.yaml
+      title: Define skillsync foundation architecture and canonical skill manifest
+      priority: Critical
+      status: Completed
+    - id: cli-surface-ux-and-operational-workflows
+      file: DONE/main/planning/cli-surface-ux-and-operational-workflows.yaml
+      title: Design and implement the skillsync CLI surface and operational workflows
+      priority: High
+      status: Completed
+    - id: portability-compatibility-and-project-overrides
+      file: DONE/main/planning/portability-compatibility-and-project-overrides.yaml
+      title: Design portability, agent compatibility, and project-specific override layering
+      priority: High
+      status: Completed
+  Testing and Quality Assurance:
+    count: 1
+    items:
+    - id: validation-trust-security-and-release-readiness
+      file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml
+      title: Add validation, trust controls, security checks, and release readiness
+      priority: High
+      status: Completed

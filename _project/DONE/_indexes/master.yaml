@@ -1,0 +1,124 @@
+generated_at: '2026-03-06T14:51:08.536423'
+total_items: 6
+items:
+- id: sync-engine-lockfile-and-source-management
+  file: DONE/main/planning/sync-engine-lockfile-and-source-management.yaml
+  title: Build sync engine, source adapters, and lockfile semantics
+  worktree: main
+  category: Core Functionality
+  priority: Critical
+  status: Completed
+  tags:
+  - sync
+  - lockfile
+  - source-control
+  - install-modes
+  estimated_effort: Large
+  completed_date: '2026-03-06'
+  work_total: 5
+  work_done: 5
+  work_ready: 0
+  needs:
+  - foundation-architecture-and-manifest-model
+- id: foundation-architecture-and-manifest-model
+  file: DONE/main/planning/foundation-architecture-and-manifest-model.yaml
+  title: Define skillsync foundation architecture and canonical skill manifest
+  worktree: main
+  category: Core Functionality
+  priority: Critical
+  status: Completed
+  tags:
+  - architecture
+  - manifest
+  - packaging
+  - v0
+  estimated_effort: Large
+  completed_date: '2026-03-06'
+  work_total: 4
+  work_done: 4
+  work_ready: 0
+- id: validation-trust-security-and-release-readiness
+  file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml
+  title: Add validation, trust controls, security checks, and release readiness
+  worktree: main
+  category: Testing and Quality Assurance
+  priority: High
+  status: Completed
+  tags:
+  - validation
+  - security
+  - trust
+  - release
+  estimated_effort: Large
+  completed_date: '2026-03-06'
+  work_total: 5
+  work_done: 5
+  work_ready: 0
+  needs:
+  - foundation-architecture-and-manifest-model
+  - sync-engine-lockfile-and-source-management
+  - portability-compatibility-and-project-overrides
+  - cli-surface-ux-and-operational-workflows
+  - mcp-server-resource-and-tool-surface
+- id: mcp-server-resource-and-tool-surface
+  file: DONE/main/planning/mcp-server-resource-and-tool-surface.yaml
+  title: Build the MCP server resource, prompt, and tool surface for synced skills
+  worktree: main
+  category: Core Functionality
+  priority: High
+  status: Completed
+  tags:
+  - mcp
+  - resources
+  - prompts
+  - tools
+  estimated_effort: Large
+  completed_date: '2026-03-06'
+  work_total: 4
+  work_done: 4
+  work_ready: 0
+  needs:
+  - foundation-architecture-and-manifest-model
+  - sync-engine-lockfile-and-source-management
+  - cli-surface-ux-and-operational-workflows
+- id: cli-surface-ux-and-operational-workflows
+  file: DONE/main/planning/cli-surface-ux-and-operational-workflows.yaml
+  title: Design and implement the skillsync CLI surface and operational workflows
+  worktree: main
+  category: Core Functionality
+  priority: High
+  status: Completed
+  tags:
+  - cli
+  - ux
+  - operations
+  - status
+  estimated_effort: Large
+  completed_date: '2026-03-06'
+  work_total: 4
+  work_done: 4
+  work_ready: 0
+  needs:
+  - foundation-architecture-and-manifest-model
+  - sync-engine-lockfile-and-source-management
+  - portability-compatibility-and-project-overrides
+- id: portability-compatibility-and-project-overrides
+  file: DONE/main/planning/portability-compatibility-and-project-overrides.yaml
+  title: Design portability, agent compatibility, and project-specific override layering
+  worktree: main
+  category: Core Functionality
+  priority: High
+  status: Completed
+  tags:
+  - portability
+  - compatibility
+  - overrides
+  - configuration
+  estimated_effort: Medium
+  completed_date: '2026-03-06'
+  work_total: 4
+  work_done: 4
+  work_ready: 0
+  needs:
+  - foundation-architecture-and-manifest-model
+  - sync-engine-lockfile-and-source-management

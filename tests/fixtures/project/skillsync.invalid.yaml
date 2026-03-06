@@ -1,0 +1,11 @@
+version: 1
+sources:
+  - name: personal
+    type: local
+skills:
+  - code
+targets:
+  claude: .claude/skills
+config: {}
+overrides: {}
+
