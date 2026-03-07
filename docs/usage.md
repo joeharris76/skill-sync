@@ -42,10 +42,17 @@ config:
 
 Sync and verify:
 
+**CLI:**
 ```bash
 skillsync sync
 skillsync status
 ```
+
+**Via agent** (with the MCP server configured):
+
+> "What skills do I have installed?"
+
+> "Are any of my skills out of sync?"
 
 Claude Code automatically discovers skills from `.claude/skills/` -- no
 additional configuration required.
@@ -66,21 +73,24 @@ programmatically. Add it to your Claude Code MCP configuration:
 }
 ```
 
-This exposes:
+Once configured, ask your agent directly:
 
-| Surface | Example | Description |
-|---------|---------|-------------|
-| Resource | `skill://list` | List all installed skills |
-| Resource | `skill://code` | Read a skill's SKILL.md |
-| Tool | `search-skills` | Search skills by keyword |
-| Tool | `skill-status` | Check install health and drift |
-| Prompt | `use-skill` | Load a skill's instructions |
+> "What skills do I have installed?"
+
+> "Find skills related to testing."
+
+> "Show me the instructions for the code skill."
+
+> "Are any of my skills out of sync or have portability issues?"
+
+> "Use the commit skill to help me write this commit message."
 
 ### Checking Drift After Editing Skills
 
 If you modify an installed skill locally (e.g., tweaking instructions), check
 what changed:
 
+**CLI:**
 ```bash
 skillsync status
 ```
@@ -92,13 +102,19 @@ Target: claude (.claude/skills)
   docs         clean
 ```
 
-To preview what sync would overwrite:
+**Via agent** (with the MCP server configured):
+
+> "Which of my skills have been modified locally?"
+
+> "Show me the drift status for all my installed skills."
+
+To preview what sync would overwrite (CLI only -- sync is not available via MCP in v0):
 
 ```bash
 skillsync diff
 ```
 
-To promote your local changes back to the shared source:
+To promote your local changes back to the shared source (CLI only):
 
 ```bash
 skillsync promote
@@ -120,6 +136,12 @@ In CI, ensure skills are portable and intact:
 
 Use `mirror` install mode (the default) for CI -- `symlink` mode is not
 portable across machines.
+
+The same checks are available via agent prompts for MCP-integrated pipelines:
+
+> "Validate all installed skills and tell me if anything fails."
+
+> "Check whether any skills have portability issues or compatibility warnings."
 
 ---
 
@@ -210,9 +232,14 @@ skill content is written to both targets -- only the destination path differs.
 
 Check compatibility for both targets:
 
+**CLI:**
 ```bash
 skillsync validate
 ```
+
+**Via agent:**
+
+> "Validate my skills and check for any compatibility issues between Claude and Codex."
 
 If a skill uses features one target doesn't support (e.g., `allowed-tools`
 in Claude Code that Codex ignores), skillsync reports a diagnostic warning
@@ -283,6 +310,7 @@ team repo when ready.
 
 ### Day-to-Day Workflow
 
+**CLI:**
 ```bash
 # Morning: pull latest team skills
 skillsync sync
@@ -303,6 +331,17 @@ skillsync pin code
 skillsync prune --dry-run
 skillsync prune
 ```
+
+**Via agent** (for the read-only steps):
+
+> "Which of my skills have drifted from their source?"
+
+> "Do any of my installed skills have portability or compatibility problems?"
+
+> "Find me a skill that helps with code review."
+
+Sync, pin, prune, and promote are CLI-only in v0 -- the MCP server is
+read-only.
 
 ### JSON Output for Scripting
 

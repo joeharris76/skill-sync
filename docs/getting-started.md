@@ -75,6 +75,7 @@ syncs are deterministic.
 
 ## Verify the Install
 
+**CLI:**
 ```bash
 # Check manifest, portability, and installed state
 skillsync validate
@@ -82,6 +83,14 @@ skillsync validate
 # Full health diagnostics
 skillsync doctor
 ```
+
+**Via agent** (when the MCP server is configured, ask your agent directly):
+
+> "Validate my installed skills and report any issues."
+
+> "Are any of my skills out of sync or missing files?"
+
+See [MCP Server](mcp.md) for setup instructions.
 
 ## Multi-Target Setup (Claude Code + Codex)
 
