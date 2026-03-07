@@ -9,11 +9,12 @@ When you refine a skill in-project (fixing a bug, adding a reference, tuning
 instructions), that change lives only in the project's installed store. Without
 promotion, the canonical source gets stale and other projects never benefit.
 
-## v0 Approach: Documented Workflow, Not Automation
+## v0 Approach: Manual Guidance via `skillsync promote`
 
-For v0, promotion is a **documented manual workflow** built on top of
-`skillsync status` and `skillsync diff` output. Full automated promotion
-(with conflict resolution and multi-project propagation) is deferred to v0.2.
+In v0, the `skillsync promote` command exists but provides **manual guidance**
+rather than automation. It prints the steps for manually copying changes back
+to the canonical source. Full automated promotion (with conflict resolution
+and multi-project propagation) is deferred to v0.2.
 
 ### Rationale
 
@@ -87,9 +88,9 @@ skillsync sync
 
 This pulls the promoted changes into each project.
 
-## Future: `skillsync promote` (v0.2+)
+## Future: Automated `skillsync promote` (v0.2+)
 
-The planned `promote` command will automate the workflow above:
+The `promote` command will be extended to automate the workflow above:
 
 ```bash
 skillsync promote test
