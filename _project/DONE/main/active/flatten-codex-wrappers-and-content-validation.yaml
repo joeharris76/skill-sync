@@ -2,7 +2,7 @@ id: "flatten-codex-wrappers-and-content-validation"
 title: "Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes"
 worktree: "main"
 priority: "High"
-status: "In Progress"
+status: "Completed"
 description: |
   SkillSync materializes identical skill content to all configured agent targets
   (Claude, Codex). The user's actual Codex setup uses a dual-layer wrapper pattern:
@@ -33,7 +33,7 @@ deps:
 work:
   - id: w1
     summary: "Audit current Codex wrapper content and map delegation targets"
-    status: not-started
+    status: done
     details: |
       External to this repo. For each Codex wrapper in BenchBox and Oxbow:
       - Read wrapper SKILL.md, extract: delegation target path, added instructions
@@ -48,7 +48,7 @@ work:
 
   - id: w2a
     summary: "Reconcile shared skills: blog, code, test"
-    status: not-started
+    status: done
     needs: [w1]
     details: |
       External to this repo. For blog, code, and test:
@@ -61,7 +61,7 @@ work:
 
   - id: w2b
     summary: "Reconcile shared skills: docs, todo"
-    status: not-started
+    status: done
     needs: [w1]
     details: |
       External to this repo. For docs and todo:
@@ -74,7 +74,7 @@ work:
 
   - id: w2c
     summary: "Reconcile agent-specific skills: benchbox, substack, project-todo-sync"
-    status: not-started
+    status: done
     needs: [w1]
     details: |
       External to this repo. For agent-specific skills:
@@ -88,7 +88,7 @@ work:
 
   - id: w3
     summary: "Create skillsync.meta.yaml sidecars for all canonical skills"
-    status: not-started
+    status: done
     needs: [w2a, w2b, w2c]
     details: |
       External to this repo. For each canonical skill, create skillsync.meta.yaml with:
@@ -102,7 +102,7 @@ work:
 
   - id: w4
     summary: "Create skillsync.yaml manifests for global, BenchBox, and Oxbow"
-    status: not-started
+    status: done
     needs: [w3]
     details: |
       External to this repo. Create three manifest files:
@@ -130,7 +130,7 @@ work:
 
   - id: w5
     summary: "Remove Codex wrapper files and shared-skills directories"
-    status: not-started
+    status: done
     needs: [w4]
     details: |
       External to this repo. After manifests are in place and `skillsync sync --dry-run`
@@ -222,7 +222,7 @@ work:
 
   - id: w9
     summary: "Run full sync on all three scopes and verify clean state"
-    status: not-started
+    status: done
     needs: [w5, w8]
     details: |
       Integration validation (external to this repo):
@@ -266,6 +266,7 @@ metadata:
   estimated_effort: "Large"
   created_date: "2026-03-07"
   last_updated: "2026-03-07"
+completed_date: "2026-03-07"
 impact:
   business_value: |
     Enables skillsync to actually manage the user's real skill infrastructure.

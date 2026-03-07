@@ -1,6 +1,24 @@
-generated_at: '2026-03-07T08:41:27.183653'
-total_items: 7
+generated_at: '2026-03-07T11:49:00'
+total_items: 8
 items:
+- id: flatten-codex-wrappers-and-content-validation
+  file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
+  title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
+  worktree: main
+  category: Feature
+  priority: High
+  status: Completed
+  tags:
+  - codex
+  - sync-safety
+  - content-validation
+  - multi-agent
+  estimated_effort: Large
+  completed_date: '2026-03-07'
+  work_total: 11
+  work_done: 11
+  work_ready: 0
+  deferred_count: 3
 - id: sync-engine-lockfile-and-source-management
   file: DONE/main/planning/sync-engine-lockfile-and-source-management.yaml
   title: Build sync engine, source adapters, and lockfile semantics

@@ -1,11 +1,3 @@
-generated_at: '2026-03-07T08:49:31.243285'
-total_categories: 1
-categories:
-  Feature:
-    count: 1
-    items:
-    - id: flatten-codex-wrappers-and-content-validation
-      file: TODO/main/active/flatten-codex-wrappers-and-content-validation.yaml
-      title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
-      priority: High
-      status: In Progress
+generated_at: '2026-03-07T11:49:00'
+total_categories: 0
+categories: {}

@@ -1,9 +1,14 @@
-generated_at: '2026-03-07T08:41:27.183671'
-total_items: 7
+generated_at: '2026-03-07T11:49:00'
+total_items: 8
 statuses:
   Completed:
-    count: 7
+    count: 8
     items:
+    - id: flatten-codex-wrappers-and-content-validation
+      file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
+      title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
+      priority: High
+      category: Feature
     - id: validation-trust-security-and-release-readiness
       file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml
       title: Add validation, trust controls, security checks, and release readiness

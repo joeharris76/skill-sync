@@ -1,5 +1,5 @@
-generated_at: '2026-03-07T08:41:27.183668'
-total_items: 7
+generated_at: '2026-03-07T11:49:00'
+total_items: 8
 priorities:
   Critical:
     count: 2
@@ -15,8 +15,13 @@ priorities:
       category: Core Functionality
       status: Completed
   High:
-    count: 5
+    count: 6
     items:
+    - id: flatten-codex-wrappers-and-content-validation
+      file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
+      title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
+      category: Feature
+      status: Completed
     - id: validation-trust-security-and-release-readiness
       file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml
       title: Add validation, trust controls, security checks, and release readiness
