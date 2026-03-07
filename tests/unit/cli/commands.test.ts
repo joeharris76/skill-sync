@@ -102,6 +102,64 @@ describe("runCli", () => {
     expect(result.stderr).toContain("Usage");
   });
 
+  it("pin stores the locked git revision in manifest overrides", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-pin-"));
+    await writeFile(
+      join(projectRoot, "skillsync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: team",
+        "    type: git",
+        "    url: https://example.com/skills.git",
+        "    ref: main",
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skillsync.lock"),
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: "2026-03-07T10:00:00Z",
+          skills: {
+            code: {
+              source: {
+                type: "git",
+                name: "team",
+                url: "https://example.com/skills.git",
+                ref: "main",
+                revision: "abc123def456",
+                fetchedAt: "2026-03-07T10:00:00Z",
+              },
+              installMode: "mirror",
+              files: {
+                "SKILL.md": { sha256: "sha", size: 10 },
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const result = await runCli(["pin", "code", "--project", projectRoot]);
+    const manifest = await readFile(join(projectRoot, "skillsync.yaml"), "utf8");
+
+    expect(result.exitCode).toBe(0);
+    expect(manifest).toContain("source_name: team");
+    expect(manifest).toContain("revision: abc123def456");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
   it("validate fails on unimplemented registry sources", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-validate-"));
     await writeFile(
@@ -190,6 +248,138 @@ describe("runCli", () => {
     expect(await readFile(join(projectRoot, ".codex/skills/code/SKILL.md"), "utf8")).toContain("name: code");
     expect(await readFile(join(projectRoot, ".claude/skills/project-config.yaml"), "utf8")).toContain("verify: npm run test:run");
     expect(await readFile(join(projectRoot, ".codex/skills/project-config.yaml"), "utf8")).toContain("verify: npm run test:run");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync --force overwrites conflicting skills", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-force-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(
+      join(skillRoot, "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "", "# Code v2 (upstream)"].join("\n"),
+      "utf8",
+    );
+
+    // Pre-create installed skill with local modifications
+    const claudeSkillDir = join(projectRoot, ".claude/skills/code");
+    await mkdir(claudeSkillDir, { recursive: true });
+    await writeFile(join(claudeSkillDir, "SKILL.md"), "# Code v1 (locally modified)\n", "utf8");
+
+    await writeFile(
+      join(projectRoot, "skillsync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        `    type: local`,
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "install_mode: mirror",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    // Create lock with different hash than what's on disk (triggers drift)
+    // and different from source (triggers upstream change)
+    await writeFile(
+      join(projectRoot, "skillsync.lock"),
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: "2026-03-07T10:00:00Z",
+          skills: {
+            code: {
+              source: { type: "local", name: "local", fetchedAt: "2026-03-06T10:00:00Z" },
+              installMode: "mirror",
+              files: {
+                "SKILL.md": { sha256: "original-lock-hash", size: 10 },
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    // Without --force: should block
+    const blocked = await runCli(["sync", "--project", projectRoot]);
+    expect(blocked.exitCode).toBe(1);
+    expect(blocked.stderr).toContain("conflict");
+    expect(blocked.stderr).toContain("skillsync promote");
+
+    // With --force: should succeed and overwrite
+    const forced = await runCli(["sync", "--force", "--project", projectRoot]);
+    expect(forced.exitCode).toBe(0);
+    const installed = await readFile(join(projectRoot, ".claude/skills/code/SKILL.md"), "utf8");
+    expect(installed).toContain("Code v2 (upstream)");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync conflict --json includes conflicts array and promote guidance", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-conflict-json-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(
+      join(skillRoot, "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "", "# Code v2"].join("\n"),
+      "utf8",
+    );
+
+    const claudeSkillDir = join(projectRoot, ".claude/skills/code");
+    await mkdir(claudeSkillDir, { recursive: true });
+    await writeFile(join(claudeSkillDir, "SKILL.md"), "# Locally modified\n", "utf8");
+
+    await writeFile(
+      join(projectRoot, "skillsync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        `    type: local`,
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    await writeFile(
+      join(projectRoot, "skillsync.lock"),
+      JSON.stringify({
+        version: 1,
+        lockedAt: "2026-03-07T10:00:00Z",
+        skills: {
+          code: {
+            source: { type: "local", name: "local", fetchedAt: "2026-03-06T10:00:00Z" },
+            installMode: "mirror",
+            files: { "SKILL.md": { sha256: "original-hash", size: 10 } },
+          },
+        },
+      }, null, 2),
+      "utf8",
+    );
+
+    const result = await runCli(["sync", "--json", "--project", projectRoot]);
+    expect(result.exitCode).toBe(1);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed.error).toBe("conflicts");
+    expect(parsed.conflicts).toHaveLength(1);
+    expect(parsed.conflicts[0].name).toBe("code");
+    expect(result.stderr).toContain("skillsync promote");
 
     await rm(projectRoot, { recursive: true, force: true });
   });
