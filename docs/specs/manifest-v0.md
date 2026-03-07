@@ -350,19 +350,31 @@ manifest's `config` section into a format that skills can read at runtime. It is
 
 SkillSync validates installed skills against these rules:
 
+| Rule | Severity | Status | Description |
+|------|----------|--------|-------------|
+| `skill-md-required` | Error | Enforced | Skill directory must contain SKILL.md |
+| `frontmatter-valid` | Error | Enforced | YAML frontmatter parses without error |
+| `description-required` | Error | Enforced | Non-empty description in frontmatter |
+| `no-absolute-paths` | Error | Enforced | No absolute paths or `~/` in SKILL.md body (via portability checker) |
+| `empty-package` | Error | Enforced | Skill package must contain at least one file |
+| `name-format` | Error | Planned | Name matches `^[a-z0-9]+(-[a-z0-9]+)*$`, max 64 chars |
+| `description-length` | Warning | Planned | Description exceeds 1024 chars |
+| `references-exist` | Error | Planned | All referenced files in `references/` exist |
+| `scripts-exist` | Warning | Planned | All referenced scripts in `scripts/` exist |
+| `depends-resolvable` | Error | At sync | Checked by resolver during sync, not by standalone validation |
+| `config-inputs-typed` | Warning | Planned | Config inputs have type and description |
+| `no-reserved-names` | Error | Planned | Skill name is not a reserved word |
+
+Additionally, `validateManifest()` enforces:
+
 | Rule | Severity | Description |
 |------|----------|-------------|
-| `skill-md-required` | Error | Skill directory must contain SKILL.md |
-| `name-format` | Error | Name matches `^[a-z0-9]+(-[a-z0-9]+)*$`, max 64 chars |
-| `description-required` | Error | Non-empty description in frontmatter |
-| `description-length` | Warning | Description exceeds 1024 chars |
-| `no-absolute-paths` | Error | No absolute paths or `~/` in SKILL.md body |
-| `references-exist` | Error | All referenced files in `references/` exist |
-| `scripts-exist` | Warning | All referenced scripts in `scripts/` exist |
-| `depends-resolvable` | Error | All `depends` entries resolve to available skills |
-| `config-inputs-typed` | Warning | Config inputs have type and description |
-| `frontmatter-valid` | Error | YAML frontmatter parses without error |
-| `no-reserved-names` | Error | Skill name is not a reserved word |
+| `manifest-read-error` | Error | Manifest file must be readable |
+| `manifest-parse-error` | Error | Manifest YAML must parse with required fields |
+| `no-sources` | Warning | At least one source should be defined |
+| `no-skills` | Warning | At least one skill should be listed |
+| `no-targets` | Error | At least one target must be defined |
+| `non-portable-install-mode` | Warning | Default install mode should be portable (copy or mirror) |
 
 ---
 
