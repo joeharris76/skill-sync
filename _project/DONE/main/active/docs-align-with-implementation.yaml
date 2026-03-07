@@ -1,0 +1,136 @@
+id: "docs-align-with-implementation"
+title: "Align all documentation with the actual v0 implementation"
+worktree: "main"
+priority: "High"
+status: "Completed"
+completed_date: "2026-03-07"
+description: |
+  Documentation was written during the planning phase and never updated after
+  implementation. There are 14 identified gaps across 4 severity levels: docs
+  reference 5 CLI commands that don't exist, 3 core modules that were never
+  created, and a source adapter that isn't implemented. The MCP doc is
+  aspirational while the code is concrete. The README still says the project
+  is "in planning mode" despite being feature-complete with 137 passing tests.
+
+  Gap analysis performed 2026-03-07: 5 phantom CLI commands (install, init,
+  check, list, serve), 3 phantom core modules (promoter.ts, store.ts,
+  profile.ts), aspirational MCP docs, stale README, architecture tree mismatch.
+category: "Documentation"
+deps:
+  needs: []
+work:
+  - id: w1
+    summary: "Update README.md: remove 'planning mode', fix command list, convert absolute paths to relative"
+    status: done
+    files:
+      - README.md
+
+  - id: w2
+    summary: "Rewrite docs/specs/architecture-v0.md module tree to match actual codebase"
+    status: done
+    files:
+      - docs/specs/architecture-v0.md
+
+  - id: w3
+    summary: "Rewrite docs/mcp.md with actual implemented MCP surface"
+    status: done
+    files:
+      - docs/mcp.md
+
+  - id: w4
+    summary: "Update docs/cli.md to document actual 9 commands with flags and examples"
+    status: done
+    files:
+      - docs/cli.md
+
+  - id: w5
+    summary: "Update docs/specs/promotion-v0.md to clarify v0 behavior"
+    status: done
+    needs: [w4]
+    files:
+      - docs/specs/promotion-v0.md
+
+  - id: w6
+    summary: "Update docs/release-v0.md to reflect actual implementation state"
+    status: done
+    files:
+      - docs/release-v0.md
+
+  - id: w7
+    summary: "Archive 3 superseded design docs"
+    status: done
+    files:
+      - docs/archive/architecture.md
+      - docs/archive/manifest-and-store.md
+      - docs/archive/validation-and-trust.md
+
+  - id: w8
+    summary: "Update docs/index.md reading order and review competitive analysis"
+    status: done
+    needs: [w7]
+    files:
+      - docs/index.md
+      - docs/competitive-analysis.md
+
+  - id: w9
+    summary: "Verify validation rules in spec match implementation"
+    status: done
+    needs: [w2]
+    files:
+      - docs/specs/manifest-v0.md
+
+metadata:
+  tags:
+    - "docs"
+    - "alignment"
+    - "release-readiness"
+  estimated_effort: "Medium"
+  created_date: "2026-03-07"
+  last_updated: "2026-03-07"
+impact:
+  business_value: |
+    Documentation that contradicts the implementation erodes trust and causes
+    confusion for new users, contributors, and AI agents consuming these docs.
+    Blocking issue for any public release.
+  user_impact: |
+    Users following the README or CLI docs will try commands that don't exist
+    and miss commands that do. MCP integrators have no concrete reference.
+must_preserve:
+  - "docs/specs/manifest-v0.md sections 1-6 (skill package model, manifest schema, lock format, sidecar format) — verified accurate"
+  - "docs/security.md in its entirety — verified accurate"
+  - "Design rationale and architectural principles prose in all specs (explains WHY, still valid even when module lists change)"
+verification:
+  - description: "All CLI commands mentioned in docs exist in the codebase"
+    command: "grep -oE 'skillsync [a-z]+' docs/cli.md | sort -u"
+    expected_output: "Only lists: sync, status, validate, diff, doctor, pin, unpin, prune, promote"
+    result: "PASS"
+  - description: "No absolute user paths in README"
+    command: "grep -c '/Users/' README.md"
+    expected_output: "0"
+    result: "PASS"
+  - description: "README does not say 'planning mode'"
+    command: "grep -c 'planning mode' README.md"
+    expected_output: "0"
+    result: "PASS"
+  - description: "Architecture spec module tree matches actual files"
+    command: "ls src/core/*.ts src/cli/commands/*.ts src/sources/*.ts | wc -l | tr -d ' '"
+    expected_output: "29"
+    result: "PASS"
+notes: |
+  All 9 work units completed in 9 commits:
+  - f31dc22 docs: update README to reflect feature-complete v0 state
+  - 1adf37e docs: update architecture spec module tree and API surface
+  - f76ca60 docs: rewrite MCP doc with actual implemented surface
+  - e475745 docs: rewrite CLI reference with actual 9 implemented commands
+  - f637d60 docs: clarify promote command exists in v0 as manual guidance
+  - 98823d7 docs: clarify registry source status in release criteria
+  - 5ee61c3 docs: archive 3 superseded pre-implementation design docs
+  - 893035c docs: update index reading order and competitive analysis context
+  - aa041de docs: align validation rules table with actual implementation
+
+  Validation rules cross-reference found 5 enforced rules, 5 planned rules,
+  1 rule checked at sync time (not standalone validation), and 1 additional
+  implemented rule (empty-package) not previously documented.
+
+  must_preserve compliance: manifest-v0.md sections 1-6 unchanged,
+  security.md untouched, design rationale preserved in all specs.

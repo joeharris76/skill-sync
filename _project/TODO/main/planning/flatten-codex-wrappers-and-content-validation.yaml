@@ -1,0 +1,248 @@
+id: "flatten-codex-wrappers-and-content-validation"
+title: "Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes"
+worktree: "main"
+priority: "High"
+status: "Not Started"
+description: |
+  SkillSync materializes identical skill content to all configured agent targets
+  (Claude, Codex). The user's actual Codex setup uses a dual-layer wrapper pattern:
+  .codex/skills/X/SKILL.md (20-line wrapper) delegates to .codex/shared-skills/X/SKILL.md
+  (full canonical definition). This pattern is incompatible with skillsync's
+  single-content-per-skill model.
+
+  Strategy A: Flatten the dual-layer by using full skill definitions in .codex/skills/
+  directly (matching how Claude skills already work), then let skillsync manage both
+  targets with identical content. This eliminates the wrapper indirection and the
+  shared-skills directory entirely.
+
+  Additionally, add content-level validation to the sync engine so that a trivial
+  filesystem change (atime bump, trailing whitespace, BOM) cannot cause skillsync
+  to overwrite meaningful upstream changes. The sync engine must compare content
+  hashes, not just detect "drift exists", before applying updates.
+
+  Scope: External skill flattening (outside this repo) + skillsync library changes
+  for content-aware sync safety.
+category: "Feature"
+deps:
+  needs: []
+work:
+  - id: w1
+    summary: "Audit current Codex wrapper content and map delegation targets"
+    status: not-started
+    details: |
+      External to this repo. For each Codex wrapper in BenchBox and Oxbow:
+      - Read wrapper SKILL.md, extract: delegation target path, added instructions
+        (project-config path, commit rule, "no duplicate logic" rule)
+      - Read corresponding shared-skills canonical SKILL.md
+      - Read corresponding Claude SKILL.md
+      - Produce a diff matrix: what does the wrapper add that Claude doesn't have?
+      - Identify which additions are project-specific (belong in project-config.yaml)
+        vs which are universal (should be in the canonical skill)
+      Deliverable: audit table with columns [skill, wrapper-only content, shared-only
+      content, claude content, reconciliation action]
+
+  - id: w2
+    summary: "Reconcile canonical skill content across Claude and Codex"
+    status: not-started
+    needs: [w1]
+    details: |
+      External to this repo. For each of the 5 shared skills (blog, code, test, docs, todo):
+      - Merge Claude and Codex shared-skills versions into a single canonical SKILL.md
+      - Standardize commit rule format (pick one: blockquote after Actions table)
+      - Move project-specific config references to skillsync.meta.yaml config_inputs
+      - Ensure SHARED/ framework references are consistent
+      - Place canonical versions in a skills source directory (e.g., ~/.skillsync/skills/)
+      For agent-specific skills (benchbox, substack, project-todo-sync):
+      - Tag with targets: { claude: false } or { codex: false } in skillsync.meta.yaml
+      Deliverable: unified skill source directory with one canonical version per skill
+
+  - id: w3
+    summary: "Create skillsync.meta.yaml sidecars for all canonical skills"
+    status: not-started
+    needs: [w2]
+    details: |
+      External to this repo. For each canonical skill, create skillsync.meta.yaml with:
+      - depends: list SHARED/ framework dependencies
+      - config_inputs: declare project-configurable values (lint cmd, test runner, etc.)
+      - targets: { claude: true, codex: true } (or false for agent-specific skills)
+      - tags and category
+      For SHARED/ frameworks (commit-framework, verify-framework, etc.):
+      - Create minimal skillsync.meta.yaml with targets and tags
+      Deliverable: every skill and framework has a sidecar
+
+  - id: w4
+    summary: "Create skillsync.yaml manifests for global, BenchBox, and Oxbow"
+    status: not-started
+    needs: [w3]
+    details: |
+      External to this repo. Create three manifest files:
+
+      Global (~/.skillsync/skillsync.yaml or similar):
+        sources: [{ name: personal, type: local, path: ~/.skillsync/skills }]
+        skills: [blog, code, test, docs, todo, benchbox, SHARED/commit-framework, ...]
+        targets: { claude: .claude/skills, codex: .codex/skills }
+
+      BenchBox (~/Developer/BenchBox/skillsync.yaml):
+        sources: [{ name: global, type: local, path: ~/.skillsync/skills },
+                  { name: project, type: local, path: ./skills }]
+        skills: [blog, code, test, docs, todo, benchbox, project-todo-sync, SHARED/...]
+        targets: { claude: .claude/skills, codex: .codex/skills }
+        config: { todo: { cli: "..." }, code: { lint: "..." } }
+
+      Oxbow (~/Developer/Oxbow/skillsync.yaml):
+        sources: [{ name: global, type: local, path: ~/.skillsync/skills },
+                  { name: project, type: local, path: ./skills }]
+        skills: [blog, code, test, docs, todo, substack, SHARED/...]
+        targets: { claude: .claude/skills, codex: .codex/skills }
+        config: { todo: { cli: "{todo.cli}" } }
+
+      Deliverable: three manifest files, validated with `skillsync validate`
+
+  - id: w5
+    summary: "Remove Codex wrapper files and shared-skills directories"
+    status: not-started
+    needs: [w4]
+    details: |
+      External to this repo. After manifests are in place and `skillsync sync --dry-run`
+      confirms correctness:
+      - Back up .codex/shared-skills/ directories in both BenchBox and Oxbow
+      - Run `skillsync sync` in each project to materialize flattened skills
+      - Verify .codex/skills/ now contains full definitions (not wrappers)
+      - Remove .codex/shared-skills/ directories
+      - Run `skillsync status` to confirm clean state
+      - Test that Codex can load skills from .codex/skills/ without the delegation layer
+
+  - id: w6
+    summary: "Add content-hash comparison to sync plan to prevent trivial overwrites"
+    status: not-started
+    details: |
+      In this repo. Currently sync.ts plans updates when the lock file source differs
+      from the resolved source, or when drift is detected. But it does not compare
+      actual file content before deciding to overwrite.
+
+      Add to syncer.ts planSync():
+      - When an update is planned (source changed or drift detected), compare SHA256
+        hashes of source files vs installed files
+      - If all file hashes match (content identical), skip the update even if metadata
+        (atime, source path) differs
+      - Add a `skipReason: "content-identical"` field to skipped plan entries
+      - Log skipped updates in sync output so user knows why nothing changed
+
+      This prevents a scenario where re-resolving the same skill from a different
+      source path (e.g., after moving the skill directory) triggers a full reinstall
+      that could overwrite local edits the user hasn't promoted yet.
+    files:
+      - src/core/syncer.ts
+      - src/core/types.ts
+
+  - id: w7
+    summary: "Add local-modified guard: warn before overwriting locally modified skills"
+    status: not-started
+    needs: [w6]
+    details: |
+      In this repo. When sync plans an update and drift detection shows the installed
+      copy has been modified locally (files differ from lock), the sync engine should:
+      - Warn the user that local modifications exist
+      - In non-force mode: skip the update, report it as "blocked: local modifications"
+      - In --force mode: proceed but log what was overwritten
+      - Provide guidance: "run `skillsync promote` to push changes upstream first"
+
+      This prevents the scenario where a user tweaks a skill locally (e.g., adds a
+      commit rule), then `skillsync sync` silently overwrites their changes with the
+      upstream version.
+
+      Implementation in syncer.ts:
+      - During plan phase, check drift report for each update candidate
+      - If skill is in drift.modified[], add to plan.conflicts[] instead of plan.update[]
+      - sync command handles conflicts: warn and skip (or --force to override)
+    files:
+      - src/core/syncer.ts
+      - src/core/types.ts
+      - src/cli/commands/sync.ts
+
+  - id: w8
+    summary: "Add tests for content-hash skip and local-modified guard"
+    status: not-started
+    needs: [w6, w7]
+    details: |
+      In this repo. Add test coverage for:
+      - Sync skips update when source content matches installed content (different path, same hash)
+      - Sync blocks update when installed skill has local modifications (different hash from lock)
+      - Sync --force overrides local modification guard
+      - Sync output includes skip/block reasons in both human and --json modes
+      - Edge case: new files added locally that don't exist in source
+      - Edge case: files deleted locally that exist in source
+    files:
+      - tests/unit/core/syncer.test.ts
+      - tests/unit/cli/commands.test.ts
+
+  - id: w9
+    summary: "Run full sync on all three scopes and verify clean state"
+    status: not-started
+    needs: [w5, w8]
+    details: |
+      Integration validation (external to this repo):
+      - Run `skillsync sync` at global, BenchBox, and Oxbow levels
+      - Run `skillsync status` at each level — expect all clean
+      - Run `skillsync validate` at each level — expect no errors
+      - Run `skillsync doctor` at each level — expect all OK
+      - Verify Claude Code loads skills correctly from .claude/skills/
+      - Verify Codex loads skills correctly from .codex/skills/ (no wrapper needed)
+      - Modify a skill locally, run sync, verify local-modified guard fires
+      - Promote the modification, re-sync, verify clean state
+
+metadata:
+  tags:
+    - "codex"
+    - "sync-safety"
+    - "content-validation"
+    - "multi-agent"
+  estimated_effort: "Large"
+  created_date: "2026-03-07"
+  last_updated: "2026-03-07"
+impact:
+  business_value: |
+    Enables skillsync to actually manage the user's real skill infrastructure.
+    Without flattening, skillsync cannot model the Codex dual-layer pattern.
+    Without content validation, sync can silently destroy local modifications.
+    Together these make skillsync production-ready for multi-agent skill management.
+  user_impact: |
+    Eliminates manual skill copying across 6 locations (3 Claude + 3 Codex).
+    Single source of truth per skill with safe, content-aware sync.
+    Format consistency enforced by having one canonical version.
+    Local modifications protected from accidental overwrite.
+must_preserve:
+  - "Existing multi-target materialization behavior (same content to all targets)"
+  - "Lock file format and provenance tracking"
+  - "Drift detection SHA256 hashing"
+  - "All 137 existing tests must continue to pass"
+approach: |
+  Two parallel tracks: external skill flattening (w1-w5) and library hardening (w6-w8),
+  converging at integration validation (w9).
+
+  External track: Audit → Reconcile → Sidecar → Manifest → Deploy. Each step is
+  reversible (backups before destructive changes). Use skillsync's own --dry-run
+  to validate before applying.
+
+  Library track: Content-hash comparison first (w6), then local-modified guard (w7),
+  then tests (w8). Each is independently valuable and incrementally deployable.
+anti_patterns:
+  - "DO NOT modify skill content during materialization — because skillsync must remain content-agnostic — the flattening happens at the source level, not in the sync engine"
+  - "DO NOT use file timestamps for change detection — because atime/mtime are unreliable across filesystems — always use content hashes (SHA256)"
+  - "DO NOT silently overwrite locally modified skills — because users may have intentional local changes — always warn or block"
+  - "DO NOT create a 'Codex adapter' that transforms content per target — because this violates the single-source-of-truth model — flatten the source instead"
+verification:
+  - description: "Existing tests still pass after library changes"
+    command: "npx vitest run"
+    expected_output: "137 tests pass (or more with new tests)"
+  - description: "Content-identical sources are skipped during sync"
+    command: "npx vitest run tests/unit/core/syncer.test.ts"
+    expected_output: "All syncer tests pass including new skip tests"
+  - description: "Local modifications block sync without --force"
+    command: "npx vitest run tests/unit/cli/commands.test.ts"
+    expected_output: "All command tests pass including conflict tests"
+scope_limit:
+  do_not_modify:
+    - "src/mcp/"
+    - "_project/DONE/"
+    - "docs/specs/manifest-v0.md"

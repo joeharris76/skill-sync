@@ -1,5 +1,5 @@
-generated_at: '2026-03-06T14:51:08.536443'
-total_items: 6
+generated_at: '2026-03-07T08:35:46.908571'
+total_items: 7
 priorities:
   Critical:
     count: 2
@@ -15,12 +15,17 @@ priorities:
       category: Core Functionality
       status: Completed
   High:
-    count: 4
+    count: 5
     items:
     - id: validation-trust-security-and-release-readiness
       file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml
       title: Add validation, trust controls, security checks, and release readiness
       category: Testing and Quality Assurance
+      status: Completed
+    - id: docs-align-with-implementation
+      file: DONE/main/active/docs-align-with-implementation.yaml
+      title: Align all documentation with the actual v0 implementation
+      category: Documentation
       status: Completed
     - id: mcp-server-resource-and-tool-surface
       file: DONE/main/planning/mcp-server-resource-and-tool-surface.yaml

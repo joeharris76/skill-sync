@@ -1,5 +1,5 @@
-generated_at: '2026-03-06T14:51:08.536432'
-total_categories: 2
+generated_at: '2026-03-07T08:35:46.908566'
+total_categories: 3
 categories:
   Core Functionality:
     count: 5
@@ -27,6 +27,14 @@ categories:
     - id: portability-compatibility-and-project-overrides
       file: DONE/main/planning/portability-compatibility-and-project-overrides.yaml
       title: Design portability, agent compatibility, and project-specific override layering
+      priority: High
+      status: Completed
+  Documentation:
+    count: 1
+    items:
+    - id: docs-align-with-implementation
+      file: DONE/main/active/docs-align-with-implementation.yaml
+      title: Align all documentation with the actual v0 implementation
       priority: High
       status: Completed
   Testing and Quality Assurance:

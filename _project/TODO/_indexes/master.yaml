@@ -1,18 +1,19 @@
-generated_at: '2026-03-07T08:15:58.211908'
+generated_at: '2026-03-07T08:35:46.895118'
 total_items: 1
 items:
-- id: docs-align-with-implementation
-  file: TODO/main/active/docs-align-with-implementation.yaml
-  title: Align all documentation with the actual v0 implementation
+- id: flatten-codex-wrappers-and-content-validation
+  file: TODO/main/planning/flatten-codex-wrappers-and-content-validation.yaml
+  title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
   worktree: main
-  category: Documentation
+  category: Feature
   priority: High
   status: Not Started
   tags:
-  - docs
-  - alignment
-  - release-readiness
-  estimated_effort: Medium
+  - codex
+  - sync-safety
+  - content-validation
+  - multi-agent
+  estimated_effort: Large
   work_total: 9
   work_done: 0
   work_ready: 0

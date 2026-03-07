@@ -1,5 +1,5 @@
-generated_at: '2026-03-06T14:51:08.536423'
-total_items: 6
+generated_at: '2026-03-07T08:35:46.908556'
+total_items: 7
 items:
 - id: sync-engine-lockfile-and-source-management
   file: DONE/main/planning/sync-engine-lockfile-and-source-management.yaml
@@ -60,6 +60,22 @@ items:
   - portability-compatibility-and-project-overrides
   - cli-surface-ux-and-operational-workflows
   - mcp-server-resource-and-tool-surface
+- id: docs-align-with-implementation
+  file: DONE/main/active/docs-align-with-implementation.yaml
+  title: Align all documentation with the actual v0 implementation
+  worktree: main
+  category: Documentation
+  priority: High
+  status: Completed
+  tags:
+  - docs
+  - alignment
+  - release-readiness
+  estimated_effort: Medium
+  completed_date: '2026-03-07'
+  work_total: 9
+  work_done: 9
+  work_ready: 0
 - id: mcp-server-resource-and-tool-surface
   file: DONE/main/planning/mcp-server-resource-and-tool-surface.yaml
   title: Build the MCP server resource, prompt, and tool surface for synced skills

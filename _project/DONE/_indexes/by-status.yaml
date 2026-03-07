@@ -1,14 +1,19 @@
-generated_at: '2026-03-06T14:51:08.536446'
-total_items: 6
+generated_at: '2026-03-07T08:35:46.908575'
+total_items: 7
 statuses:
   Completed:
-    count: 6
+    count: 7
     items:
     - id: validation-trust-security-and-release-readiness
       file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml
       title: Add validation, trust controls, security checks, and release readiness
       priority: High
       category: Testing and Quality Assurance
+    - id: docs-align-with-implementation
+      file: DONE/main/active/docs-align-with-implementation.yaml
+      title: Align all documentation with the actual v0 implementation
+      priority: High
+      category: Documentation
     - id: sync-engine-lockfile-and-source-management
       file: DONE/main/planning/sync-engine-lockfile-and-source-management.yaml
       title: Build sync engine, source adapters, and lockfile semantics

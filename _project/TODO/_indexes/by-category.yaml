@@ -1,11 +1,11 @@
-generated_at: '2026-03-07T08:15:58.211921'
+generated_at: '2026-03-07T08:35:46.895130'
 total_categories: 1
 categories:
-  Documentation:
+  Feature:
     count: 1
     items:
-    - id: docs-align-with-implementation
-      file: TODO/main/active/docs-align-with-implementation.yaml
-      title: Align all documentation with the actual v0 implementation
+    - id: flatten-codex-wrappers-and-content-validation
+      file: TODO/main/planning/flatten-codex-wrappers-and-content-validation.yaml
+      title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
       priority: High
       status: Not Started
