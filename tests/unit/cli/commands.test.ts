@@ -3,6 +3,7 @@ import { runCli } from "../../../src/cli/index.js";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sha256 } from "../../../src/core/hasher.js";
 
 describe("runCli", () => {
   it("returns help text for --help", async () => {
@@ -248,6 +249,122 @@ describe("runCli", () => {
     expect(await readFile(join(projectRoot, ".codex/skills/code/SKILL.md"), "utf8")).toContain("name: code");
     expect(await readFile(join(projectRoot, ".claude/skills/project-config.yaml"), "utf8")).toContain("verify: npm run test:run");
     expect(await readFile(join(projectRoot, ".codex/skills/project-config.yaml"), "utf8")).toContain("verify: npm run test:run");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync detects conflicts on non-primary targets", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-multi-target-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+
+    const upstream = ["---", "name: code", "description: Code skill", "---", "", "# Code v2"].join("\n");
+    const previous = "# Code v1\n";
+    await writeFile(join(skillRoot, "SKILL.md"), upstream, "utf8");
+
+    const claudeSkillDir = join(projectRoot, ".claude/skills/code");
+    const codexSkillDir = join(projectRoot, ".codex/skills/code");
+    await mkdir(claudeSkillDir, { recursive: true });
+    await mkdir(codexSkillDir, { recursive: true });
+    await writeFile(join(claudeSkillDir, "SKILL.md"), previous, "utf8");
+    await writeFile(join(codexSkillDir, "SKILL.md"), "# Locally modified\n", "utf8");
+
+    await writeFile(
+      join(projectRoot, "skillsync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        `    type: local`,
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "  codex: .codex/skills",
+        "install_mode: mirror",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    await writeFile(
+      join(projectRoot, "skillsync.lock"),
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: "2026-03-07T10:00:00Z",
+          skills: {
+            code: {
+              source: { type: "local", name: "local", fetchedAt: "2026-03-06T10:00:00Z" },
+              installMode: "mirror",
+              files: {
+                "SKILL.md": { sha256: sha256(previous), size: Buffer.byteLength(previous) },
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const result = await runCli(["sync", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("conflict");
+    expect(result.stderr).toContain("skillsync promote");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync honors pinned source_name when multiple sources contain the same skill", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-pinned-source-"));
+    const personalRoot = join(projectRoot, "personal-skills");
+    const teamRoot = join(projectRoot, "team-skills");
+    await mkdir(join(personalRoot, "code"), { recursive: true });
+    await mkdir(join(teamRoot, "code"), { recursive: true });
+
+    await writeFile(
+      join(personalRoot, "code", "SKILL.md"),
+      ["---", "name: code", "description: Personal code skill", "---", "", "# Personal code"].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(teamRoot, "code", "SKILL.md"),
+      ["---", "name: code", "description: Team code skill", "---", "", "# Team code"].join("\n"),
+      "utf8",
+    );
+
+    await writeFile(
+      join(projectRoot, "skillsync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: personal",
+        "    type: local",
+        `    path: ${personalRoot}`,
+        "  - name: team",
+        "    type: local",
+        `    path: ${teamRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "overrides:",
+        "  code:",
+        "    source_name: team",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["sync", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(0);
+    expect(await readFile(join(projectRoot, ".claude/skills/code/SKILL.md"), "utf8")).toContain("Team code");
 
     await rm(projectRoot, { recursive: true, force: true });
   });

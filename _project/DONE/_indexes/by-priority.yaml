@@ -1,4 +1,4 @@
-generated_at: '2026-03-07T11:49:00'
+generated_at: '2026-03-07T13:05:58.083047'
 total_items: 8
 priorities:
   Critical:
@@ -17,11 +17,6 @@ priorities:
   High:
     count: 6
     items:
-    - id: flatten-codex-wrappers-and-content-validation
-      file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
-      title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
-      category: Feature
-      status: Completed
     - id: validation-trust-security-and-release-readiness
       file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml
       title: Add validation, trust controls, security checks, and release readiness
@@ -46,4 +41,9 @@ priorities:
       file: DONE/main/planning/portability-compatibility-and-project-overrides.yaml
       title: Design portability, agent compatibility, and project-specific override layering
       category: Core Functionality
+      status: Completed
+    - id: flatten-codex-wrappers-and-content-validation
+      file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
+      title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
+      category: Feature
       status: Completed

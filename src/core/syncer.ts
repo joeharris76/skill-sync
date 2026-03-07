@@ -42,8 +42,11 @@ export interface PlanSyncInput {
   lockFile?: LockFile;
   resolvedSkills: PreparedSkill[];
   driftReport?: DriftReport;
-  /** Primary target root for source-vs-disk comparison. */
+  driftReports?: DriftReport[];
+  /** Deprecated single-target alias retained for compatibility with existing callers/tests. */
   targetRoot?: string;
+  /** Target roots used for source-vs-disk comparison. */
+  targetRoots?: string[];
 }
 
 export interface ApplySyncInput {
@@ -72,8 +75,10 @@ export interface ApplySyncResult {
  * Identifies installs, updates, removals, and conflicts.
  */
 export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
-  const { manifest, resolvedSkills, driftReport, targetRoot } = input;
+  const { manifest, resolvedSkills } = input;
   const lockFile = input.lockFile ?? { version: 1, lockedAt: "", skills: {} };
+  const driftReports = input.driftReports ?? (input.driftReport ? [input.driftReport] : []);
+  const targetRoots = input.targetRoots ?? (input.targetRoot ? [input.targetRoot] : []);
 
   const plan: SyncPlan = {
     install: [],
@@ -96,8 +101,8 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
 
   // Build drift index
   const driftBySkill = new Map<string, DriftEntry[]>();
-  if (driftReport) {
-    for (const entry of driftReport.modified) {
+  for (const report of driftReports) {
+    for (const entry of report.modified) {
       if (!driftBySkill.has(entry.skill)) {
         driftBySkill.set(entry.skill, []);
       }
@@ -116,7 +121,7 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
 
     if (!locked) {
       // Check if already installed and clean (drift report says so)
-      if (driftReport?.clean.includes(skill.name)) {
+      if (driftReports.some((report) => report.clean.includes(skill.name))) {
         plan.unchanged.push(skill.name);
         continue;
       }
@@ -139,9 +144,9 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
     }
 
     // Upstream has changes — check if on-disk files already match source
-    if (targetRoot) {
-      const diskMatchesSource = await checkDiskMatchesSource(
-        targetRoot,
+    if (targetRoots.length > 0) {
+      const diskMatchesSource = await checkAllTargetsMatchSource(
+        targetRoots,
         skill.name,
         skill.files,
       );
@@ -241,6 +246,18 @@ function effectiveInstallMode(
  * Check whether on-disk installed files already match the source files.
  * Returns true if every source file exists on disk with the same SHA256.
  */
+async function checkAllTargetsMatchSource(
+  targetRoots: string[],
+  skillName: string,
+  sourceFiles: SkillFile[],
+): Promise<boolean> {
+  for (const targetRoot of targetRoots) {
+    const matches = await checkDiskMatchesSource(targetRoot, skillName, sourceFiles);
+    if (!matches) return false;
+  }
+  return true;
+}
+
 async function checkDiskMatchesSource(
   targetRoot: string,
   skillName: string,

@@ -12,6 +12,11 @@ import { checkAllTargetCompatibility } from "../core/compatibility.js";
 import { validateConfigOverrides } from "../core/config-generator.js";
 import type { SkillPackage, ValidationDiagnostic, LockFile } from "../core/types.js";
 
+interface TargetRoot {
+  name: string;
+  root: string;
+}
+
 /**
  * Create a skillsync MCP server backed by a project directory.
  *
@@ -71,8 +76,11 @@ export function createServer(projectRoot: string): McpServer {
     { description: "Read a skill's SKILL.md content" },
     async (uri, variables) => {
       const name = String(variables.name);
-      const targetRoot = await getPrimaryTargetRoot(root);
-      const skillMdPath = join(targetRoot, name, "SKILL.md");
+      const skillRoot = await findSkillRoot(root, name);
+      if (!skillRoot) {
+        throw new Error(`Skill "${name}" not found`);
+      }
+      const skillMdPath = join(skillRoot.root, name, "SKILL.md");
       const content = await readFile(skillMdPath, "utf-8");
       return {
         contents: [{
@@ -91,11 +99,14 @@ export function createServer(projectRoot: string): McpServer {
     async (uri, variables) => {
       const name = String(variables.name);
       const filePath = String(variables.path);
-      const targetRoot = await getPrimaryTargetRoot(root);
-      const fullPath = join(targetRoot, name, filePath);
+      const skillRoot = await findSkillRoot(root, name);
+      if (!skillRoot) {
+        throw new Error(`Skill "${name}" not found`);
+      }
+      const fullPath = join(skillRoot.root, name, filePath);
       // Security: ensure path stays within skill directory
       const resolvedPath = resolve(fullPath);
-      const skillDir = resolve(join(targetRoot, name));
+      const skillDir = resolve(join(skillRoot.root, name));
       if (!resolvedPath.startsWith(skillDir + "/") && resolvedPath !== skillDir) {
         throw new Error("Path traversal not allowed");
       }
@@ -157,17 +168,27 @@ export function createServer(projectRoot: string): McpServer {
           content: [{ type: "text" as const, text: "No lock file found. Run `skillsync sync` first." }],
         };
       }
-      const targetRoot = await getPrimaryTargetRoot(root);
-      const drift = await detectDrift(targetRoot, lockFile);
+      const targets = await getTargetRoots(root);
+      const statuses = await Promise.all(
+        targets.map(async (target) => ({
+          target: target.name,
+          drift: await detectDrift(target.root, lockFile),
+        })),
+      );
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify({
-            clean: drift.clean,
-            modified: drift.modified.map((d) => `${d.skill}:${d.file}`),
-            missing: drift.missing,
-            extra: drift.extra,
-          }, null, 2),
+          text: JSON.stringify(
+            statuses.map((status) => ({
+              target: status.target,
+              clean: status.drift.clean,
+              modified: status.drift.modified.map((d) => `${d.skill}:${d.file}`),
+              missing: status.drift.missing,
+              extra: status.drift.extra,
+            })),
+            null,
+            2,
+          ),
         }],
       };
     },
@@ -206,8 +227,16 @@ export function createServer(projectRoot: string): McpServer {
     "Generate a prompt that incorporates a skill's instructions",
     { name: z.string().describe("Name of the skill to use") },
     async ({ name }) => {
-      const targetRoot = await getPrimaryTargetRoot(root);
-      const skillMdPath = join(targetRoot, name, "SKILL.md");
+      const skillRoot = await findSkillRoot(root, name);
+      if (!skillRoot) {
+        return {
+          messages: [{
+            role: "user" as const,
+            content: { type: "text" as const, text: `Skill "${name}" not found.` },
+          }],
+        };
+      }
+      const skillMdPath = join(skillRoot.root, name, "SKILL.md");
       let content: string;
       try {
         content = await readFile(skillMdPath, "utf-8");
@@ -243,26 +272,42 @@ export function createServer(projectRoot: string): McpServer {
 // ---------------------------------------------------------------------------
 
 async function getPrimaryTargetRoot(projectRoot: string): Promise<string> {
-  try {
-    const manifest = await readManifest(projectRoot);
-    const primary = Object.values(manifest.targets)[0];
-    if (primary) return resolve(projectRoot, primary);
-  } catch { /* fall through */ }
-  // Fallback: .claude/skills
-  return resolve(projectRoot, ".claude/skills");
+  const targets = await getTargetRoots(projectRoot);
+  return targets[0]!.root;
 }
 
-async function listInstalledSkills(projectRoot: string): Promise<SkillPackage[]> {
-  const targetRoot = await getPrimaryTargetRoot(projectRoot);
-  const skillNames = await discoverSkillNames(targetRoot);
-  const skills: SkillPackage[] = [];
-  for (const name of skillNames) {
-    try {
-      const pkg = await loadSkillPackage(join(targetRoot, name));
-      skills.push(pkg);
-    } catch { /* skip unreadable skills */ }
+async function getTargetRoots(projectRoot: string): Promise<TargetRoot[]> {
+  try {
+    const manifest = await readManifest(projectRoot);
+    const targets = Object.entries(manifest.targets).map(([name, path]) => ({
+      name,
+      root: resolve(projectRoot, path),
+    }));
+    if (targets.length > 0) {
+      return targets;
+    }
+  } catch {
+    // Fall through to default target.
   }
-  return skills;
+  return [{ name: "claude", root: resolve(projectRoot, ".claude/skills") }];
+}
+
+export async function listInstalledSkills(projectRoot: string): Promise<SkillPackage[]> {
+  const targets = await getTargetRoots(projectRoot);
+  const skills = new Map<string, SkillPackage>();
+  for (const target of targets) {
+    const skillNames = await discoverSkillNames(target.root);
+    for (const name of skillNames) {
+      if (skills.has(name)) continue;
+      try {
+        const pkg = await loadSkillPackage(join(target.root, name));
+        skills.set(name, pkg);
+      } catch {
+        // Skip unreadable skills.
+      }
+    }
+  }
+  return [...skills.values()];
 }
 
 async function discoverSkillNames(targetRoot: string, prefix = ""): Promise<string[]> {
@@ -287,26 +332,39 @@ async function discoverSkillNames(targetRoot: string, prefix = ""): Promise<stri
   return names;
 }
 
-async function runValidation(projectRoot: string): Promise<ValidationDiagnostic[]> {
+export async function runValidation(projectRoot: string): Promise<ValidationDiagnostic[]> {
   const diagnostics: ValidationDiagnostic[] = [];
   try {
     const manifest = await readManifest(projectRoot);
     const lockFile = await readLockFile(projectRoot);
     if (!lockFile) return [{ rule: "no-lock-file", severity: "warning", message: "No lock file found." }];
 
-    const targetRoot = await getPrimaryTargetRoot(projectRoot);
     const installedPkgs: SkillPackage[] = [];
+    const targets = await getTargetRoots(projectRoot);
 
     for (const [skillName, locked] of Object.entries(lockFile.skills)) {
-      try {
-        const pkg = await loadSkillPackage(resolve(targetRoot, skillName));
-        installedPkgs.push(pkg);
-        const portDiags = await validatePortability(pkg, locked.installMode);
-        diagnostics.push(...portDiags);
-        const compatDiags = checkAllTargetCompatibility(pkg, manifest.targets);
+      let pkgForWarnings: SkillPackage | null = null;
+      for (const target of targets) {
+        try {
+          const pkg = await loadSkillPackage(resolve(target.root, skillName));
+          if (!pkgForWarnings) {
+            pkgForWarnings = pkg;
+            installedPkgs.push(pkg);
+          }
+          const portDiags = await validatePortability(pkg, locked.installMode);
+          diagnostics.push(...portDiags.map((diag) => ({ ...diag, message: `[${target.name}] ${diag.message}` })));
+        } catch {
+          diagnostics.push({
+            rule: "skill-not-found",
+            severity: "error",
+            message: `Skill "${skillName}" not found on disk for target "${target.name}"`,
+            skill: skillName,
+          });
+        }
+      }
+      if (pkgForWarnings) {
+        const compatDiags = checkAllTargetCompatibility(pkgForWarnings, manifest.targets);
         diagnostics.push(...compatDiags);
-      } catch {
-        diagnostics.push({ rule: "skill-not-found", severity: "error", message: `Skill "${skillName}" not found on disk`, skill: skillName });
       }
     }
 
@@ -318,4 +376,17 @@ async function runValidation(projectRoot: string): Promise<ValidationDiagnostic[
     diagnostics.push({ rule: "manifest-error", severity: "error", message: err instanceof Error ? err.message : String(err) });
   }
   return diagnostics;
+}
+
+async function findSkillRoot(projectRoot: string, skillName: string): Promise<TargetRoot | null> {
+  const targets = await getTargetRoots(projectRoot);
+  for (const target of targets) {
+    try {
+      await access(join(target.root, skillName, "SKILL.md"), constants.R_OK);
+      return target;
+    } catch {
+      // Keep searching other targets.
+    }
+  }
+  return null;
 }

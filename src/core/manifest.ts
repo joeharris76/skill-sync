@@ -124,9 +124,12 @@ function parseConfig(
 
 function parseOverrides(
   raw: unknown,
-): Record<string, { installMode?: InstallMode }> {
+): Record<string, { installMode?: InstallMode; sourceName?: string; revision?: string }> {
   if (!raw || typeof raw !== "object") return {};
-  const result: Record<string, { installMode?: InstallMode }> = {};
+  const result: Record<
+    string,
+    { installMode?: InstallMode; sourceName?: string; revision?: string }
+  > = {};
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
     if (val && typeof val === "object") {
       const o = val as Record<string, unknown>;
@@ -136,6 +139,8 @@ function parseOverrides(
           VALID_INSTALL_MODES.has(o.install_mode as InstallMode)
             ? (o.install_mode as InstallMode)
             : undefined,
+        sourceName: typeof o.source_name === "string" ? o.source_name : undefined,
+        revision: typeof o.revision === "string" ? o.revision : undefined,
       };
     }
   }
@@ -165,6 +170,8 @@ export function serializeManifest(manifest: Manifest): string {
     for (const [key, val] of Object.entries(manifest.overrides)) {
       const entry: Record<string, unknown> = {};
       if (val.installMode) entry.install_mode = val.installMode;
+      if (val.sourceName) entry.source_name = val.sourceName;
+      if (val.revision) entry.revision = val.revision;
       overrides[key] = entry;
     }
     raw.overrides = overrides;

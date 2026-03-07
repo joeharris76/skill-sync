@@ -197,6 +197,50 @@ describe("planSync", () => {
 
     await rm(tmpDir, { recursive: true, force: true });
   });
+
+  it("does not skip when only one target matches source", async () => {
+    const targetA = await mkdtemp(join(tmpdir(), "skillsync-syncer-target-a-"));
+    const targetB = await mkdtemp(join(tmpdir(), "skillsync-syncer-target-b-"));
+    const newContent = "# Code Skill\nUpdated version.\n";
+    const newHash = sha256(newContent);
+
+    await mkdir(join(targetA, "code"), { recursive: true });
+    await mkdir(join(targetB, "code"), { recursive: true });
+    await writeFile(join(targetA, "code", "SKILL.md"), newContent, "utf8");
+    await writeFile(join(targetB, "code", "SKILL.md"), "# Old version\n", "utf8");
+
+    const plan = await planSync({
+      manifest: { skills: ["code"], installMode: "mirror" },
+      lockFile: {
+        version: 1,
+        lockedAt: "2026-03-07T10:00:00Z",
+        skills: {
+          code: {
+            source: { type: "local", name: "personal", fetchedAt: "2026-03-06T10:00:00Z" },
+            installMode: "mirror",
+            files: {
+              "SKILL.md": { sha256: "stale-lock-hash", size: 10 },
+            },
+          },
+        },
+      },
+      resolvedSkills: [
+        {
+          name: "code",
+          source: { type: "local", name: "personal", fetchedAt: "2026-03-07T10:00:00Z" },
+          files: [{ relativePath: "SKILL.md", sha256: newHash, size: Buffer.byteLength(newContent) }],
+        },
+      ],
+      targetRoots: [targetA, targetB],
+    });
+
+    expect(plan.skipped).toHaveLength(0);
+    expect(plan.update).toHaveLength(1);
+    expect(plan.update[0]!.name).toBe("code");
+
+    await rm(targetA, { recursive: true, force: true });
+    await rm(targetB, { recursive: true, force: true });
+  });
 });
 
 describe("applySync", () => {

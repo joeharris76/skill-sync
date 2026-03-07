@@ -180,4 +180,45 @@ describe("MCP server skill discovery", () => {
     expect(matches.length).toBe(1);
     expect(matches[0]!.name).toBe("code");
   });
+
+  it("discovers skills across multiple configured targets", async () => {
+    const multiRoot = join(tmpBase, "multi-target-project");
+    const claudeDir = join(multiRoot, ".claude", "skills");
+    const codexDir = join(multiRoot, ".codex", "skills");
+
+    await mkdir(join(claudeDir, "code"), { recursive: true });
+    await mkdir(join(codexDir, "test"), { recursive: true });
+    await writeFile(
+      join(multiRoot, "skillsync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "test", type: "local", path: "/tmp" }],
+        skills: ["code", "test"],
+        targets: {
+          claude: ".claude/skills",
+          codex: ".codex/skills",
+        },
+        install_mode: "mirror",
+      }),
+      "utf8",
+    );
+    await writeFile(
+      join(claudeDir, "code", "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "# Code"].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(codexDir, "test", "SKILL.md"),
+      ["---", "name: test", "description: Test skill", "---", "# Test"].join("\n"),
+      "utf8",
+    );
+
+    const server = createServer(multiRoot);
+    expect(server).toBeTruthy();
+
+    const mod = await import("../../../src/mcp/server.js");
+    const skills = await mod.listInstalledSkills(multiRoot);
+    expect(skills.map((skill) => skill.name)).toContain("code");
+    expect(skills.map((skill) => skill.name)).toContain("test");
+  });
 });

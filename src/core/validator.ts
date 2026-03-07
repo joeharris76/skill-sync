@@ -36,7 +36,7 @@ export async function validateSkillPackage(
   if (!pkg.skillMd.name) {
     diagnostics.push({
       rule: "missing-frontmatter-name",
-      severity: "warning",
+      severity: "error",
       message: "SKILL.md is missing a \"name\" field in frontmatter",
       skill: pkg.name,
       file: "SKILL.md",
@@ -45,7 +45,7 @@ export async function validateSkillPackage(
   if (!pkg.skillMd.description) {
     diagnostics.push({
       rule: "missing-frontmatter-description",
-      severity: "warning",
+      severity: "error",
       message: "SKILL.md is missing a \"description\" field in frontmatter",
       skill: pkg.name,
       file: "SKILL.md",

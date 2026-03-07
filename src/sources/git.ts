@@ -82,22 +82,28 @@ export class GitSource implements SkillSource {
     if (this.clonePath) return;
 
     const tmpDir = await mkdtemp(join(tmpdir(), "skillsync-git-"));
-    await exec("git", [
-      "clone",
-      "--depth",
-      "1",
-      "--branch",
-      this.ref,
-      "--single-branch",
-      this.url,
-      tmpDir,
-    ]);
+    try {
+      await exec("git", [
+        "clone",
+        "--depth",
+        "1",
+        this.url,
+        tmpDir,
+      ]);
 
-    // Resolve the HEAD revision
-    const { stdout } = await exec("git", ["rev-parse", "HEAD"], {
-      cwd: tmpDir,
-    });
-    this.resolvedRevision = stdout.trim();
-    this.clonePath = tmpDir;
+      await exec("git", ["checkout", this.ref], {
+        cwd: tmpDir,
+      });
+
+      // Resolve the HEAD revision
+      const { stdout } = await exec("git", ["rev-parse", "HEAD"], {
+        cwd: tmpDir,
+      });
+      this.resolvedRevision = stdout.trim();
+      this.clonePath = tmpDir;
+    } catch (err) {
+      await rm(tmpDir, { recursive: true, force: true });
+      throw err;
+    }
   }
 }

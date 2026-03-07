@@ -1,14 +1,6 @@
-generated_at: '2026-03-07T11:49:00'
+generated_at: '2026-03-07T13:05:58.083035'
 total_categories: 4
 categories:
-  Feature:
-    count: 1
-    items:
-    - id: flatten-codex-wrappers-and-content-validation
-      file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
-      title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
-      priority: High
-      status: Completed
   Core Functionality:
     count: 5
     items:
@@ -43,6 +35,14 @@ categories:
     - id: docs-align-with-implementation
       file: DONE/main/active/docs-align-with-implementation.yaml
       title: Align all documentation with the actual v0 implementation
+      priority: High
+      status: Completed
+  Feature:
+    count: 1
+    items:
+    - id: flatten-codex-wrappers-and-content-validation
+      file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
+      title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
       priority: High
       status: Completed
   Testing and Quality Assurance:

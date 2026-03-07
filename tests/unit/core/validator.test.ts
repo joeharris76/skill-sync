@@ -17,12 +17,13 @@ describe("validateSkillPackage", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
-  it("warns on missing frontmatter name", async () => {
+  it("fails on missing frontmatter name", async () => {
     const skillDir = join(tmpBase, "no-name");
     await mkdir(skillDir, { recursive: true });
     await writeFile(join(skillDir, "SKILL.md"), "---\ndescription: test\n---\n# Test\n");
 
     const result = await validateSkillPackage(skillDir);
+    expect(result.valid).toBe(false);
     expect(result.diagnostics.some((d) => d.rule === "missing-frontmatter-name")).toBe(true);
   });
 

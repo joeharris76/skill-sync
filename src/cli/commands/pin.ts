@@ -28,11 +28,21 @@ export async function pinCommand(args: ParsedArgs): Promise<CliResult> {
       return { exitCode: 1, stderr: `Skill "${skillName}" is not installed.` };
     }
 
-    // Pin by setting the override to the current install mode and noting the pin
+    if (locked.source.type !== "git" || !locked.source.revision) {
+      return {
+        exitCode: 1,
+        stderr:
+          `Skill "${skillName}" is sourced from ${locked.source.type} and does not have a fixed revision to pin.`,
+      };
+    }
+
+    // Pin by recording the exact git revision used for this skill.
     if (!manifest.overrides[skillName]) {
       manifest.overrides[skillName] = {};
     }
     manifest.overrides[skillName]!.installMode = locked.installMode;
+    manifest.overrides[skillName]!.sourceName = locked.source.name;
+    manifest.overrides[skillName]!.revision = locked.source.revision;
 
     // Write updated manifest
     const manifestPath = join(projectRoot, "skillsync.yaml");
@@ -42,7 +52,7 @@ export async function pinCommand(args: ParsedArgs): Promise<CliResult> {
       pinned: skillName,
       installMode: locked.installMode,
       source: locked.source.name,
-      revision: locked.source.revision ?? locked.source.path ?? "latest",
+      revision: locked.source.revision,
     };
 
     const output = formatOutput(data, mode, () =>

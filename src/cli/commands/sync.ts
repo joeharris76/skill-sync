@@ -83,13 +83,11 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
         drift: await detectDrift(resolve(projectRoot, targetPath), lockFile),
       })),
     );
-    const primaryDrift = driftReports[0]?.drift;
-    if (!primaryDrift) {
+    if (!driftReports[0]) {
       return { exitCode: 1, stderr: "No targets defined in skillsync.yaml" };
     }
 
     // Plan sync
-    const primaryTargetRoot = driftReports[0]?.targetRoot;
     const plan = await planSync({
       manifest: {
         skills: manifest.skills,
@@ -98,8 +96,8 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
       },
       lockFile,
       resolvedSkills: prepared,
-      driftReport: primaryDrift,
-      targetRoot: primaryTargetRoot,
+      driftReports: driftReports.map((report) => report.drift),
+      targetRoots: driftReports.map((report) => report.targetRoot),
     });
 
     if (dryRun) {
