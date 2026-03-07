@@ -1,4 +1,7 @@
-# Validation and Trust
+# Validation and Trust (Archived)
+
+> **Superseded by [docs/security.md](../security.md).**
+> This was a pre-implementation design doc. The security doc reflects the actual implementation.
 
 ## Why This Matters
 

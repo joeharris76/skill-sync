@@ -1,4 +1,7 @@
-# Architecture
+# Architecture (Archived)
+
+> **Superseded by [docs/specs/architecture-v0.md](../specs/architecture-v0.md).**
+> This was a pre-implementation design doc. The spec reflects the actual implementation.
 
 ## Overview
 

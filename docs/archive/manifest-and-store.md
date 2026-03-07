@@ -1,4 +1,7 @@
-# Manifest and Local Store
+# Manifest and Local Store (Archived)
+
+> **Superseded by [docs/specs/manifest-v0.md](../specs/manifest-v0.md).**
+> This was a pre-implementation design doc. The spec reflects the actual implementation.
 
 ## Canonical Skill Package
 
