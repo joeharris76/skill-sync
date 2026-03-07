@@ -1,7 +1,13 @@
 # Competitive Analysis: `skillsync` vs `SkillPort` vs `OpenSkills`
 
-This document compares the planned release state of `skillsync` against the two
-closest verified public competitors:
+> **Note:** This analysis was written during the planning phase (pre-implementation).
+> The `skillsync` column originally reflected intended capabilities. As of v0,
+> the core differentiating features (lockfile, drift detection, config injection,
+> portability, shared CLI/MCP core) are implemented. Competitor capabilities may
+> have evolved since this analysis was written.
+
+This document compares `skillsync` against the two closest verified public
+competitors:
 
 - [SkillPort](https://github.com/gotalab/skillport)
 - [OpenSkills](https://github.com/numman-ali/openskills)
@@ -20,15 +26,15 @@ do not clearly own today.
 
 This comparison is grounded in:
 
-- the planned release state in [README.md](/Users/joe/Developer/skillsync/README.md)
-- the current planning TODOs under [_project/TODO/main/planning](/Users/joe/Developer/skillsync/_project/TODO/main/planning)
+- the v0 implementation documented in [README.md](../README.md)
+- the completed implementation phases
 - the public READMEs for:
   - [gotalab/skillport](https://github.com/gotalab/skillport)
   - [numman-ali/openskills](https://github.com/numman-ali/openskills)
 
 Important constraint:
-- the `skillsync` column reflects intended capabilities, not implemented ones
-- competitor capabilities below are limited to what is public and verifiable
+- the `skillsync` column was written pre-implementation; core features are now implemented in v0
+- competitor capabilities below are limited to what was public and verifiable at time of writing
 
 ## Executive Summary
 
@@ -64,10 +70,10 @@ That remains the strongest justification for `skillsync`.
 
 ## Feature Comparison
 
-| Capability | `skillsync` planned release | SkillPort | OpenSkills |
+| Capability | `skillsync` v0 | SkillPort | OpenSkills |
 | --- | --- | --- | --- |
 | Primary value proposition | Local-first skill distribution, sync, portability, validation, CLI, and MCP over one core | Validate, manage, and deliver skills via CLI or MCP | Universal Claude-style skills loader and sync tool across agents |
-| Implementation status | Planned | Public project, active, but still evolving | Public project, active |
+| Implementation status | Feature-complete (v0) | Public project, active, but still evolving | Public project, active |
 | Primary interface | CLI + MCP server | CLI + MCP | CLI |
 | Canonical internal cross-agent model | Planned | Agent Skills spec-oriented | Claude-compatible skills model |
 | Skill validation | Planned, broad validation and diagnostics | Yes: `skillport validate` with CI-friendly JSON | No strong validation story visible in README |
