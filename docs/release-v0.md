@@ -6,7 +6,7 @@
 |---------|--------|-------|
 | Local source | Implemented | Filesystem path resolution |
 | Git source | Implemented | Shallow clone, single branch |
-| Registry source | Not implemented | Deferred to v0.2 |
+| Registry source | Not implemented | Deferred to v0.2+; `type: registry` is parsed but cannot be resolved |
 | Mirror install mode | Implemented | SHA256 integrity tracking |
 | Copy install mode | Implemented | No lock tracking |
 | Symlink install mode | Implemented | Local dev only, not portable |
