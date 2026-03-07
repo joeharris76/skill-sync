@@ -2,98 +2,131 @@
 
 ## Role of the CLI
 
-The CLI is the primary operator interface for `skillsync`. It should make the
+The CLI is the primary operator interface for `skillsync`. It makes the
 local/shared state of skills easy to inspect and safe to manipulate.
 
-The CLI should support both:
+The CLI supports both:
 - human-readable interactive usage
-- machine-readable output for CI and editor integrations
+- machine-readable output for CI and editor integrations (`--json`)
 
-## Planned Commands
+## Global Flags
 
-### `skillsync install`
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Machine-readable JSON output |
+| `--project <path>` | `-p` | Project root directory (default: current directory) |
+| `--help` | `-h` | Show help text |
 
-Install one or more skills from configured sources into the managed local store.
-
-Expected uses:
-- bootstrap a project from shared sources
-- install a specific skill or set of skills
-- select compatibility targets and install mode
+## Commands
 
 ### `skillsync sync`
 
-Reconcile the local store with declared source state and update installed
-skills.
+Resolve all skills from configured sources, plan changes, and apply them to
+all configured targets.
 
-Expected behavior:
-- supports dry-run
-- reports changes before apply
-- updates lockfile and installed-state metadata
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--dry-run` | `-n` | Show plan without applying changes |
+| `--force` | `-f` | Override conflict checks and apply even if local drift is detected |
+
+Behavior:
+- Resolves skills from sources in manifest order (first match wins)
+- Follows transitive dependencies from `skillsync.meta.yaml`
+- Detects drift and reports conflicts before overwrite
+- Materializes skills to all configured target directories
+- Updates `skillsync.lock` after successful apply
+- Generates `project-config.yaml` in each target directory
 
 ### `skillsync status`
 
-Report current health of the local store:
-- installed revisions
-- lockfile alignment
-- drift/conflict state
-- validation/trust state
-- override presence
+Report the current health of the installed skill store per target.
 
-### `skillsync diff`
-
-Show meaningful change views across:
-- source vs installed
-- installed vs local modifications
-- override layer vs upstream
+Shows:
+- Installed skills and their install mode
+- Lockfile alignment (clean, modified, missing, extra)
+- File-level drift details
 
 ### `skillsync validate`
 
-Validate:
-- manifests
-- paths and references
-- compatibility declarations
-- portability constraints
+Validate manifest, installed skills, config overrides, and compatibility.
+
+| Flag | Description |
+|------|-------------|
+| `--exit-code` | Exit with code 1 if any errors are found |
+
+Checks:
+- Manifest structure and source definitions
+- Installed skill packages (SKILL.md presence, frontmatter)
+- Portability constraints (non-portable paths)
+- Compatibility declarations against configured targets
+- Config override validity
+
+### `skillsync diff`
+
+Preview what `sync` would change without applying. Equivalent to
+`skillsync sync --dry-run`.
 
 ### `skillsync doctor`
 
-Provide higher-level diagnostics for:
-- invalid installed state
-- broken sources
-- trust-policy violations
-- non-portable configuration
+Run comprehensive health diagnostics.
 
-### `skillsync pin` / `skillsync unpin`
+Checks:
+1. Manifest validity
+2. Lock file presence and structure
+3. Target directory existence
+4. Drift detection across all targets
+5. Portability validation
 
-Manage source or package pinning so projects can opt into stable revisions or
-resume normal upgrade flow.
+### `skillsync pin <skill>`
+
+Lock a skill to its current source revision by writing a revision override to
+`skillsync.yaml`.
+
+For git sources, records the current commit SHA so future syncs use that exact
+revision instead of the branch HEAD.
+
+### `skillsync unpin <skill>`
+
+Remove a revision pin from `skillsync.yaml`, allowing the skill to float and
+receive updates on future syncs.
 
 ### `skillsync prune`
 
-Remove stale or unmanaged installed content safely.
+Remove installed skills that are not declared in the project manifest.
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--dry-run` | `-n` | Show what would be removed without removing |
 
 ### `skillsync promote`
 
-Represent the workflow for turning accepted local refinements into an upstream
-change path. Whether this is fully automated in v0 is still open, but it is a
-planned product capability.
+Display guidance for manually promoting local skill modifications back to their
+canonical source.
+
+In v0, promotion is a documented manual workflow:
+1. Run `skillsync status` to identify modified skills
+2. Run `skillsync diff` to review changes
+3. Copy modified files from the target directory back to the source
+4. Run `skillsync sync` to confirm source and target are in sync
+
+Automated promotion is planned for v0.2+.
 
 ## Output Principles
 
-CLI output should:
-- distinguish clean, drifted, conflicted, and invalid states clearly
-- support JSON output where structured automation matters
-- make dangerous mutations explicit
-- explain why an operation is blocked and what the operator should do next
+CLI output:
+- Distinguishes clean, drifted, conflicted, and invalid states clearly
+- Supports JSON output for structured automation
+- Makes dangerous mutations explicit
+- Explains why an operation is blocked and what the operator should do next
 
-## Example Release-State Flow
+## Example Workflow
 
 ```bash
-skillsync install
-skillsync status
-skillsync diff --json
-skillsync validate
-skillsync sync --dry-run
-skillsync sync
+skillsync validate          # Check manifest and installed state
+skillsync sync --dry-run    # Preview changes
+skillsync sync              # Apply changes
+skillsync status            # Confirm clean state
+skillsync pin my-skill      # Lock to current revision
 ```
 
 ## Non-Goals
