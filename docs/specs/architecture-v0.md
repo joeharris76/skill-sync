@@ -25,54 +25,54 @@ skillsync/
     index.ts              # Package entry point (exports core API)
 
     core/                 # Business logic - no CLI or MCP dependencies
+      types.ts            # Shared type definitions
       manifest.ts         # Parse/validate skillsync.yaml
       lock.ts             # Read/write/diff skillsync.lock
+      parser.ts           # Parse SKILL.md frontmatter and skillsync.meta.yaml
       resolver.ts         # Multi-source skill resolution
       syncer.ts           # Plan and apply sync operations
+      materializer.ts     # Install/remove skills to target directories
+      drift.ts            # Detect drift between installed state and lock file
       hasher.ts           # SHA256 file checksums
       validator.ts        # SKILL.md and package validation
-      promoter.ts         # Upstream promotion logic
-      store.ts            # Installed-store queries and state
-      profile.ts          # Profile resolution and merging
-      types.ts            # Shared type definitions
+      compatibility.ts    # Agent target compatibility checks
+      config-generator.ts # Merge and validate project config overrides
+      portability.ts      # Non-portable path detection
+      trust.ts            # Source allowlist/blocklist policies
+      security.ts         # Script safety and unsafe pattern detection
 
     sources/              # Source adapters (implement SkillSource interface)
+      index.ts            # Source exports
       local.ts            # Local filesystem paths
       git.ts              # Git repository cloning and checkout
-      registry.ts         # Registry/marketplace adapter (future)
+      # registry.ts       # Planned for v0.2+
 
     cli/                  # CLI layer - thin over core
       index.ts            # Entry point, command routing
+      parse.ts            # Zero-dependency argument parser
+      output.ts           # Human-readable and JSON output formatting
+      types.ts            # CLI-specific type definitions
+      source-factory.ts   # Create source instances from manifest config
       commands/
-        init.ts
         sync.ts
         status.ts
-        diff.ts
-        check.ts
+        diff.ts           # Wraps sync --dry-run
         validate.ts
         doctor.ts
-        pin.ts
-        unpin.ts
+        pin.ts            # Also handles unpin
         prune.ts
-        promote.ts
-        list.ts
-        serve.ts          # Start MCP server
-      format.ts           # Human-readable and JSON output formatting
+        promote.ts        # Manual guidance in v0
 
     mcp/                  # MCP server layer - thin over core
-      server.ts           # MCP server setup and transport
-      tools.ts            # MCP tool definitions
-      resources.ts        # MCP resource definitions
+      index.ts            # Stdio transport entry point
+      server.ts           # MCP server setup, resources, tools, prompts
 
   tests/
     unit/
       core/               # Core logic unit tests
-      sources/            # Source adapter unit tests
-    integration/
-      sync/               # Sync workflow integration tests
-      cli/                # CLI integration tests
-      mcp/                # MCP server integration tests
-      portability/        # Portable install integration tests
+      cli/                # CLI unit tests
+      mcp/                # MCP server unit tests
+    contract/             # Public API contract tests
     fixtures/             # Test skill packages and manifests
 ```
 
@@ -319,33 +319,22 @@ external paths.
 
 ### Store Operations
 
+Store operations are distributed across core modules rather than centralized in
+a single store abstraction:
+
 ```typescript
-// core/store.ts
+// core/drift.ts — detect drift between installed files and lock state
+function detectDrift(targetRoot: string, lockFile: LockFile): Promise<DriftReport>;
 
-interface SkillStore {
-  /** List all installed skills in a target directory. */
-  list(targetPath: string): Promise<InstalledSkill[]>;
+// core/parser.ts — load skill packages from disk
+function loadSkillPackage(skillDir: string): Promise<SkillPackage>;
 
-  /** Get a single installed skill by name. */
-  get(targetPath: string, skillName: string): Promise<InstalledSkill | null>;
+// core/materializer.ts — install/remove skills to target directories
+function materialize(options: MaterializeOptions): Promise<void>;
+function dematerialize(targetRoot: string, skillName: string): Promise<void>;
+```
 
-  /** Search installed skills by name, tag, or description. */
-  search(targetPath: string, query: string): Promise<InstalledSkill[]>;
-
-  /** Check installed state against lock file. Returns drift report. */
-  check(targetPath: string, lockFile: LockFile): Promise<DriftReport>;
-
-  /** Read the generated project-config.yaml. */
-  config(targetPath: string): Promise<Record<string, unknown> | null>;
-}
-
-interface InstalledSkill {
-  name: string;
-  package: SkillPackage;
-  installMode: InstallMode;
-  provenance: SourceProvenance;
-}
-
+```typescript
 interface DriftReport {
   clean: string[];                 // Skills matching lock state
   modified: DriftEntry[];          // Files changed since install
@@ -448,20 +437,16 @@ output formatting, and user interaction (confirmation prompts, progress).
 
 | CLI Command | Core Operation |
 |-------------|---------------|
-| `skillsync init` | Generate `skillsync.yaml` template |
-| `skillsync sync` | `resolver.resolveAll()` → `syncer.plan()` → `syncer.apply()` |
-| `skillsync sync --dry-run` | `resolver.resolveAll()` → `syncer.plan()` → format plan |
-| `skillsync status` | `store.check()` against lock file |
-| `skillsync diff` | `store.check()` with file-level diff output |
-| `skillsync check` | `store.check()` → exit code 0 (clean) or 1 (drift) |
-| `skillsync validate` | `validator.validate()` on source or installed skills |
-| `skillsync doctor` | `validator.validate()` + `store.check()` + source connectivity |
-| `skillsync list` | `store.list()` or source enumeration |
-| `skillsync pin <skill>` | Lock a specific skill to its current source revision |
-| `skillsync unpin <skill>` | Remove revision pin, allow floating updates |
+| `skillsync sync` | `resolver.resolveSkill()` → `syncer.planSync()` → `materializer.materialize()` |
+| `skillsync sync --dry-run` | `resolver.resolveSkill()` → `syncer.planSync()` → format plan |
+| `skillsync status` | `drift.detectDrift()` against lock file, per target |
+| `skillsync diff` | Wraps `sync --dry-run` |
+| `skillsync validate` | `validator.validateSkillPackage()` + `validator.validateManifest()` |
+| `skillsync doctor` | Manifest check + lock file + targets + drift + portability |
+| `skillsync pin <skill>` | Write revision override to `skillsync.yaml` |
+| `skillsync unpin <skill>` | Remove revision override from `skillsync.yaml` |
 | `skillsync prune` | Remove installed skills not in manifest |
-| `skillsync promote <skill>` | Copy local changes back to canonical source |
-| `skillsync serve` | Start MCP server |
+| `skillsync promote` | Print manual promotion guidance (automated in v0.2+) |
 
 ### Output Modes
 
@@ -473,58 +458,52 @@ human-readable with color (when stdout is a TTY).
 ## 7. MCP Server Surface
 
 The MCP server exposes the installed store for agent clients. It uses the
-TypeScript MCP SDK with stdio transport (for Claude Code integration) and
-optional HTTP transport (for remote access).
+`@modelcontextprotocol/sdk` TypeScript SDK with stdio transport for Claude Code
+integration.
 
 ### MCP Resources
 
 | URI Pattern | Description |
 |-------------|-------------|
-| `skillsync://skills` | Catalog of all installed skills (name, description, tags) |
-| `skillsync://skills/{name}` | Full skill content (SKILL.md body + metadata) |
-| `skillsync://config` | Generated project-config.yaml content |
+| `skill://list` | Catalog of all installed skills (name, description, file count) |
+| `skill://{name}` | Read a skill's SKILL.md content |
+| `skill://{name}/{+path}` | Read a specific file within a skill package (path traversal protected) |
 
 ### MCP Tools (v0, read-only)
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
-| `list_skills` | `query?`, `tag?` | List/filter installed skills |
-| `search_skills` | `query` | Full-text search across skill descriptions |
-| `get_skill` | `name` | Get complete skill content and metadata |
-| `validate_skill` | `name` | Run validation on an installed skill |
-| `sync_status` | — | Return current drift/sync state |
+| `search-skills` | `query: string` | Search skills by name, description, or tag |
+| `skill-status` | — | Show installation status and drift for all skills per target |
+| `validate-skills` | — | Run portability and compatibility validation |
 
-### MCP Tools (future, gated)
+### MCP Prompts
 
-Mutation tools will be added after the trust and conflict model is stable:
-`sync_skills`, `install_skill`, `remove_skill`.
+| Prompt | Parameters | Description |
+|--------|-----------|-------------|
+| `use-skill` | `name: string` | Generate a prompt incorporating a skill's SKILL.md instructions |
+
+### Future (v0.2+)
+
+Mutation tools will be added after the trust and conflict model is stable.
 
 ### Implementation
 
-The MCP server imports only from `core/` and `sources/`. It creates a
-`SkillStore` instance pointed at the project's target directory and delegates
-all operations.
+The MCP server imports from `core/` modules directly (manifest, lock, drift,
+parser, portability, compatibility, config-generator). It discovers installed
+skills by scanning target directories for `SKILL.md` files.
 
 ```typescript
 // mcp/server.ts (simplified)
 
-import { McpServer } from "@anthropic/mcp-sdk";
-import { SkillStore } from "../core/store.js";
-import { LockFile } from "../core/lock.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-function createServer(targetPath: string): McpServer {
-  const store = new SkillStore(targetPath);
-  const server = new McpServer({ name: "skillsync" });
+function createServer(projectRoot: string): McpServer {
+  const server = new McpServer({ name: "skillsync", version: "0.0.1" });
 
-  server.tool("list_skills", async ({ query, tag }) => {
-    const skills = query
-      ? await store.search(targetPath, query)
-      : await store.list(targetPath);
-    // filter by tag if provided
-    return skills;
-  });
-
-  // ... other tools
+  server.resource("skills-list", "skill://list", ...);
+  server.resource("skill", new ResourceTemplate("skill://{name}", ...), ...);
+  server.tool("search-skills", ..., async ({ query }) => { ... });
 
   return server;
 }
@@ -583,12 +562,12 @@ test:
 | Runtime | Node.js 20+ | LTS, native ESM, stable |
 | Package manager | npm | Standard distribution, `npx skillsync` zero-install |
 | MCP SDK | `@modelcontextprotocol/sdk` | Official TypeScript SDK |
-| CLI framework | Commander.js or yargs | Mature, well-typed |
+| CLI framework | Manual zero-dependency parser | No external dependencies, full control |
 | YAML parsing | `yaml` (npm) | YAML 1.2 compliant |
 | Hashing | Node.js `crypto` | Built-in, no external dependency |
 | Git operations | `simple-git` | Widely used, async API |
 | Testing | Vitest | Fast, TypeScript-native, ESM support |
-| Build | `tsup` or `tsx` | Fast bundling for CLI distribution |
+| Build | `tsup` | Fast bundling for CLI distribution |
 
 ---
 
@@ -605,15 +584,14 @@ test:
 
 - `npm install -g skillsync` — global install
 - `npx skillsync` — zero-install execution
-- `npx skillsync serve` — start MCP server
 
 MCP server configuration for Claude Code:
 ```json
 {
   "mcpServers": {
     "skillsync": {
-      "command": "npx",
-      "args": ["skillsync", "serve"]
+      "command": "node",
+      "args": ["dist/mcp/index.js", "/path/to/project"]
     }
   }
 }
