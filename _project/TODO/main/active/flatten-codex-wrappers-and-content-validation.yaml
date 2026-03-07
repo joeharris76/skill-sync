@@ -2,7 +2,7 @@ id: "flatten-codex-wrappers-and-content-validation"
 title: "Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes"
 worktree: "main"
 priority: "High"
-status: "Not Started"
+status: "In Progress"
 description: |
   SkillSync materializes identical skill content to all configured agent targets
   (Claude, Codex). The user's actual Codex setup uses a dual-layer wrapper pattern:
@@ -144,7 +144,7 @@ work:
 
   - id: w6
     summary: "Add source-vs-disk content comparison to detect manual edits matching upstream"
-    status: not-started
+    status: done
     details: |
       In this repo. The existing diffFiles() (syncer.ts:215-251) compares lock state
       (what was installed) against source files (what's upstream now) using SHA256.
@@ -172,7 +172,7 @@ work:
 
   - id: w7
     summary: "Add --force bypass and promote guidance to existing conflict handling"
-    status: not-started
+    status: done
     details: |
       In this repo. The conflict detection infrastructure already exists:
       - planSync() (syncer.ts:132-147) routes drift+upstream collisions to conflicts[]
@@ -196,7 +196,7 @@ work:
 
   - id: w8
     summary: "Add tests for source-vs-disk skip and --force conflict bypass"
-    status: not-started
+    status: done
     needs: [w6, w7]
     details: |
       In this repo. Add test coverage for:
