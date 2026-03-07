@@ -11,7 +11,9 @@ description: |
   aspirational while the code is concrete. The README still says the project
   is "in planning mode" despite being feature-complete with 137 passing tests.
 
-  Source of truth: /Users/joe/.claude/plans/snuggly-wiggling-coral.md
+  Gap analysis performed 2026-03-07: 5 phantom CLI commands (install, init,
+  check, list, serve), 3 phantom core modules (promoter.ts, store.ts,
+  profile.ts), aspirational MCP docs, stale README, architecture tree mismatch.
 category: "Documentation"
 deps:
   needs: []
@@ -72,6 +74,7 @@ work:
   - id: w5
     summary: "Update docs/specs/promotion-v0.md to clarify v0 behavior"
     status: not-started
+    needs: [w4]
     details: |
       - Clarify that `promote` command EXISTS in v0 but provides manual guidance steps only
       - The command prints instructions for manually copying changes upstream
@@ -93,7 +96,7 @@ work:
       - docs/release-v0.md
 
   - id: w7
-    summary: "Retire or archive superseded design docs"
+    summary: "Archive 3 superseded design docs"
     status: not-started
     details: |
       Three design docs are now superseded by specs + implementation:
@@ -101,29 +104,37 @@ work:
       - docs/manifest-and-store.md (superseded by docs/specs/manifest-v0.md)
       - docs/validation-and-trust.md (superseded by docs/security.md)
       Options: (a) delete them, (b) move to docs/archive/, (c) add deprecation header pointing to successor
-      Also update docs/index.md reading order to remove/redirect these
-      Also review docs/competitive-analysis.md for staleness
     files:
       - docs/architecture.md
       - docs/manifest-and-store.md
       - docs/validation-and-trust.md
+
+  - id: w8
+    summary: "Update docs/index.md reading order and review competitive analysis"
+    status: not-started
+    needs: [w7]
+    details: |
+      - Update docs/index.md to remove or redirect references to archived design docs
+      - Ensure reading order reflects current doc set (specs, security, cli, mcp, portability, release)
+      - Review docs/competitive-analysis.md for staleness — update or add note about pre-implementation context
+    files:
       - docs/index.md
       - docs/competitive-analysis.md
 
-  - id: w8
+  - id: w9
     summary: "Verify validation rules in spec match implementation"
     status: not-started
     needs: [w2]
     details: |
       docs/specs/manifest-v0.md section 7 lists 11 validation rules.
-      Cross-reference each against src/core/validator.ts to confirm:
+      Cross-reference each against src/core/validator.ts (read-only) to confirm:
       - Which rules are actually enforced
       - Which are documented but not implemented
       - Any implemented rules not documented
       Update the spec to match reality (mark unimplemented as "planned").
+      Note: src/core/validator.ts is read-only reference — only docs/specs/manifest-v0.md is modified.
     files:
       - docs/specs/manifest-v0.md
-      - src/core/validator.ts
 
 metadata:
   tags:
@@ -142,9 +153,9 @@ impact:
     Users following the README or CLI docs will try commands that don't exist
     and miss commands that do. MCP integrators have no concrete reference.
 must_preserve:
-  - "All existing spec content that accurately describes the implementation"
-  - "Design rationale and architectural principles sections (still valid)"
-  - "Security and trust policy documentation (docs/security.md is accurate)"
+  - "docs/specs/manifest-v0.md sections 1-6 (skill package model, manifest schema, lock format, sidecar format) — verified accurate"
+  - "docs/security.md in its entirety — verified accurate"
+  - "Design rationale and architectural principles prose in all specs (explains WHY, still valid even when module lists change)"
 approach: |
   Work through docs in priority order (README first, specs second, design docs
   last). For each file, read the current content, compare against the actual
@@ -155,7 +166,7 @@ anti_patterns:
   - "DO NOT delete design rationale — because it explains WHY decisions were made — only correct factual inaccuracies"
 verification:
   - description: "All CLI commands mentioned in docs exist in the codebase"
-    command: "grep -oP 'skillsync (\\w+)' docs/cli.md | sort -u"
+    command: "grep -oE 'skillsync [a-z]+' docs/cli.md | sort -u"
     expected_output: "Only lists: sync, status, validate, diff, doctor, pin, unpin, prune, promote"
   - description: "No absolute user paths in README"
     command: "grep -c '/Users/' README.md"
@@ -164,8 +175,8 @@ verification:
     command: "grep -c 'planning mode' README.md"
     expected_output: "0"
   - description: "Architecture spec module tree matches actual files"
-    command: "ls src/core/*.ts src/cli/commands/*.ts src/sources/*.ts | wc -l"
-    expected_output: "Matches count in architecture spec module tree"
+    command: "ls src/core/*.ts src/cli/commands/*.ts src/sources/*.ts | wc -l | tr -d ' '"
+    expected_output: "29"
 scope_limit:
   do_not_modify:
     - "src/"

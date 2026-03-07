@@ -1,4 +1,4 @@
-generated_at: '2026-03-07T08:12:35.840627'
+generated_at: '2026-03-07T08:15:58.211908'
 total_items: 1
 items:
 - id: docs-align-with-implementation
@@ -13,6 +13,6 @@ items:
   - alignment
   - release-readiness
   estimated_effort: Medium
-  work_total: 8
+  work_total: 9
   work_done: 0
   work_ready: 0
