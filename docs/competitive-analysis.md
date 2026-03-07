@@ -75,25 +75,25 @@ That remains the strongest justification for `skillsync`.
 | Primary value proposition | Local-first skill distribution, sync, portability, validation, CLI, and MCP over one core | Validate, manage, and deliver skills via CLI or MCP | Universal Claude-style skills loader and sync tool across agents |
 | Implementation status | Feature-complete (v0) | Public project, active, but still evolving | Public project, active |
 | Primary interface | CLI + MCP server | CLI + MCP | CLI |
-| Canonical internal cross-agent model | Planned | Agent Skills spec-oriented | Claude-compatible skills model |
-| Skill validation | Planned, broad validation and diagnostics | Yes: `skillport validate` with CI-friendly JSON | No strong validation story visible in README |
-| Multi-source install | Planned: local, git, curated registry, GitHub-style sources | Yes: GitHub, local path, zip | Yes: GitHub, local paths, private git repos |
-| Update existing installs | Planned | Yes: `skillport update` | Implicitly install/sync/manage oriented; not presented as full lifecycle update engine |
-| Managed install modes | Planned: copy, symlink, mirror, vendored snapshot | Add/manage skills, but no clear lock-aware install-mode matrix in README | Supports local dev symlinks and install flows |
-| Lockfile / deterministic resolution | Planned, first-class | No clear evidence in README | No clear evidence in README |
-| Provenance / source revision tracking | Planned, first-class | Source-aware add/update, but no clear provenance policy surfaced | Source-based installs, but no clear provenance policy surfaced |
-| Drift detection | Planned | No clear evidence | No clear evidence |
-| Conflict reporting before overwrite | Planned | No clear evidence | Some conflict warnings around Anthropic marketplace overlaps, but not a general sync-conflict model |
-| Atomic sync plan/apply behavior | Planned | No clear evidence | No clear evidence |
-| Bidirectional promote flow back upstream | Planned | No clear evidence | No clear evidence |
-| Project-local override layering | Planned | No clear evidence | No clear evidence |
-| Project-specific config injection | Planned, first-class | No clear evidence | No clear evidence |
-| Portable repo-local materialization | Planned, first-class | Project/agent delivery supported, but portability is not the main product framing | Yes, partially, through project install + AGENTS.md + universal mode |
-| Multi-agent support | Planned: Claude, Codex, MCP-facing, generic adapters | Yes: Cursor, Copilot, Windsurf, Cline, Codex, Claude via CLI/MCP | Yes: Claude Code, Cursor, Windsurf, Aider, and universal agent mode |
-| AGENTS.md generation/sync | Not yet explicitly planned as a core feature | Yes: `skillport doc` | Yes: `openskills sync` |
-| MCP delivery | Yes, planned | Yes, first-class | No first-class MCP server in README |
-| MCP search-first loading | Yes, planned read-first surface | Yes: `search_skills` then `load_skill` | N/A |
-| Metadata editing without manual file edits | Not currently planned | Yes: `meta get/set/unset` | No clear evidence |
+| Canonical internal cross-agent model | Yes: vendor-neutral SkillPackage model | Agent Skills spec-oriented | Claude-compatible skills model |
+| Skill validation | Yes: `skillsync validate` and `skillsync doctor` | Yes: `skillport validate` with CI-friendly JSON | No strong validation story visible in README |
+| Multi-source install | Yes: local, git (registry planned v0.2+) | Yes: GitHub, local path, zip | Yes: GitHub, local paths, private git repos |
+| Update existing installs | Yes: `skillsync sync` with plan-then-apply | Yes: `skillport update` | Implicitly install/sync/manage oriented; not presented as full lifecycle update engine |
+| Managed install modes | Yes: copy, symlink, mirror | Add/manage skills, but no clear lock-aware install-mode matrix in README | Supports local dev symlinks and install flows |
+| Lockfile / deterministic resolution | Yes: `skillsync.lock` with SHA256 per file | No clear evidence in README | No clear evidence in README |
+| Provenance / source revision tracking | Yes: source type, path/url, revision, timestamp per skill | Source-aware add/update, but no clear provenance policy surfaced | Source-based installs, but no clear provenance policy surfaced |
+| Drift detection | Yes: `skillsync status` and `skillsync diff` | No clear evidence | No clear evidence |
+| Conflict reporting before overwrite | Yes: blocks on drift unless `--force` | No clear evidence | Some conflict warnings around Anthropic marketplace overlaps, but not a general sync-conflict model |
+| Atomic sync plan/apply behavior | Yes: plan-then-apply model | No clear evidence | No clear evidence |
+| Bidirectional promote flow back upstream | Manual guidance in v0; automated in v0.2+ | No clear evidence | No clear evidence |
+| Project-local override layering | Yes: per-skill install mode and source overrides | No clear evidence | No clear evidence |
+| Project-specific config injection | Yes: `config` section generates `project-config.yaml` | No clear evidence | No clear evidence |
+| Portable repo-local materialization | Yes: repo-local targets, portability validation | Project/agent delivery supported, but portability is not the main product framing | Yes, partially, through project install + AGENTS.md + universal mode |
+| Multi-agent support | Yes: Claude, Codex, generic-MCP targets | Yes: Cursor, Copilot, Windsurf, Cline, Codex, Claude via CLI/MCP | Yes: Claude Code, Cursor, Windsurf, Aider, and universal agent mode |
+| AGENTS.md generation/sync | Not implemented | Yes: `skillport doc` | Yes: `openskills sync` |
+| MCP delivery | Yes: read-only v0 server | Yes, first-class | No first-class MCP server in README |
+| MCP search-first loading | Yes: `search-skills` tool | Yes: `search_skills` then `load_skill` | N/A |
+| Metadata editing without manual file edits | Not implemented | Yes: `meta get/set/unset` | No clear evidence |
 | Per-client filtering / categories | Potential future feature, not yet committed | Yes: categories/tags and per-client filtering via env vars | No clear evidence of comparable filtering model |
 | Always-on/core skill concept | Not currently planned | Yes: `alwaysApply: true` metadata pattern | No clear evidence |
 | Best fit today | Teams that need governed lifecycle management and portability | Teams that want a mature operational toolkit right now | Teams that want broad Claude-style skill installation and AGENTS sync with minimal overhead |

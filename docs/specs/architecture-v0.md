@@ -73,6 +73,8 @@ skillsync/
       cli/                # CLI unit tests
       mcp/                # MCP server unit tests
     contract/             # Public API contract tests
+    integration/          # End-to-end workflow tests
+    helpers/              # Shared test utilities
     fixtures/             # Test skill packages and manifests
 ```
 

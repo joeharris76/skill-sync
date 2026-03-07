@@ -38,7 +38,7 @@ locally, and expose the resulting skill set through both a CLI and MCP server.
 Core capabilities:
 - shared skills have a canonical package model with metadata, compatibility data, and provenance
 - installs are deterministic and recorded in a lockfile
-- projects can choose install modes such as `copy`, `symlink`, `mirror`, or vendored snapshot
+- projects can choose install modes: `copy`, `symlink`, or `mirror`
 - local project configuration can customize shared skills without forcing a full fork
 - portable installs do not require runtime access to `~/.claude`, `~/.codex`, or similar machine-local roots
 - the MCP server and CLI both operate on the same installed local store
@@ -72,7 +72,7 @@ Sync behavior:
 - explicit lockfile with source, revision, install mode, and content digest
 - drift detection between upstream, installed, and locally modified state
 - conflict reporting before overwrite
-- atomic updates and rollback-friendly apply behavior
+- plan-then-apply model with lock file updated after successful materialization
 - promotion workflows for moving project-local refinements back to a shared source
 
 ## Portability And Overrides
