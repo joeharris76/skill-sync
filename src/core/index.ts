@@ -31,6 +31,7 @@ export type {
   PlannedUpdate,
   FileChange,
   ConflictEntry,
+  SkippedEntry,
 
   // Store
   InstalledSkill,

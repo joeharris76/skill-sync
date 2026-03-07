@@ -7,6 +7,7 @@ import type {
   PlannedInstall,
   PlannedUpdate,
   ConflictEntry,
+  SkippedEntry,
   InstallMode,
   SkillFile,
   FileChange,
@@ -15,6 +16,7 @@ import type {
   DriftEntry,
 } from "./types.js";
 import { getLockedSkill } from "./lock.js";
+import { hashSkillDirectory } from "./hasher.js";
 
 // ---------------------------------------------------------------------------
 // Pre-resolved skill representation for planning
@@ -40,17 +42,23 @@ export interface PlanSyncInput {
   lockFile?: LockFile;
   resolvedSkills: PreparedSkill[];
   driftReport?: DriftReport;
+  /** Primary target root for source-vs-disk comparison. */
+  targetRoot?: string;
 }
 
 export interface ApplySyncInput {
   plan: SyncPlan;
   targets: string[];
   config?: Record<string, Record<string, unknown>>;
+  /** When true, treat conflicts as updates instead of blocking. */
+  force?: boolean;
 }
 
 export interface ApplySyncResult {
   wroteConfig: boolean;
   configPath?: string;
+  /** Skills whose local modifications were overwritten (only populated when force=true). */
+  forcedOverwrites: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +72,7 @@ export interface ApplySyncResult {
  * Identifies installs, updates, removals, and conflicts.
  */
 export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
-  const { manifest, resolvedSkills, driftReport } = input;
+  const { manifest, resolvedSkills, driftReport, targetRoot } = input;
   const lockFile = input.lockFile ?? { version: 1, lockedAt: "", skills: {} };
 
   const plan: SyncPlan = {
@@ -73,6 +81,7 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
     remove: [],
     conflicts: [],
     unchanged: [],
+    skipped: [],
     warnings: [],
   };
 
@@ -129,6 +138,19 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
       continue;
     }
 
+    // Upstream has changes — check if on-disk files already match source
+    if (targetRoot) {
+      const diskMatchesSource = await checkDiskMatchesSource(
+        targetRoot,
+        skill.name,
+        skill.files,
+      );
+      if (diskMatchesSource) {
+        plan.skipped.push({ name: skill.name, reason: "disk-matches-source" });
+        continue;
+      }
+    }
+
     // Upstream has changes — check for local drift (conflict)
     const localDrift = driftBySkill.get(skill.name);
     if (localDrift && localDrift.length > 0) {
@@ -167,14 +189,22 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
  * Throws if there are unresolved conflicts.
  */
 export async function applySync(input: ApplySyncInput): Promise<ApplySyncResult> {
-  const { plan, targets, config } = input;
+  const { plan, targets, config, force } = input;
+  const forcedOverwrites: string[] = [];
 
-  if (plan.conflicts.length > 0) {
+  if (plan.conflicts.length > 0 && !force) {
     const names = plan.conflicts.map((c) => c.name).join(", ");
     throw new Error(
       `Sync blocked by ${plan.conflicts.length} conflict(s): ${names}. ` +
-        `Use --force to overwrite local changes, or resolve conflicts manually.`,
+        `Run \`skillsync promote\` to push local changes upstream first, ` +
+        `or use \`skillsync sync --force\` to overwrite local modifications.`,
     );
+  }
+
+  if (plan.conflicts.length > 0 && force) {
+    for (const conflict of plan.conflicts) {
+      forcedOverwrites.push(conflict.name);
+    }
   }
 
   // Generate project-config.yaml in each target directory
@@ -193,7 +223,7 @@ export async function applySync(input: ApplySyncInput): Promise<ApplySyncResult>
     }
   }
 
-  return { wroteConfig, configPath };
+  return { wroteConfig, configPath, forcedOverwrites };
 }
 
 // ---------------------------------------------------------------------------
@@ -206,6 +236,33 @@ function effectiveInstallMode(
   skillName: string,
 ): InstallMode {
   return overrides?.[skillName]?.installMode ?? defaultMode;
+}
+
+/**
+ * Check whether on-disk installed files already match the source files.
+ * Returns true if every source file exists on disk with the same SHA256.
+ */
+async function checkDiskMatchesSource(
+  targetRoot: string,
+  skillName: string,
+  sourceFiles: SkillFile[],
+): Promise<boolean> {
+  const skillDir = join(targetRoot, skillName);
+  let diskFiles: SkillFile[];
+  try {
+    diskFiles = await hashSkillDirectory(skillDir);
+  } catch {
+    return false;
+  }
+  const diskMap = new Map(diskFiles.map((f) => [f.relativePath, f.sha256]));
+
+  if (diskFiles.length !== sourceFiles.length) return false;
+
+  for (const sf of sourceFiles) {
+    const diskHash = diskMap.get(sf.relativePath);
+    if (diskHash !== sf.sha256) return false;
+  }
+  return true;
 }
 
 /**

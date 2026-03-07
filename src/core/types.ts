@@ -117,6 +117,8 @@ export interface SourceConfig {
 
 export interface SkillOverride {
   installMode?: InstallMode;
+  sourceName?: string;
+  revision?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +152,13 @@ export interface SyncPlan {
   remove: string[];
   conflicts: ConflictEntry[];
   unchanged: string[];
+  skipped: SkippedEntry[];
   warnings: string[];
+}
+
+export interface SkippedEntry {
+  name: string;
+  reason: "disk-matches-source";
 }
 
 export interface PlannedInstall {
