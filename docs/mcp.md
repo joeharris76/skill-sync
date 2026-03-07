@@ -2,76 +2,90 @@
 
 ## Role of the MCP Server
 
-The MCP server should expose the local `skillsync` store to agent clients that
-need to discover, inspect, and consume synced skills without custom
+The MCP server exposes the local `skillsync` store to agent clients that need
+to discover, inspect, and consume synced skills without custom
 filesystem-specific code.
 
-The key design constraint is consistency: the MCP server should reflect the same
+The key design constraint is consistency: the MCP server reflects the same
 installed state and validation story as the CLI.
 
-## Release-State Positioning
+## v0 Surface (Read-Only)
 
-The recommended initial stance is read-first.
-
-That means the MCP server should reliably support:
-- listing installed skills
-- searching installed skills
-- fetching skill metadata
-- fetching materialized skill content
-- exposing validation or sync-status summaries where safe
-
-Mutation through MCP should be added only after the trust and conflict model is
-already well-defined in the core system.
-
-## Planned MCP Concepts
+The v0 MCP server is read-only. It supports skill discovery, content retrieval,
+status inspection, and validation. Mutation tools are deferred to v0.2+ after
+the trust and conflict model is stable.
 
 ### Resources
 
-Likely resource categories:
-- skill catalog
-- individual skill metadata
-- individual materialized skill content
-- compatibility or source metadata views
+| Name | URI | Description |
+|------|-----|-------------|
+| `skills-list` | `skill://list` | JSON listing of all installed skills with name, description, and file count |
+| `skill` | `skill://{name}` | Read a skill's SKILL.md content (text/markdown) |
+| `skill-file` | `skill://{name}/{+path}` | Read a specific file within a skill package (path traversal protected) |
 
-### Prompts
-
-Potential prompt surfaces:
-- skill inspection guidance
-- compatibility summaries
-- sync health summaries
-
-Prompt exposure is useful, but less important than getting resource semantics
-right.
+The `skill://{name}` resource template supports dynamic listing — clients can
+enumerate all installed skills by querying the template's list callback.
 
 ### Tools
 
-Potential tool surfaces after the core model is stable:
-- search installed skills
-- validate installed skills
-- inspect sync status
+| Tool | Input | Description |
+|------|-------|-------------|
+| `search-skills` | `query: string` | Search installed skills by name, description, or tag. Returns matching skills with names, descriptions, tags, and file lists. |
+| `skill-status` | — | Show installation status and drift for all skills across all configured targets. Returns clean, modified, missing, and extra skill lists per target. |
+| `validate-skills` | — | Run portability and compatibility validation on all installed skills. Returns `valid` boolean and diagnostic list with severity, rule, message, and skill name. |
 
-Mutating tools such as install/update should be gated carefully and may be
-deferred.
+### Prompts
+
+| Prompt | Input | Description |
+|--------|-------|-------------|
+| `use-skill` | `name: string` | Generate a prompt incorporating a skill's SKILL.md instructions. Strips YAML frontmatter and wraps the body as user-facing instructions. |
+
+## Implementation
+
+The MCP server is implemented in `src/mcp/server.ts` with a stdio transport
+entry point at `src/mcp/index.ts`.
+
+It imports directly from `core/` modules:
+- `manifest.ts` — read project manifest for target configuration
+- `lock.ts` — read lock file for drift detection
+- `drift.ts` — detect drift between installed files and lock state
+- `parser.ts` — load skill packages from disk
+- `portability.ts` — validate portable path usage
+- `compatibility.ts` — check agent target compatibility
+- `config-generator.ts` — validate config overrides
+
+The server discovers installed skills by recursively scanning target directories
+for `SKILL.md` files. It supports nested skill names (e.g., `SHARED/commit-framework`).
 
 ## MCP Design Principles
 
-- Read-only operations should always be safer and more mature than mutating ones.
-- MCP clients should not need to understand internal store details.
-- The server must not invent business rules that differ from CLI behavior.
-- Responses should be precise enough for agents to reason about compatibility
+- Read-only operations are safer and more mature than mutating ones.
+- MCP clients do not need to understand internal store details.
+- The server does not invent business rules that differ from CLI behavior.
+- Responses are precise enough for agents to reason about compatibility
   and installed state.
 
-## Example Read-First Capabilities
+## Running the Server
 
-- list installed skills with tags and compatibility targets
-- search by name, trigger phrase, or tag
-- fetch the current materialized form for a requested consumer target
-- inspect whether a skill is drifted, invalid, or blocked by trust policy
+```bash
+# Direct execution
+node dist/mcp/index.js /path/to/project
+
+# Claude Code configuration
+{
+  "mcpServers": {
+    "skillsync": {
+      "command": "node",
+      "args": ["dist/mcp/index.js", "/path/to/project"]
+    }
+  }
+}
+```
 
 ## Relationship To CLI
 
 The CLI is the operator surface.
 The MCP server is the consumer surface.
 
-That distinction helps keep remote mutation risk low while still making the
-local store broadly usable.
+That distinction keeps remote mutation risk low while making the local store
+broadly usable by agent clients.
