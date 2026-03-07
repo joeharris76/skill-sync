@@ -80,12 +80,12 @@ targets:
   codex: true        # Compatible with OpenAI Codex
   generic-mcp: true  # Usable via MCP by any client
 
-# Source provenance (set by sync engine, not author)
-source:
-  type: local         # local | git | registry
-  path: ~/.claude/skills/test
-  revision: null      # git SHA, tag, or null for local
-  fetched_at: "2026-03-06T10:00:00Z"
+# Source provenance (set by sync engine during install/sync — not authorable)
+# This field is ignored if present in an authored file.
+# source:
+#   type: local
+#   path: ~/.claude/skills/test
+#   fetchedAt: "2026-03-06T10:00:00Z"
 ```
 
 **Author-controlled fields:** `tags`, `category`, `depends`, `config_inputs`, `targets`
@@ -231,16 +231,16 @@ JSON file at the project root recording the exact installed state.
 ```json
 {
   "version": 1,
-  "locked_at": "2026-03-06T10:30:00Z",
+  "lockedAt": "2026-03-06T10:30:00Z",
   "skills": {
     "code": {
       "source": {
         "name": "personal",
         "type": "local",
         "path": "~/.claude/skills/code",
-        "revision": null
+        "fetchedAt": "2026-03-06T10:30:00Z"
       },
-      "install_mode": "mirror",
+      "installMode": "mirror",
       "files": {
         "SKILL.md": {
           "sha256": "a1b2c3d4...",
@@ -260,9 +260,10 @@ JSON file at the project root recording the exact installed state.
       "source": {
         "name": "personal",
         "type": "local",
-        "path": "~/.claude/skills/SHARED/commit-framework"
+        "path": "~/.claude/skills/SHARED/commit-framework",
+        "fetchedAt": "2026-03-06T10:30:00Z"
       },
-      "install_mode": "mirror",
+      "installMode": "mirror",
       "files": {
         "SKILL.md": {
           "sha256": "f3a4b5c6...",
@@ -278,7 +279,7 @@ JSON file at the project root recording the exact installed state.
 - Every file in every installed skill has a SHA256 digest and byte size.
 - Source provenance (name, type, path/url, revision) is recorded per skill.
 - Install mode is recorded per skill.
-- `skillsync check` compares materialized files against lock digests and reports
+- `skillsync status` compares materialized files against lock digests and reports
   drift, missing files, or extra files.
 - `skillsync sync` updates the lock file atomically after successful
   materialization.

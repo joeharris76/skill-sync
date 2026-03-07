@@ -8,6 +8,8 @@ import { validatePortability } from "../../core/portability.js";
 import { checkAllTargetCompatibility } from "../../core/compatibility.js";
 import { validateConfigOverrides } from "../../core/config-generator.js";
 import type { ValidationDiagnostic } from "../../core/types.js";
+import { checkSourceTrust, checkProvenanceRequired, DEFAULT_TRUST_POLICY } from "../../core/trust.js";
+import { checkScriptSafety } from "../../core/security.js";
 import { isImplementedSourceType } from "../source-factory.js";
 
 export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
@@ -35,6 +37,7 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
           message: `Source "${source.name}" uses type "${source.type}", which is not implemented yet`,
         });
       }
+      diagnostics.push(...checkSourceTrust(source, DEFAULT_TRUST_POLICY));
     }
 
     if (!lockFile) {
@@ -74,6 +77,8 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
               diagnostics.push(...portDiags);
               const compatDiags = checkAllTargetCompatibility(pkg, manifest.targets);
               diagnostics.push(...compatDiags);
+              diagnostics.push(...checkScriptSafety(pkg, DEFAULT_TRUST_POLICY));
+              diagnostics.push(...checkProvenanceRequired(skillName, locked.source, DEFAULT_TRUST_POLICY));
             }
           } catch {
             diagnostics.push({

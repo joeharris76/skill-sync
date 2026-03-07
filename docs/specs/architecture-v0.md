@@ -164,7 +164,13 @@ interface Manifest {
   targets: Record<string, string>; // agent -> path
   installMode: InstallMode;
   config: Record<string, Record<string, unknown>>;
-  overrides: Record<string, { installMode?: InstallMode }>;
+  overrides: Record<string, SkillOverride>;
+}
+
+interface SkillOverride {
+  installMode?: InstallMode;
+  sourceName?: string;
+  revision?: string;
 }
 
 type InstallMode = "copy" | "symlink" | "mirror";
@@ -188,7 +194,12 @@ interface LockFile {
 interface LockedSkill {
   source: SourceProvenance;
   installMode: InstallMode;
-  files: Record<string, { sha256: string; size: number }>;
+  files: Record<string, LockedFile>;
+}
+
+interface LockedFile {
+  sha256: string;
+  size: number;
 }
 ```
 
@@ -227,7 +238,8 @@ interface SkillSource {
 
 interface ResolvedSkill {
   name: string;
-  source: SkillSource;
+  sourceName: string;
+  sourceType: SourceType;
   location: string;   // Path, URL, or registry identifier
 }
 
@@ -383,8 +395,16 @@ interface SyncPlan {
   /** Skills that are up to date. */
   unchanged: string[];
 
+  /** Skills skipped because disk already matches source. */
+  skipped: SkippedEntry[];
+
   /** Dependency resolution warnings. */
   warnings: string[];
+}
+
+interface SkippedEntry {
+  name: string;
+  reason: "disk-matches-source";
 }
 
 interface PlannedInstall {
@@ -398,11 +418,13 @@ interface PlannedUpdate {
   name: string;
   source: SourceProvenance;
   installMode: InstallMode;
-  changedFiles: Array<{
-    path: string;
-    oldSha256: string;
-    newSha256: string;
-  }>;
+  changedFiles: FileChange[];
+}
+
+interface FileChange {
+  path: string;
+  oldSha256: string;
+  newSha256: string;
 }
 
 interface ConflictEntry {
@@ -418,7 +440,8 @@ interface ConflictEntry {
    to `skillsync.meta.yaml`. Update lock file.
 
 2. **Update:** Overwrite changed files. If local drift exists, report conflict
-   and halt unless `--force` is passed. Update lock file.
+   and halt unless `--force` is passed, which adds them to `forcedOverwrites`
+   and proceeds. Update lock file.
 
 3. **Remove:** Delete skill directory from all targets. Remove from lock file.
 

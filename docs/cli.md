@@ -16,6 +16,7 @@ The CLI supports both:
 | `--json` | `-j` | Machine-readable JSON output |
 | `--project <path>` | `-p` | Project root directory (default: current directory) |
 | `--help` | `-h` | Show help text |
+| `--version` | | Show version number |
 
 ## Commands
 
@@ -83,16 +84,20 @@ Lock a skill to its current source revision by writing a revision override to
 `skillsync.yaml`.
 
 For git sources, records the current commit SHA so future syncs use that exact
-revision instead of the branch HEAD.
+revision instead of the branch HEAD. Only works for git sources with a
+resolved revision; local sources cannot be pinned.
 
 ### `skillsync unpin <skill>`
 
 Remove a revision pin from `skillsync.yaml`, allowing the skill to float and
-receive updates on future syncs.
+receive updates on future syncs. Succeeds silently if the skill is not
+currently pinned.
 
 ### `skillsync prune`
 
-Remove installed skills that are not declared in the project manifest.
+Remove installed skills that are not declared in the project manifest,
+including untracked skills (directories in a target that are not in the
+lock file).
 
 | Flag | Short | Description |
 |------|-------|-------------|

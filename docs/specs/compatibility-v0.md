@@ -27,6 +27,7 @@ target cannot support:
 | `allowed-tools` | Supported | Ignored | Ignored |
 | `scripts/` | Supported | Supported | Resources only |
 | `references/` | Supported | Supported | Supported |
+| `AGENTS.md` discovery | No | Yes | No |
 
 ### Fallback Behavior
 
@@ -88,7 +89,7 @@ targets:
   claude: .claude/skills
 ```
 
-Verify with: `skillsync check --exit-code`
+Verify with: `skillsync validate --exit-code`
 
 ## Config Injection
 

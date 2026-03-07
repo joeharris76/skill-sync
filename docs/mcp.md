@@ -32,7 +32,7 @@ enumerate all installed skills by querying the template's list callback.
 |------|-------|-------------|
 | `search-skills` | `query: string` | Search installed skills by name, description, or tag. Returns matching skills with names, descriptions, tags, and file lists. |
 | `skill-status` | — | Show installation status and drift for all skills across all configured targets. Returns clean, modified, missing, and extra skill lists per target. |
-| `validate-skills` | — | Run portability and compatibility validation on all installed skills. Returns `valid` boolean and diagnostic list with severity, rule, message, and skill name. |
+| `validate-skills` | — | Run portability and compatibility validation on all installed skills. Returns `valid` boolean and diagnostic list with severity, rule, message, skill name, and optional `file` and `line` fields. |
 
 ### Prompts
 
