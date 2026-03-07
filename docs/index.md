@@ -3,6 +3,8 @@
 ## Reading Order
 
 - [Product Overview](../README.md)
+- [Getting Started](getting-started.md)
+- [Common Usage](usage.md)
 - [Architecture Specification](specs/architecture-v0.md)
 - [Manifest Specification](specs/manifest-v0.md)
 - [Sync Model and Lockfile](sync-model.md)

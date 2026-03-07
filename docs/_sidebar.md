@@ -1,4 +1,6 @@
 - [Home](/)
+- [Getting Started](getting-started.md)
+- [Common Usage](usage.md)
 - [Architecture](specs/architecture-v0.md)
 - [Manifest](specs/manifest-v0.md)
 - [Sync Model](sync-model.md)
