@@ -192,16 +192,15 @@ export async function applySync(input: ApplySyncInput): Promise<ApplySyncResult>
   const { plan, targets, config, force } = input;
   const forcedOverwrites: string[] = [];
 
-  if (plan.conflicts.length > 0 && !force) {
-    const names = plan.conflicts.map((c) => c.name).join(", ");
-    throw new Error(
-      `Sync blocked by ${plan.conflicts.length} conflict(s): ${names}. ` +
-        `Run \`skillsync promote\` to push local changes upstream first, ` +
-        `or use \`skillsync sync --force\` to overwrite local modifications.`,
-    );
-  }
-
-  if (plan.conflicts.length > 0 && force) {
+  if (plan.conflicts.length > 0) {
+    if (!force) {
+      const names = plan.conflicts.map((c) => c.name).join(", ");
+      throw new Error(
+        `Sync blocked by ${plan.conflicts.length} conflict(s): ${names}. ` +
+          `Run \`skillsync promote\` to push local changes upstream first, ` +
+          `or use \`skillsync sync --force\` to overwrite local modifications.`,
+      );
+    }
     for (const conflict of plan.conflicts) {
       forcedOverwrites.push(conflict.name);
     }

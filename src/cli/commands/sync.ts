@@ -12,7 +12,7 @@ import { loadSkillPackage } from "../../core/parser.js";
 import { generateConfig, writeProjectConfig } from "../../core/config-generator.js";
 import { checkAllTargetCompatibility } from "../../core/compatibility.js";
 import { createSourcesFromConfigForSkill } from "../source-factory.js";
-import type { SkillSource } from "../../core/types.js";
+import type { SkillSource, SyncPlan } from "../../core/types.js";
 
 export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
   const mode: OutputMode = args.flags.json ? "json" : "text";
@@ -28,7 +28,7 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
       manifest = await readManifest(projectRoot);
     } catch (err) {
       if (dryRun) {
-        const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], warnings: [] };
+        const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], skipped: [], warnings: [] };
         return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skillsync.yaml found. Nothing to sync.") };
       }
       throw err;
@@ -215,13 +215,6 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
     // Write lock file
     await writeLockFile(projectRoot, updatedLock);
 
-    // Cleanup disposable sources
-    for (const source of sources) {
-      if ("dispose" in source && typeof (source as { dispose: () => Promise<void> }).dispose === "function") {
-        await (source as { dispose: () => Promise<void> }).dispose();
-      }
-    }
-
     // Compatibility warnings
     const warnings: string[] = [];
     for (const install of [...plan.install, ...plan.update]) {
@@ -236,14 +229,13 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
       }
     }
 
-    const forcedNames = force ? plan.conflicts.map((c) => c.name) : [];
     const summary = {
       installed: plan.install.map((i) => i.name),
       updated: plan.update.map((u) => u.name),
       removed: plan.remove,
       unchanged: plan.unchanged,
       skipped: plan.skipped.map((s) => ({ name: s.name, reason: s.reason })),
-      forced: forcedNames,
+      forced: force ? plan.conflicts.map((c) => c.name) : [],
       warnings,
     };
 
@@ -276,13 +268,13 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
   }
 }
 
-function formatPlanText(plan: { install: { name: string }[]; update: { name: string }[]; remove: string[]; conflicts: { name: string }[]; unchanged: string[]; skipped?: { name: string; reason: string }[]; warnings: string[] }): string {
+function formatPlanText(plan: SyncPlan): string {
   const lines: string[] = [];
   if (plan.install.length) lines.push(`Install: ${plan.install.map((i) => i.name).join(", ")}`);
   if (plan.update.length) lines.push(`Update: ${plan.update.map((u) => u.name).join(", ")}`);
   if (plan.remove.length) lines.push(`Remove: ${plan.remove.join(", ")}`);
   if (plan.conflicts.length) lines.push(`Conflicts: ${plan.conflicts.map((c) => c.name).join(", ")}`);
-  if (plan.skipped?.length) lines.push(`Skipped (disk matches source): ${plan.skipped.map((s) => s.name).join(", ")}`);
+  if (plan.skipped.length) lines.push(`Skipped (disk matches source): ${plan.skipped.map((s) => s.name).join(", ")}`);
   if (plan.unchanged.length) lines.push(`Unchanged: ${plan.unchanged.join(", ")}`);
   if (plan.warnings.length) lines.push("", ...plan.warnings);
   return lines.length ? lines.join("\n") : "Nothing to do.";
