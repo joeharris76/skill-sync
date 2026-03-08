@@ -108,19 +108,30 @@ Target: claude (.claude/skills)
 
 > "Show me the drift status for all my installed skills."
 
-To preview what sync would overwrite (CLI only -- sync is not available via MCP in v0):
+To preview what sync would overwrite:
 
+**CLI:**
 ```bash
 skillsync diff
 ```
 
-To promote your local changes back to the shared source (CLI only):
+**Via agent:**
 
+> "What would change if I synced my skills right now?"
+
+To sync and overwrite local changes, or promote them back to the source:
+
+**CLI:**
 ```bash
+skillsync sync --force
 skillsync promote
 ```
 
-This displays step-by-step guidance for the manual promotion workflow.
+**Via agent:**
+
+> "Sync my skills and overwrite any local modifications."
+
+> "How do I promote my local changes to the code skill back upstream?"
 
 ### CI Integration
 
@@ -332,16 +343,19 @@ skillsync prune --dry-run
 skillsync prune
 ```
 
-**Via agent** (for the read-only steps):
+**Via agent:**
+
+> "Sync my skills to pick up the latest changes."
 
 > "Which of my skills have drifted from their source?"
 
 > "Do any of my installed skills have portability or compatibility problems?"
 
-> "Find me a skill that helps with code review."
+> "Pin the code skill to the version I have now."
 
-Sync, pin, prune, and promote are CLI-only in v0 -- the MCP server is
-read-only.
+> "Remove any skills that aren't in my manifest anymore."
+
+> "Find me a skill that helps with code review."
 
 ### JSON Output for Scripting
 

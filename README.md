@@ -110,13 +110,10 @@ to specify the project root.
 The MCP server exposes the local `skillsync` store so agent clients can
 discover and consume installed skills without filesystem-specific glue code.
 
-The v0 server is read-only and provides:
+The v0 server provides the same capabilities as the CLI:
 - **Resources:** `skill://list`, `skill://{name}`, `skill://{name}/{+path}`
-- **Tools:** `search-skills`, `skill-status`, `validate-skills`
+- **Tools:** `search-skills`, `skill-status`, `validate-skills`, `sync-skills`, `pin-skill`, `unpin-skill`, `prune-skills`, `promote-skill`
 - **Prompts:** `use-skill`
-
-Mutation tools are planned for v0.2+ after the trust and conflict model is
-stable.
 
 ## Validation And Trust
 
@@ -144,7 +141,7 @@ business logic over the same files.
 v0 implementation is **feature-complete**:
 - 137 tests passing across 25 test files (unit, contract, integration)
 - All 9 CLI commands implemented
-- MCP server with read-only resources, tools, and prompts
+- MCP server with full CLI-equivalent resources, tools, and prompts
 - Local and git source adapters
 - Multi-target materialization (Claude, Codex, generic MCP)
 

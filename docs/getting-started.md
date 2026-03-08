@@ -163,15 +163,25 @@ no skill files are modified.
 For git sources, lock a skill to its current commit so future syncs don't
 pick up upstream changes:
 
+**CLI:**
 ```bash
 skillsync pin code
 ```
 
+**Via agent:**
+
+> "Pin the code skill to the version I have installed right now."
+
 Unpin when you want to receive updates again:
 
+**CLI:**
 ```bash
 skillsync unpin code
 ```
+
+**Via agent:**
+
+> "Unpin the code skill so it can receive upstream updates."
 
 ## Next Steps
 
