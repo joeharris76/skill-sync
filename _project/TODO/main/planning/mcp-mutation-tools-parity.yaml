@@ -1,0 +1,112 @@
+id: mcp-mutation-tools-parity
+title: "Add mutation tools to MCP server to achieve full CLI parity"
+worktree: main
+priority: High
+status: Not Started
+category: Core Functionality
+
+description: |
+  The MCP server currently only exposes three read-only tools (search-skills,
+  skill-status, validate-skills). The CLI has nine commands. The design
+  requirement is that MCP and CLI must have the same surface area and
+  capabilities.
+
+  Missing MCP tools:
+  - sync-skills  (skillsync sync)
+  - pin-skill    (skillsync pin <skill>)
+  - unpin-skill  (skillsync unpin <skill>)
+  - prune-skills (skillsync prune)
+  - promote-skill (skillsync promote)
+
+  diff is just sync with dry_run=true; it does not need its own tool.
+
+  After implementation, all documentation that describes the MCP server as
+  "read-only" must be updated.
+
+work:
+  - id: w1
+    summary: "Add sync-skills tool to MCP server"
+    status: pending
+    notes: |
+      Call planSync() + applySync() from src/core/syncer.ts.
+      Accept dry_run (bool, default false) and force (bool, default false)
+      params matching CLI flags. Return plan summary and applied changes.
+
+  - id: w2
+    summary: "Add pin-skill and unpin-skill tools to MCP server"
+    status: pending
+    needs: [w1]
+    notes: |
+      Extract pin/unpin logic from src/cli/commands/pin.ts into core or
+      call it directly. Accept skill name as required string param.
+      Both tools write to skillsync.yaml (revision override).
+
+  - id: w3
+    summary: "Add prune-skills tool to MCP server"
+    status: pending
+    needs: [w1]
+    notes: |
+      Extract prune logic from src/cli/commands/prune.ts or call core
+      directly. Accept dry_run (bool, default false).
+      Return list of skills that were (or would be) removed.
+
+  - id: w4
+    summary: "Add promote-skill tool to MCP server"
+    status: pending
+    notes: |
+      v0 promote is guidance-only (no automated promotion).
+      The tool should return the same step-by-step guidance text that
+      the CLI prints. Accept skill name as optional param.
+      No file writes required.
+
+  - id: w5
+    summary: "Update docs to remove read-only language and add mutation tool docs"
+    status: pending
+    needs: [w1, w2, w3, w4]
+    notes: |
+      Files to update:
+      - docs/mcp.md: remove "v0 Surface (Read-Only)" heading and "read-only"
+        language. Add new tools to the tools table. Update design principles.
+        Update "Relationship To CLI" section.
+      - docs/usage.md: update "Via agent" examples to include sync, pin/unpin,
+        prune. Remove the note "Sync, pin, prune, and promote are CLI-only in v0".
+      - docs/getting-started.md: remove any read-only caveats.
+      - README.md: update MCP section if it mentions read-only limitation.
+
+must_preserve:
+  - "Existing read-only tools (search-skills, skill-status, validate-skills) behavior unchanged"
+  - "Path traversal protection in skill-file resource (src/mcp/server.ts:108-112)"
+  - "CLI commands continue to work -- MCP tools share core logic, not CLI wrappers"
+
+approach: |
+  Follow the existing tool registration pattern in src/mcp/server.ts using
+  server.tool(name, description, schema, handler). Handlers should call core
+  functions (planSync, applySync, readManifest, writeLockFile) directly --
+  not shell out to the CLI. This keeps the layer contract clean.
+
+  For pin/unpin/prune, either extract business logic into core/ functions or
+  inline the manifest-write logic directly in the handler (it is simple).
+  Avoid importing from src/cli/ -- that layer is a peer, not a dependency of mcp/.
+
+anti_patterns:
+  - "DO NOT shell out to the skillsync CLI binary from MCP tools -- handlers
+    must call core/ functions directly, same as the CLI does"
+  - "DO NOT add business logic to the MCP layer that doesn't exist in core/ --
+    keep MCP as a thin adapter over the same core used by CLI"
+
+verification:
+  - description: "All existing tests continue to pass"
+    command: "npm run test:run"
+    expected_output: "137+ tests passing, 0 failing"
+  - description: "New MCP tool tests cover sync, pin, unpin, prune, promote"
+    command: "npm run test:run -- tests/mcp"
+    expected_output: "all mcp tests passing"
+  - description: "TypeScript compiles cleanly"
+    command: "npm run check"
+    expected_output: "no errors"
+
+scope_limit: |
+  This item covers only the MCP server tool additions and doc updates.
+  Do not change CLI command implementations. Do not refactor core/ modules
+  beyond what is needed to make logic callable from mcp/server.ts.
+  Do not add a registry source type or automated promotion (v0.2 items).
