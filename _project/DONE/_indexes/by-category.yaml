@@ -1,9 +1,14 @@
-generated_at: '2026-03-07T13:05:58.083035'
+generated_at: '2026-03-07T20:32:11.119144'
 total_categories: 4
 categories:
   Core Functionality:
-    count: 5
+    count: 6
     items:
+    - id: mcp-mutation-tools-parity
+      file: DONE/main/planning/mcp-mutation-tools-parity.yaml
+      title: Add mutation tools to MCP server to achieve full CLI parity
+      priority: High
+      status: Completed
     - id: sync-engine-lockfile-and-source-management
       file: DONE/main/planning/sync-engine-lockfile-and-source-management.yaml
       title: Build sync engine, source adapters, and lockfile semantics

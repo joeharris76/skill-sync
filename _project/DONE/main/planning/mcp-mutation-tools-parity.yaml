@@ -2,7 +2,7 @@ id: mcp-mutation-tools-parity
 title: "Add mutation tools to MCP server to achieve full CLI parity"
 worktree: main
 priority: High
-status: Not Started
+status: Completed
 category: Core Functionality
 
 description: |
@@ -26,42 +26,36 @@ description: |
 work:
   - id: w1
     summary: "Add sync-skills tool to MCP server"
-    status: pending
+    status: done
     notes: |
-      Call planSync() + applySync() from src/core/syncer.ts.
-      Accept dry_run (bool, default false) and force (bool, default false)
-      params matching CLI flags. Return plan summary and applied changes.
+      Moved source-factory to src/sources/factory.ts (shared). MCP handler
+      calls planSync() + applySync() directly from core. Supports dry_run and force.
 
   - id: w2
     summary: "Add pin-skill and unpin-skill tools to MCP server"
-    status: pending
+    status: done
     needs: [w1]
     notes: |
-      Extract pin/unpin logic from src/cli/commands/pin.ts into core or
-      call it directly. Accept skill name as required string param.
-      Both tools write to skillsync.yaml (revision override).
+      Inlined pin/unpin manifest-write logic directly in handlers.
+      No cli/ imports required.
 
   - id: w3
     summary: "Add prune-skills tool to MCP server"
-    status: pending
+    status: done
     needs: [w1]
     notes: |
-      Extract prune logic from src/cli/commands/prune.ts or call core
-      directly. Accept dry_run (bool, default false).
-      Return list of skills that were (or would be) removed.
+      Uses detectDrift + dematerialize from core. Supports dry_run.
 
   - id: w4
     summary: "Add promote-skill tool to MCP server"
-    status: pending
+    status: done
     notes: |
-      v0 promote is guidance-only (no automated promotion).
-      The tool should return the same step-by-step guidance text that
-      the CLI prints. Accept skill name as optional param.
-      No file writes required.
+      Returns JSON guidance object matching CLI promote output.
+      Accepts optional skill name param.
 
   - id: w5
     summary: "Update docs to remove read-only language and add mutation tool docs"
-    status: pending
+    status: done
     needs: [w1, w2, w3, w4]
     notes: |
       Files to update:

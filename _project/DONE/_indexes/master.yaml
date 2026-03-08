@@ -1,5 +1,5 @@
-generated_at: '2026-03-07T13:05:58.083012'
-total_items: 8
+generated_at: '2026-03-07T20:32:11.119130'
+total_items: 9
 items:
 - id: sync-engine-lockfile-and-source-management
   file: DONE/main/planning/sync-engine-lockfile-and-source-management.yaml
@@ -36,6 +36,16 @@ items:
   completed_date: '2026-03-06'
   work_total: 4
   work_done: 4
+  work_ready: 0
+- id: mcp-mutation-tools-parity
+  file: DONE/main/planning/mcp-mutation-tools-parity.yaml
+  title: Add mutation tools to MCP server to achieve full CLI parity
+  worktree: main
+  category: Core Functionality
+  priority: High
+  status: Completed
+  work_total: 5
+  work_done: 5
   work_ready: 0
 - id: validation-trust-security-and-release-readiness
   file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml

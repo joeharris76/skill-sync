@@ -1,9 +1,14 @@
-generated_at: '2026-03-07T13:05:58.083052'
-total_items: 8
+generated_at: '2026-03-07T20:32:11.119157'
+total_items: 9
 statuses:
   Completed:
-    count: 8
+    count: 9
     items:
+    - id: mcp-mutation-tools-parity
+      file: DONE/main/planning/mcp-mutation-tools-parity.yaml
+      title: Add mutation tools to MCP server to achieve full CLI parity
+      priority: High
+      category: Core Functionality
     - id: validation-trust-security-and-release-readiness
       file: DONE/main/planning/validation-trust-security-and-release-readiness.yaml
       title: Add validation, trust controls, security checks, and release readiness

@@ -1,11 +1,3 @@
-generated_at: '2026-03-07T20:25:20.640248'
-total_items: 1
-statuses:
-  Not Started:
-    count: 1
-    items:
-    - id: mcp-mutation-tools-parity
-      file: TODO/main/planning/mcp-mutation-tools-parity.yaml
-      title: Add mutation tools to MCP server to achieve full CLI parity
-      priority: High
-      category: Core Functionality
+generated_at: '2026-03-07T20:32:11.098241'
+total_items: 0
+statuses: {}
