@@ -96,5 +96,5 @@ notes: |
   docs/security.md, docs/release-v0.md.
   Tests: 137 pass, 0 fail (23 new tests: validator, trust, security, contract).
   Validator contract test now passes (was previously skipped).
-  Portability scanner now excludes skillsync.meta.yaml (sync engine metadata with expected absolute paths).
+  Portability scanner now excludes skill.yaml (sync engine metadata with expected absolute paths).
   TypeScript implementation (verification commands in TODO referenced Python — pre-decision artifact).

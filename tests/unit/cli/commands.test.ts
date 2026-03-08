@@ -206,7 +206,7 @@ describe("runCli", () => {
       "utf8",
     );
     await writeFile(
-      join(skillRoot, "skillsync.meta.yaml"),
+      join(skillRoot, "skill.yaml"),
       [
         "config_inputs:",
         "  - key: code.verify",
@@ -247,8 +247,8 @@ describe("runCli", () => {
     expect(result.exitCode).toBe(0);
     expect(await readFile(join(projectRoot, ".claude/skills/code/SKILL.md"), "utf8")).toContain("name: code");
     expect(await readFile(join(projectRoot, ".codex/skills/code/SKILL.md"), "utf8")).toContain("name: code");
-    expect(await readFile(join(projectRoot, ".claude/skills/project-config.yaml"), "utf8")).toContain("verify: npm run test:run");
-    expect(await readFile(join(projectRoot, ".codex/skills/project-config.yaml"), "utf8")).toContain("verify: npm run test:run");
+    expect(await readFile(join(projectRoot, ".claude/skills/skillsync.config.yaml"), "utf8")).toContain("verify: npm run test:run");
+    expect(await readFile(join(projectRoot, ".codex/skills/skillsync.config.yaml"), "utf8")).toContain("verify: npm run test:run");
 
     await rm(projectRoot, { recursive: true, force: true });
   });

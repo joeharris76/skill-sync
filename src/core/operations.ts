@@ -255,7 +255,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
       delete updatedLock.skills[name];
     }
 
-    // Generate project-config.yaml
+    // Generate skillsync.config.yaml
     if (Object.keys(manifest.config).length > 0) {
       for (const { targetRoot } of driftReports) {
         const installedPkgs = [];

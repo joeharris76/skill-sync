@@ -62,7 +62,7 @@ It imports directly from `core/` and `sources/` modules:
 - `parser.ts` — load skill packages from disk
 - `portability.ts` — validate portable path usage
 - `compatibility.ts` — check agent target compatibility
-- `config-generator.ts` — validate config overrides and generate project-config.yaml
+- `config-generator.ts` — validate config overrides and generate skillsync.config.yaml
 - `resolver.ts` — resolve skill names against configured sources
 - `syncer.ts` — plan sync operations
 - `materializer.ts` — materialize and dematerialize skills on disk

@@ -11,7 +11,7 @@ import { isPortableMode } from "./portability.js";
  * Checks:
  * - SKILL.md exists and has frontmatter with name + description
  * - No non-portable paths in content
- * - skillsync.meta.yaml is valid if present
+ * - skill.yaml is valid if present
  */
 export async function validateSkillPackage(
   skillDir: string,

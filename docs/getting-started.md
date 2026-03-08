@@ -70,11 +70,11 @@ my-project/
   .claude/skills/
     code/
       SKILL.md
-      skillsync.meta.yaml
+      skill.yaml
     test/
       SKILL.md
-      skillsync.meta.yaml
-    project-config.yaml
+      skill.yaml
+    skillsync.config.yaml
 ```
 
 The lock file records exact file checksums and source provenance so future
@@ -163,7 +163,7 @@ config:
     format: "npx prettier --write ."
 ```
 
-Skillsync generates a `project-config.yaml` in each target directory with
+Skillsync generates a `skillsync.config.yaml` in each target directory with
 these values merged over skill defaults. Skills read this file at runtime --
 no skill files are modified.
 

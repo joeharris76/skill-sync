@@ -38,7 +38,7 @@ export async function resolveSkill(
 
 /**
  * Resolve all requested skills, including transitive dependencies
- * from skillsync.meta.yaml `depends` fields.
+ * from skill.yaml `depends` fields.
  *
  * Returns the full set of resolved skills (requested + dependencies).
  */
@@ -70,7 +70,7 @@ export async function resolveAll(
   return Array.from(resolved.values());
 }
 
-/** Load dependencies from a resolved skill's skillsync.meta.yaml. */
+/** Load dependencies from a resolved skill's skill.yaml. */
 async function loadDependencies(resolved: ResolvedSkill): Promise<string[]> {
   try {
     const pkg = await loadSkillPackage(resolved.location);

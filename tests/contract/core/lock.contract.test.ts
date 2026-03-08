@@ -54,7 +54,7 @@ describeLock("core/lock contract", () => {
 
     expect(Object.keys(reparsed.skills.code?.files ?? {})).toEqual([
       "SKILL.md",
-      "skillsync.meta.yaml",
+      "skill.yaml",
     ]);
   });
 });

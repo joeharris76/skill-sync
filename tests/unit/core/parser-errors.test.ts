@@ -21,16 +21,16 @@ describe("loadSkillPackage sidecar error handling", () => {
     const skillDir = join(tmpBase, "bad-yaml");
     await mkdir(skillDir, { recursive: true });
     await writeFile(join(skillDir, "SKILL.md"), "---\nname: test\ndescription: ok\n---\n# Test");
-    await writeFile(join(skillDir, "skillsync.meta.yaml"), "key: [unclosed");
+    await writeFile(join(skillDir, "skill.yaml"), "key: [unclosed");
 
-    await expect(loadSkillPackage(skillDir)).rejects.toThrow("Failed to parse skillsync.meta.yaml");
+    await expect(loadSkillPackage(skillDir)).rejects.toThrow("Failed to parse skill.yaml");
   });
 
   it("loads valid sidecar correctly", async () => {
     const skillDir = join(tmpBase, "valid-sidecar");
     await mkdir(skillDir, { recursive: true });
     await writeFile(join(skillDir, "SKILL.md"), "---\nname: test\ndescription: ok\n---\n# Test");
-    await writeFile(join(skillDir, "skillsync.meta.yaml"), "tags:\n  - testing\ndepends:\n  - SHARED/commit-framework\n");
+    await writeFile(join(skillDir, "skill.yaml"), "tags:\n  - testing\ndepends:\n  - SHARED/commit-framework\n");
 
     const pkg = await loadSkillPackage(skillDir);
     expect(pkg.meta).not.toBeNull();

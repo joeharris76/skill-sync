@@ -27,7 +27,7 @@ export async function checkPortability(
   // Check skill content files (skip sync engine metadata)
   for (const file of pkg.files) {
     if (!isTextFile(file.relativePath)) continue;
-    if (file.relativePath === "skillsync.meta.yaml") continue;
+    if (file.relativePath === "skill.yaml") continue;
 
     const filePath = join(pkg.path, file.relativePath);
     let content: string;

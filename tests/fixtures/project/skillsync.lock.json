@@ -15,7 +15,7 @@
           "sha256": "aaaabbbbcccc1111222233334444555566667777888899990000aaaabbbbcccc",
           "size": 4210
         },
-        "skillsync.meta.yaml": {
+        "skill.yaml": {
           "sha256": "ddddeeeeffff1111222233334444555566667777888899990000ddddeeeeffff",
           "size": 312
         }

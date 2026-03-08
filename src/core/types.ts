@@ -13,7 +13,7 @@ export interface SkillPackage {
   path: string;
   /** Parsed SKILL.md frontmatter (read-only, never modified by skillsync). */
   skillMd: SkillMdMetadata;
-  /** Parsed skillsync.meta.yaml sidecar, or null if absent. */
+  /** Parsed skill.yaml sidecar, or null if absent. */
   meta: SkillSyncMeta | null;
   /** All files in the package with checksums. */
   files: SkillFile[];
@@ -29,7 +29,7 @@ export interface SkillMdMetadata {
   compatibility?: Record<string, unknown>;
 }
 
-/** Parsed skillsync.meta.yaml sidecar. */
+/** Parsed skill.yaml sidecar. */
 export interface SkillSyncMeta {
   tags: string[];
   category?: string;

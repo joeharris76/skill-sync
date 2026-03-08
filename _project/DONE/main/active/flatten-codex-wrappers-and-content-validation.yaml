@@ -41,7 +41,7 @@ work:
       - Read corresponding shared-skills canonical SKILL.md
       - Read corresponding Claude SKILL.md
       - Produce a diff matrix: what does the wrapper add that Claude doesn't have?
-      - Identify which additions are project-specific (belong in project-config.yaml)
+      - Identify which additions are project-specific (belong in skillsync.config.yaml)
         vs which are universal (should be in the canonical skill)
       Deliverable: audit table with columns [skill, wrapper-only content, shared-only
       content, claude content, reconciliation action]
@@ -54,7 +54,7 @@ work:
       External to this repo. For blog, code, and test:
       - Merge Claude and Codex shared-skills versions into a single canonical SKILL.md
       - Standardize commit rule format (pick one: blockquote after Actions table)
-      - Move project-specific config references to skillsync.meta.yaml config_inputs
+      - Move project-specific config references to skill.yaml config_inputs
       - Ensure SHARED/ framework references are consistent
       - Place canonical versions in a skills source directory (e.g., ~/.skillsync/skills/)
       Deliverable: 3 unified canonical SKILL.md files
@@ -67,7 +67,7 @@ work:
       External to this repo. For docs and todo:
       - Merge Claude and Codex shared-skills versions into a single canonical SKILL.md
       - Standardize commit rule format (pick one: blockquote after Actions table)
-      - Move project-specific config references to skillsync.meta.yaml config_inputs
+      - Move project-specific config references to skill.yaml config_inputs
       - Ensure SHARED/ framework references are consistent
       - Place canonical versions in a skills source directory (e.g., ~/.skillsync/skills/)
       Deliverable: 2 unified canonical SKILL.md files
@@ -87,17 +87,17 @@ work:
       Deliverable: 3 canonical SKILL.md files with correct target declarations
 
   - id: w3
-    summary: "Create skillsync.meta.yaml sidecars for all canonical skills"
+    summary: "Create skill.yaml sidecars for all canonical skills"
     status: done
     needs: [w2a, w2b, w2c]
     details: |
-      External to this repo. For each canonical skill, create skillsync.meta.yaml with:
+      External to this repo. For each canonical skill, create skill.yaml with:
       - depends: list SHARED/ framework dependencies
       - config_inputs: declare project-configurable values (lint cmd, test runner, etc.)
       - targets: { claude: true, codex: true } (or false for agent-specific skills)
       - tags and category
       For SHARED/ frameworks (commit-framework, verify-framework, etc.):
-      - Create minimal skillsync.meta.yaml with targets and tags
+      - Create minimal skill.yaml with targets and tags
       Deliverable: every skill and framework has a sidecar
 
   - id: w4

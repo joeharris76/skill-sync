@@ -87,7 +87,7 @@ That remains the strongest justification for `skillsync`.
 | Atomic sync plan/apply behavior | Yes: plan-then-apply model | No clear evidence | No clear evidence |
 | Bidirectional promote flow back upstream | Manual guidance in v0; automated in v0.2+ | No clear evidence | No clear evidence |
 | Project-local override layering | Yes: per-skill install mode and source overrides | No clear evidence | No clear evidence |
-| Project-specific config injection | Yes: `config` section generates `project-config.yaml` | No clear evidence | No clear evidence |
+| Project-specific config injection | Yes: `config` section generates `skillsync.config.yaml` | No clear evidence | No clear evidence |
 | Portable repo-local materialization | Yes: repo-local targets, portability validation | Project/agent delivery supported, but portability is not the main product framing | Yes, partially, through project install + AGENTS.md + universal mode |
 | Multi-agent support | Yes: Claude, Codex, generic-MCP targets | Yes: Cursor, Copilot, Windsurf, Cline, Codex, Claude via CLI/MCP | Yes: Claude Code, Cursor, Windsurf, Aider, and universal agent mode |
 | AGENTS.md generation/sync | Not implemented | Yes: `skillport doc` | Yes: `openskills sync` |

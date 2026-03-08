@@ -276,12 +276,12 @@ A team skills repository follows the standard skill package layout:
 team-skills/
   code/
     SKILL.md
-    skillsync.meta.yaml
+    skill.yaml
     references/
       compare.md
   test/
     SKILL.md
-    skillsync.meta.yaml
+    skill.yaml
   SHARED/
     commit-framework/
       SKILL.md

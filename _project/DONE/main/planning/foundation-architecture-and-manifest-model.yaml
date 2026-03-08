@@ -83,7 +83,7 @@ success_metrics:
   - "A new contributor can answer what a skill package is, how it is installed, and where sync state lives by reading one spec"
   - "The same model can represent shared, local, mirrored, and overridden skills without ad hoc exceptions"
 open_questions:
-  - resolved: "Sidecar file (skillsync.meta.yaml). SKILL.md frontmatter is never modified."
+  - resolved: "Sidecar file (skill.yaml). SKILL.md frontmatter is never modified."
   - resolved: "References validated (existence). Scripts tracked + trust policy. Assets passthrough."
 notes: |
   Language decision: TypeScript (not Python as originally assumed in file paths).

@@ -84,7 +84,7 @@ success_metrics:
   - "A portable project checkout can use installed skills without access to ~/.claude or ~/.codex"
   - "Local config overrides are represented as explicit layered state rather than manual post-edit drift"
 open_questions:
-  - resolved: "Structured parameter injection via project-config.yaml. Templating/patches deferred to v0.2."
+  - resolved: "Structured parameter injection via skillsync.config.yaml. Templating/patches deferred to v0.2."
   - resolved: "Warnings by default; errors only for explicit incompatibility declarations. Never silently drop content."
 notes: |
   Files created: src/core/compatibility.ts, src/core/config-generator.ts,

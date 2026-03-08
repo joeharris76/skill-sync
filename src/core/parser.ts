@@ -37,7 +37,7 @@ export function parseSkillMdFrontmatter(content: string): SkillMdMetadata {
   };
 }
 
-/** Parse skillsync.meta.yaml sidecar file. */
+/** Parse skill.yaml sidecar file. */
 export function parseSkillSyncMeta(content: string): SkillSyncMeta {
   const raw = parseYaml(content) as Record<string, unknown>;
   return {
@@ -68,13 +68,13 @@ export async function loadSkillPackage(
 
   let meta: SkillSyncMeta | null = null;
   try {
-    const metaPath = join(skillDir, "skillsync.meta.yaml");
+    const metaPath = join(skillDir, "skill.yaml");
     const metaContent = await readFile(metaPath, "utf-8");
     meta = parseSkillSyncMeta(metaContent);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
       throw new Error(
-        `Failed to parse skillsync.meta.yaml in ${skillDir}: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to parse skill.yaml in ${skillDir}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
     // ENOENT: No sidecar file — that's fine

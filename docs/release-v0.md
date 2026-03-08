@@ -15,7 +15,7 @@
 | Claude target | Implemented | .claude/skills |
 | Codex target | Implemented | .codex/skills |
 | Generic MCP target | Implemented | .agent/skills |
-| Config injection | Implemented | project-config.yaml generation |
+| Config injection | Implemented | skillsync.config.yaml generation |
 | Portability validation | Implemented | Non-portable path detection |
 | Compatibility checking | Implemented | Agent feature support matrix |
 | Trust policy | Implemented | Allowlist, blocklist, provenance |

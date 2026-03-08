@@ -32,7 +32,7 @@ async function setupTestProject() {
     "",
     "Use this skill for code tasks.",
   ].join("\n"));
-  await writeFile(join(skillsDir, "code", "skillsync.meta.yaml"), stringifyYaml({
+  await writeFile(join(skillsDir, "code", "skill.yaml"), stringifyYaml({
     tags: ["development", "coding"],
     depends: [],
     config_inputs: [],

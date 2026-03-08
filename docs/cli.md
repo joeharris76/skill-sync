@@ -33,11 +33,11 @@ all configured targets.
 
 Behavior:
 - Resolves skills from sources in manifest order (first match wins)
-- Follows transitive dependencies from `skillsync.meta.yaml`
+- Follows transitive dependencies from `skill.yaml`
 - Detects drift and reports conflicts before overwrite
 - Materializes skills to all configured target directories
 - Updates `skillsync.lock` after successful apply
-- Generates `project-config.yaml` in each target directory
+- Generates `skillsync.config.yaml` in each target directory
 
 ### `skillsync status`
 
