@@ -10,7 +10,7 @@ import { loadSkillPackage } from "../core/parser.js";
 import { validatePortability } from "../core/portability.js";
 import { checkAllTargetCompatibility } from "../core/compatibility.js";
 import { validateConfigOverrides } from "../core/config-generator.js";
-import { syncOperation, pinOperation, unpinOperation, pruneOperation } from "../core/operations.js";
+import { syncOperation, pinOperation, unpinOperation, pruneOperation, doctorOperation } from "../core/operations.js";
 import type { SkillPackage, ValidationDiagnostic } from "../core/types.js";
 
 interface TargetRoot {
@@ -313,6 +313,16 @@ export function createServer(projectRoot: string): McpServer {
         note: "Automated promotion will be available in v0.2.",
       };
       return { content: [{ type: "text" as const, text: JSON.stringify(guidance, null, 2) }] };
+    },
+  );
+
+  server.tool(
+    "doctor-skills",
+    "Run comprehensive health diagnostics: manifest validity, lock file, source types, target directories, drift, and portability.",
+    {},
+    async () => {
+      const result = await doctorOperation(root);
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     },
   );
 

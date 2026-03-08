@@ -59,8 +59,9 @@ additional configuration required.
 
 ### Using the MCP Server with Claude Code
 
-The skillsync MCP server lets Claude discover and inspect skills
-programmatically. Add it to your Claude Code MCP configuration:
+The skillsync MCP server gives Claude the same capabilities as the CLI —
+syncing, validating, pinning, pruning, and discovering skills — without
+leaving the conversation. Add it to your Claude Code MCP configuration:
 
 ```json
 {
@@ -191,9 +192,16 @@ config:
     format: "ruff format ."
 ```
 
+**CLI:**
 ```bash
 skillsync sync
 ```
+
+**Via agent** (with the MCP server configured):
+
+> "Sync my skills."
+
+> "What skills do I have installed?"
 
 After sync, Codex discovers skills in `.codex/skills/` following its
 standard AGENTS.md discovery mechanism.

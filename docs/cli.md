@@ -2,8 +2,9 @@
 
 ## Role of the CLI
 
-The CLI is the primary operator interface for `skillsync`. It makes the
-local/shared state of skills easy to inspect and safe to manipulate.
+The CLI is the interactive operator interface for `skillsync`. It makes the
+local/shared state of skills easy to inspect and safe to manipulate. The
+[MCP server](mcp.md) provides the same capabilities to agent clients.
 
 The CLI supports both:
 - human-readable interactive usage

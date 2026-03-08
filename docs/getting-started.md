@@ -46,6 +46,7 @@ your project.
 
 ## Sync Skills
 
+**CLI:**
 ```bash
 # Preview what will change
 skillsync sync --dry-run
@@ -53,6 +54,12 @@ skillsync sync --dry-run
 # Apply the sync
 skillsync sync
 ```
+
+**Via agent** (with the MCP server configured):
+
+> "Preview what would change if I synced my skills."
+
+> "Sync my skills."
 
 After sync, your project tree looks like:
 
@@ -87,6 +94,8 @@ skillsync doctor
 **Via agent** (when the MCP server is configured, ask your agent directly):
 
 > "Validate my installed skills and report any issues."
+
+> "Run a full health check on my skills setup."
 
 > "Are any of my skills out of sync or missing files?"
 

@@ -42,6 +42,7 @@ enumerate all installed skills by querying the template's list callback.
 | `unpin-skill` | `skill: string` | Remove a revision pin, allowing the skill to float and receive updates on future syncs. |
 | `prune-skills` | `dry_run?: bool` | Remove installed skills not declared in the project manifest. `dry_run` shows what would be removed. |
 | `promote-skill` | `skill?: string` | Return guidance for promoting local skill modifications back to their canonical source. Automated promotion is planned for v0.2. |
+| `doctor-skills` | — | Run comprehensive health diagnostics: manifest validity, lock file, source types, target directories, drift detection, and portability. Returns `healthy` boolean and per-check results. |
 
 ### Prompts
 
