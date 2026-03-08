@@ -123,3 +123,18 @@ export {
   validateSkillPackage,
   validateManifest,
 } from "./validator.js";
+
+// Runtime exports — operations (shared CLI/MCP orchestration)
+export {
+  syncOperation,
+  pinOperation,
+  unpinOperation,
+  pruneOperation,
+} from "./operations.js";
+export type {
+  SyncOptions,
+  SyncResult,
+  PinResult,
+  UnpinResult,
+  PruneResult,
+} from "./operations.js";
