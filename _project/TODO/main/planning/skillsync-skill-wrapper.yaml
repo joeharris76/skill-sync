@@ -1,0 +1,123 @@
+id: "skillsync-skill-wrapper"
+title: "Create a skillsync skill wrapper for Claude/Codex bootstrapping"
+worktree: "main"
+priority: "High"
+status: "Not Started"
+description: |
+  Create a `/skillsync` skill (SKILL.md) that users can add to their Claude or
+  Codex agent skill directories. This is the minimum viable onboarding step:
+  drop the skill in, and the agent can manage skills via natural language.
+
+  The wrapper should expose all key CLI/MCP action verbs (sync, status, validate,
+  diff, doctor, pin, unpin, prune, promote) plus a `setup`/`bootstrap` verb that
+  detects whether skillsync is installed, installs it if needed, and scaffolds a
+  `skillsync.yaml` manifest from the user's existing skills directory.
+
+  This is a user-facing skill file, not library code. It follows the same pattern
+  as the existing code/test/docs/todo skills in ~/.claude/skills/.
+
+category: "Developer Experience"
+
+deps:
+  needs: []
+
+work:
+  - id: w1
+    summary: "Audit existing skills (code, test, docs, todo) for structural patterns and conventions"
+    status: pending
+    notes: |
+      Examine SKILL.md frontmatter format, action table layout, project config
+      reading pattern, SHARED framework references, output format section.
+      Document the conventions the skillsync skill should follow.
+
+  - id: w2
+    summary: "Design the action verb table and bootstrap workflow"
+    needs: [w1]
+    status: pending
+    notes: |
+      Actions to include:
+      - setup/bootstrap: detect install, npm install -g skillsync, scaffold
+        skillsync.yaml from existing ~/.claude/skills or .claude/skills
+      - sync: resolve + plan + apply skills
+      - status: show installed skill health
+      - validate: check manifest + skills + config
+      - diff: preview sync changes (dry-run)
+      - doctor: comprehensive health diagnostics
+      - pin/unpin: lock/unlock skill revisions
+      - prune: remove undeclared skills
+      - promote: guide pushing local changes upstream
+
+      Bootstrap workflow: check `which skillsync` or `npx skillsync --version`,
+      scan existing skill directories, generate starter manifest, run first sync.
+
+  - id: w3
+    summary: "Write the SKILL.md file with frontmatter, actions, and output format"
+    needs: [w2]
+    status: pending
+    files:
+      - src/skill/SKILL.md
+
+  - id: w4
+    summary: "Add the skill to the skillsync install/sync pipeline so it self-distributes"
+    needs: [w3]
+    status: pending
+    notes: |
+      Decide where the canonical skill lives: bundled in the skillsync repo
+      (e.g. src/skill/ or skills/skillsync/) or in the user's global skill
+      store. Consider adding it as a default skill that `skillsync setup`
+      installs automatically.
+
+  - id: w5
+    summary: "Test the skill end-to-end: fresh project bootstrap and each action verb"
+    needs: [w3]
+    status: pending
+    notes: |
+      Manual testing in a fresh directory: drop SKILL.md into .claude/skills/skillsync/,
+      verify Claude can discover it, run setup to scaffold manifest, run sync,
+      check status, validate, etc.
+
+deferred:
+  - summary: "Codex-specific skill variant with Codex conventions"
+    reason: "v0 targets Claude; Codex adaptation is a follow-up"
+  - summary: "Automated skillsync install via skill (npm/npx detection)"
+    reason: "v0 setup verb provides guidance; auto-install is v0.2"
+
+metadata:
+  tags:
+    - developer-experience
+    - onboarding
+    - skill
+  estimated_effort: "1-2 days"
+  created_date: "2026-03-08"
+
+impact:
+  business_value: |
+    Removes the biggest adoption barrier: users can start using skillsync
+    by copying a single file rather than reading docs and learning the CLI.
+  user_impact: |
+    Zero-to-working in one step. Users say "sync my skills" or "set up
+    skillsync" and the agent handles the rest.
+
+verification:
+  - description: "SKILL.md has valid frontmatter with name, description, version, tools"
+    command: "head -6 src/skill/SKILL.md"
+    expected_output: "YAML frontmatter block with required fields"
+  - description: "All CLI action verbs are represented in the skill's action table"
+    command: "grep -c '|' src/skill/SKILL.md"
+    expected_output: "At least 10 table rows (header + 9 actions + setup)"
+
+approach: |
+  Follow the pattern established by ~/.claude/skills/code/SKILL.md:
+  - YAML frontmatter (name, description, version, tools)
+  - Project Configuration section (reads skillsync.config.yaml)
+  - Action table mapping triggers to descriptions
+  - Per-action sections with input, steps, output
+  - Output format section with markdown template
+  - Commit rule after write actions
+
+  The setup/bootstrap action is unique to this skill. Model it after
+  `skillsync doctor` (diagnostic) + `skillsync sync` (apply).
+
+anti_patterns:
+  - "DO NOT duplicate CLI logic in the skill — because the skill is a wrapper that invokes the CLI/MCP, not a reimplementation — use `skillsync <command>` calls"
+  - "DO NOT require manual skillsync.yaml authoring in the setup flow — because the whole point is zero-friction onboarding — scan existing skills and generate the manifest"
