@@ -2,7 +2,7 @@ id: "skillsync-skill-wrapper"
 title: "Create a skillsync skill wrapper for Claude/Codex bootstrapping"
 worktree: "main"
 priority: "High"
-status: "Not Started"
+status: "In Progress"
 description: |
   Create a `/skillsync` skill (SKILL.md) that users can add to their Claude or
   Codex agent skill directories. This is the minimum viable onboarding step:
@@ -24,7 +24,7 @@ deps:
 work:
   - id: w1
     summary: "Design the skillsync skill: audit existing patterns, define action table and bootstrap workflow"
-    status: pending
+    status: done
     notes: |
       Audit existing skills (code, test, docs, todo) for structural conventions:
       SKILL.md frontmatter format, action table layout, project config reading
@@ -50,7 +50,7 @@ work:
   - id: w2
     summary: "Write the SKILL.md file with frontmatter, actions, and output format"
     needs: [w1]
-    status: pending
+    status: done
     files:
       - skills/skillsync/SKILL.md
 
