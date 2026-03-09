@@ -1,8 +1,8 @@
-generated_at: '2026-03-08T17:18:35.568556'
-total_items: 9
+generated_at: '2026-03-08T23:14:40.523148'
+total_items: 10
 statuses:
   Completed:
-    count: 9
+    count: 10
     items:
     - id: mcp-mutation-tools-parity
       file: DONE/main/planning/mcp-mutation-tools-parity.yaml
@@ -29,6 +29,11 @@ statuses:
       title: Build the MCP server resource, prompt, and tool surface for synced skills
       priority: High
       category: Core Functionality
+    - id: skillsync-skill-wrapper
+      file: DONE/main/active/skillsync-skill-wrapper.yaml
+      title: Create a skillsync skill wrapper for Claude/Codex bootstrapping
+      priority: High
+      category: Developer Experience
     - id: foundation-architecture-and-manifest-model
       file: DONE/main/planning/foundation-architecture-and-manifest-model.yaml
       title: Define skillsync foundation architecture and canonical skill manifest

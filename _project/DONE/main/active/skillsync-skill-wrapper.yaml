@@ -2,7 +2,8 @@ id: "skillsync-skill-wrapper"
 title: "Create a skillsync skill wrapper for Claude/Codex bootstrapping"
 worktree: "main"
 priority: "High"
-status: "In Progress"
+status: "Completed"
+completed_date: "2026-03-08"
 description: |
   Create a `/skillsync` skill (SKILL.md) that users can add to their Claude or
   Codex agent skill directories. This is the minimum viable onboarding step:
@@ -71,7 +72,7 @@ work:
   - id: w4
     summary: "Test the skill end-to-end: fresh project bootstrap and each action verb"
     needs: [w2]
-    status: pending
+    status: done
     notes: |
       Manual testing in a fresh directory: drop SKILL.md into .claude/skills/skillsync/,
       verify Claude can discover it, run setup to scaffold manifest, run sync,

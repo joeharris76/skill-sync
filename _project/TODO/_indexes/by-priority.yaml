@@ -1,11 +1,3 @@
-generated_at: '2026-03-08T20:27:17.566437'
-total_items: 1
-priorities:
-  High:
-    count: 1
-    items:
-    - id: skillsync-skill-wrapper
-      file: TODO/main/planning/skillsync-skill-wrapper.yaml
-      title: Create a skillsync skill wrapper for Claude/Codex bootstrapping
-      category: Developer Experience
-      status: Not Started
+generated_at: '2026-03-08T23:14:40.501094'
+total_items: 0
+priorities: {}

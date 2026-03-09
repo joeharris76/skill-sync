@@ -1,5 +1,5 @@
-generated_at: '2026-03-08T17:18:35.568552'
-total_items: 9
+generated_at: '2026-03-08T23:14:40.523143'
+total_items: 10
 priorities:
   Critical:
     count: 2
@@ -15,7 +15,7 @@ priorities:
       category: Core Functionality
       status: Completed
   High:
-    count: 7
+    count: 8
     items:
     - id: mcp-mutation-tools-parity
       file: DONE/main/planning/mcp-mutation-tools-parity.yaml
@@ -36,6 +36,11 @@ priorities:
       file: DONE/main/planning/mcp-server-resource-and-tool-surface.yaml
       title: Build the MCP server resource, prompt, and tool surface for synced skills
       category: Core Functionality
+      status: Completed
+    - id: skillsync-skill-wrapper
+      file: DONE/main/active/skillsync-skill-wrapper.yaml
+      title: Create a skillsync skill wrapper for Claude/Codex bootstrapping
+      category: Developer Experience
       status: Completed
     - id: cli-surface-ux-and-operational-workflows
       file: DONE/main/planning/cli-surface-ux-and-operational-workflows.yaml
