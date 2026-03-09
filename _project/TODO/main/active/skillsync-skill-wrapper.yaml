@@ -57,7 +57,7 @@ work:
   - id: w3
     summary: "Wire the skill into the distribution pipeline as a bundled default skill"
     needs: [w2]
-    status: pending
+    status: done
     files:
       - skills/skillsync/SKILL.md
       - skills/skillsync/skill.yaml
