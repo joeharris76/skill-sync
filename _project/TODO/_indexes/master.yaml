@@ -1,4 +1,4 @@
-generated_at: '2026-03-08T17:18:35.550019'
+generated_at: '2026-03-08T20:27:17.566418'
 total_items: 1
 items:
 - id: skillsync-skill-wrapper
@@ -13,7 +13,7 @@ items:
   - onboarding
   - skill
   estimated_effort: 1-2 days
-  work_total: 5
+  work_total: 4
   work_done: 0
   work_ready: 1
   deferred_count: 2

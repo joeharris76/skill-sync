@@ -23,19 +23,14 @@ deps:
 
 work:
   - id: w1
-    summary: "Audit existing skills (code, test, docs, todo) for structural patterns and conventions"
+    summary: "Design the skillsync skill: audit existing patterns, define action table and bootstrap workflow"
     status: pending
     notes: |
-      Examine SKILL.md frontmatter format, action table layout, project config
-      reading pattern, SHARED framework references, output format section.
-      Document the conventions the skillsync skill should follow.
+      Audit existing skills (code, test, docs, todo) for structural conventions:
+      SKILL.md frontmatter format, action table layout, project config reading
+      pattern, SHARED framework references, output format section.
 
-  - id: w2
-    summary: "Design the action verb table and bootstrap workflow"
-    needs: [w1]
-    status: pending
-    notes: |
-      Actions to include:
+      Then define the action verb table:
       - setup/bootstrap: detect install, npm install -g skillsync, scaffold
         skillsync.yaml from existing ~/.claude/skills or .claude/skills
       - sync: resolve + plan + apply skills
@@ -50,31 +45,40 @@ work:
       Bootstrap workflow: check `which skillsync` or `npx skillsync --version`,
       scan existing skill directories, generate starter manifest, run first sync.
 
-  - id: w3
+      Deliverable: design doc or notes in the TODO item itself.
+
+  - id: w2
     summary: "Write the SKILL.md file with frontmatter, actions, and output format"
+    needs: [w1]
+    status: pending
+    files:
+      - skills/skillsync/SKILL.md
+
+  - id: w3
+    summary: "Wire the skill into the distribution pipeline as a bundled default skill"
     needs: [w2]
     status: pending
     files:
-      - src/skill/SKILL.md
+      - skills/skillsync/SKILL.md
+      - skills/skillsync/skill.yaml
+    notes: |
+      The canonical skill lives in the skillsync repo at skills/skillsync/.
+      Add a skill.yaml sidecar with appropriate tags and targets.
+      Ensure `skillsync sync` can distribute this skill like any other.
+      Consider making it a default skill that `skillsync setup` installs
+      automatically into target directories.
 
   - id: w4
-    summary: "Add the skill to the skillsync install/sync pipeline so it self-distributes"
-    needs: [w3]
-    status: pending
-    notes: |
-      Decide where the canonical skill lives: bundled in the skillsync repo
-      (e.g. src/skill/ or skills/skillsync/) or in the user's global skill
-      store. Consider adding it as a default skill that `skillsync setup`
-      installs automatically.
-
-  - id: w5
     summary: "Test the skill end-to-end: fresh project bootstrap and each action verb"
-    needs: [w3]
+    needs: [w2]
     status: pending
     notes: |
       Manual testing in a fresh directory: drop SKILL.md into .claude/skills/skillsync/,
       verify Claude can discover it, run setup to scaffold manifest, run sync,
       check status, validate, etc.
+
+      Bootstrap test: given a directory with 3 existing SKILL.md files, verify
+      setup generates a valid skillsync.yaml listing all 3 skills.
 
 deferred:
   - summary: "Codex-specific skill variant with Codex conventions"
@@ -98,15 +102,29 @@ impact:
     Zero-to-working in one step. Users say "sync my skills" or "set up
     skillsync" and the agent handles the rest.
 
+must_preserve:
+  - "SKILL.md frontmatter must use standard fields (name, description, version, tools) so Claude/Codex skill loaders discover and index it correctly"
+  - "CLI command interface — the skill must invoke `skillsync <cmd>` with documented flags, not invent new options or override existing behavior"
+  - "Existing skill directory layout conventions (.claude/skills/<name>/SKILL.md) must be respected by the bootstrap scanner"
+
 verification:
-  - description: "SKILL.md has valid frontmatter with name, description, version, tools"
-    command: "head -6 src/skill/SKILL.md"
-    expected_output: "YAML frontmatter block with required fields"
-  - description: "All CLI action verbs are represented in the skill's action table"
-    command: "grep -c '|' src/skill/SKILL.md"
-    expected_output: "At least 10 table rows (header + 9 actions + setup)"
+  - description: "SKILL.md frontmatter parses as valid YAML with required fields"
+    command: "node -e \"const fs=require('fs'); const y=require('yaml'); const m=fs.readFileSync('skills/skillsync/SKILL.md','utf8').match(/^---\\n([\\s\\S]*?)\\n---/); const d=y.parse(m[1]); console.log(d.name, d.description ? 'OK' : 'MISSING', d.tools ? 'OK' : 'MISSING')\""
+    expected_output: "skillsync OK OK"
+  - description: "All 10 CLI action verbs appear in the skill's action table"
+    command: "grep -oE '(setup|sync|status|validate|diff|doctor|pin|unpin|prune|promote)' skills/skillsync/SKILL.md | sort -u | wc -l"
+    expected_output: "10"
+  - description: "Bootstrap workflow section documents scanning existing skills and generating manifest"
+    command: "grep -c 'skillsync.yaml' skills/skillsync/SKILL.md"
+    expected_output: "At least 2 references (one in setup steps, one in output)"
+  - description: "Skill invokes CLI commands, not internal functions"
+    command: "grep -c 'skillsync ' skills/skillsync/SKILL.md"
+    expected_output: "Multiple occurrences (at least 5)"
 
 approach: |
+  The skill lives in the skillsync repo at `skills/skillsync/SKILL.md` and
+  is distributed via the normal sync pipeline.
+
   Follow the pattern established by ~/.claude/skills/code/SKILL.md:
   - YAML frontmatter (name, description, version, tools)
   - Project Configuration section (reads skillsync.config.yaml)
@@ -116,8 +134,11 @@ approach: |
   - Commit rule after write actions
 
   The setup/bootstrap action is unique to this skill. Model it after
-  `skillsync doctor` (diagnostic) + `skillsync sync` (apply).
+  `skillsync doctor` (diagnostic) + `skillsync sync` (apply). The setup
+  flow should: check for skillsync install → scan existing skill directories
+  for SKILL.md files → generate a starter skillsync.yaml → run first sync.
 
 anti_patterns:
   - "DO NOT duplicate CLI logic in the skill — because the skill is a wrapper that invokes the CLI/MCP, not a reimplementation — use `skillsync <command>` calls"
   - "DO NOT require manual skillsync.yaml authoring in the setup flow — because the whole point is zero-friction onboarding — scan existing skills and generate the manifest"
+  - "DO NOT invent new CLI flags or subcommands in the skill — because the skill delegates to the existing CLI surface — document the real flags from docs/cli.md"
