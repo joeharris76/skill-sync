@@ -30,6 +30,22 @@ Shared skills are useful, but the current ecosystem is fragile:
 
 `skillsync` solves those issues with one consistent model.
 
+## Quick Start
+
+The fastest way to get started is with the bundled skill wrapper. Copy it into
+your agent's skill directory:
+
+```bash
+npm install skillsync
+mkdir -p .claude/skills/skillsync
+cp node_modules/skillsync/skills/skillsync/SKILL.md .claude/skills/skillsync/
+```
+
+Then ask your agent: *"Set up skillsync for this project."* It will scan your
+existing skills, generate a manifest, and run the first sync automatically.
+
+See [Getting Started](docs/getting-started.md) for the full guide.
+
 ## What It Does
 
 `skillsync` lets a project declare one or more skill sources, materialize them
@@ -139,8 +155,9 @@ business logic over the same files.
 ## Current Status
 
 v0 implementation is **feature-complete**:
-- 137 tests passing across 25 test files (unit, contract, integration)
+- 166 tests passing (unit, contract, integration)
 - All 9 CLI commands implemented
+- Bundled skill wrapper for agent-driven bootstrapping
 - MCP server with full CLI-equivalent resources, tools, and prompts
 - Local and git source adapters
 - Multi-target materialization (Claude, Codex, generic MCP)

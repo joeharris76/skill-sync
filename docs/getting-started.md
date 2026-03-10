@@ -18,6 +18,29 @@ npm install skillsync
 This makes the `skillsync` CLI available via `npx skillsync` (or directly if
 installed globally with `npm install -g skillsync`).
 
+## Quick Start: The Skill Wrapper
+
+The fastest way to get started is with the bundled **skillsync skill**. Copy
+it into your agent's skill directory and let your agent handle the rest:
+
+```bash
+# Copy the skill into your project
+mkdir -p .claude/skills/skillsync
+cp node_modules/skillsync/skills/skillsync/SKILL.md .claude/skills/skillsync/
+```
+
+Then ask your agent:
+
+> "Set up skillsync for this project."
+
+The agent will scan your existing skills, generate a `skillsync.yaml`
+manifest, and run the first sync — no manual YAML authoring required.
+
+The skill wrapper exposes all CLI commands as natural language actions:
+sync, status, validate, diff, doctor, pin, unpin, prune, and promote.
+
+If you prefer manual setup, continue below.
+
 ## Create a Project Manifest
 
 Add a `skillsync.yaml` file to your project root:

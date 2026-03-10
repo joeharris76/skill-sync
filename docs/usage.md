@@ -7,7 +7,12 @@ day-to-day workflows.
 
 ### Setting Up a Project
 
-Create `skillsync.yaml` at your project root:
+The quickest path is the [skill wrapper](getting-started.md#quick-start-the-skill-wrapper) —
+copy `skills/skillsync/SKILL.md` into `.claude/skills/skillsync/` and ask
+your agent to "set up skillsync." It will generate the manifest below
+automatically.
+
+For manual setup, create `skillsync.yaml` at your project root:
 
 ```yaml
 version: 1
