@@ -1,10 +1,10 @@
 {
-  "name": "skillsync",
+  "name": "skill-sync",
   "version": "0.0.1",
   "description": "Local-first skill distribution system for AI agents",
   "type": "module",
   "bin": {
-    "skillsync": "./dist/cli/index.js"
+    "skill-sync": "./dist/cli/index.js"
   },
   "exports": {
     ".": "./dist/index.js",

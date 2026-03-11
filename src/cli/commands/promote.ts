@@ -12,12 +12,12 @@ export async function promoteCommand(args: ParsedArgs): Promise<CliResult> {
     version: "v0",
     automated: false,
     steps: [
-      "1. Run `skillsync status` to identify modified skills",
-      "2. Run `skillsync diff` to review upstream vs local changes",
+      "1. Run `skill-sync status` to identify modified skills",
+      "2. Run `skill-sync diff` to review upstream vs local changes",
       "3. Copy modified files from the target directory back to the source",
-      "4. Run `skillsync sync` to confirm the source and target are in sync",
+      "4. Run `skill-sync sync` to confirm the source and target are in sync",
     ],
-    note: "Automated `skillsync promote` will be available in v0.2.",
+    note: "Automated `skill-sync promote` will be available in v0.2.",
   };
 
   const output = formatOutput(guidance, mode, () =>

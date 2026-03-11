@@ -14,47 +14,47 @@ const VERSION = "0.0.1";
 const COMMANDS: Record<string, { description: string; usage: string }> = {
   sync: {
     description: "Sync skills from sources to target directories",
-    usage: "skillsync sync [--dry-run] [--force] [--json]",
+    usage: "skill-sync sync [--dry-run] [--force] [--json]",
   },
   status: {
     description: "Show installed skill state and drift",
-    usage: "skillsync status [--json]",
+    usage: "skill-sync status [--json]",
   },
   validate: {
     description: "Check manifest, portability, and compatibility",
-    usage: "skillsync validate [--exit-code] [--json]",
+    usage: "skill-sync validate [--exit-code] [--json]",
   },
   diff: {
     description: "Preview what sync would change (alias: sync --dry-run)",
-    usage: "skillsync diff [--json]",
+    usage: "skill-sync diff [--json]",
   },
   doctor: {
     description: "Run diagnostic health checks",
-    usage: "skillsync doctor [--json]",
+    usage: "skill-sync doctor [--json]",
   },
   pin: {
     description: "Pin a skill to its current version",
-    usage: "skillsync pin <skill-name> [--json]",
+    usage: "skill-sync pin <skill-name> [--json]",
   },
   unpin: {
     description: "Remove a version pin from a skill",
-    usage: "skillsync unpin <skill-name> [--json]",
+    usage: "skill-sync unpin <skill-name> [--json]",
   },
   prune: {
     description: "Remove skills not listed in the manifest",
-    usage: "skillsync prune [--dry-run] [--json]",
+    usage: "skill-sync prune [--dry-run] [--json]",
   },
   promote: {
     description: "Guidance for pushing local changes back to source",
-    usage: "skillsync promote [--json]",
+    usage: "skill-sync promote [--json]",
   },
 };
 
 function helpText(): string {
   const lines = [
-    `skillsync v${VERSION} - Local-first skill distribution for AI agents`,
+    `skill-sync v${VERSION} - Local-first skill distribution for AI agents`,
     "",
-    "Usage: skillsync <command> [options]",
+    "Usage: skill-sync <command> [options]",
     "",
     "Commands:",
   ];
@@ -77,12 +77,12 @@ function helpText(): string {
     "  symlink  Symlink to source (local dev only, not portable)",
     "",
     "Examples:",
-    "  skillsync sync                  # Sync skills from all sources",
-    "  skillsync sync --dry-run        # Preview changes without applying",
-    "  skillsync status --json         # Machine-readable install state",
-    "  skillsync validate --exit-code  # Fail CI on validation errors",
-    "  skillsync doctor                # Run health checks",
-    "  skillsync prune --dry-run       # Preview untracked skill removal",
+    "  skill-sync sync                  # Sync skills from all sources",
+    "  skill-sync sync --dry-run        # Preview changes without applying",
+    "  skill-sync status --json         # Machine-readable install state",
+    "  skill-sync validate --exit-code  # Fail CI on validation errors",
+    "  skill-sync doctor                # Run health checks",
+    "  skill-sync prune --dry-run       # Preview untracked skill removal",
   );
 
   return lines.join("\n");
@@ -90,7 +90,7 @@ function helpText(): string {
 
 function commandHelp(command: string): string {
   const cmd = COMMANDS[command];
-  if (!cmd) return `Unknown command: ${command}\n\nRun "skillsync --help" for available commands.`;
+  if (!cmd) return `Unknown command: ${command}\n\nRun "skill-sync --help" for available commands.`;
   return `${cmd.description}\n\nUsage: ${cmd.usage}`;
 }
 
@@ -137,7 +137,7 @@ export async function runCli(argv: string[]): Promise<CliResult> {
     default:
       return {
         exitCode: 1,
-        stderr: `Unknown command: ${parsed.command}\n\nRun "skillsync --help" for available commands.`,
+        stderr: `Unknown command: ${parsed.command}\n\nRun "skill-sync --help" for available commands.`,
       };
   }
 }

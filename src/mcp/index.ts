@@ -2,7 +2,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { createServer } from "./server.js";
 
 /**
- * Start the skillsync MCP server on stdio transport.
+ * Start the skill-sync MCP server on stdio transport.
  * Reads project root from argv or defaults to cwd.
  */
 export async function startMcpServer(projectRoot?: string): Promise<void> {

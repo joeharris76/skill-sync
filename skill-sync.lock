@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "lockedAt": "2026-03-11T00:24:55.078Z",
+  "skills": {
+    "blog": {
+      "source": {
+        "type": "local",
+        "name": "global",
+        "path": "/Users/joe/.claude/skills/blog",
+        "fetchedAt": "2026-03-11T00:24:55.069Z"
+      },
+      "installMode": "mirror",
+      "files": {
+        "references/audit.md": {
+          "sha256": "9d502a838b8f6a939d00228f381545c33e2b5b15dd342d84664e7e0793573bbc",
+          "size": 2914
+        },
+        "references/cleanup.md": {
+          "sha256": "5192729cf5f883fd26ef5a0ed96ca93049e29b78027df6fabd387e37d8521a56",
+          "size": 1076
+        },
+        "references/critique.md": {
+          "sha256": "733b143ed8628d24d5aa834885c994e7c5f0d6351a9de2bb17d615ee53d2f33f",
+          "size": 2695
+        },
+        "references/editorial-review.md": {
+          "sha256": "ef13c4a70da620ff21d3fb3c3a04d1faf97e99f6be7b21963134b72ac93c81b8",
+          "size": 3107
+        },
+        "SKILL.md": {
+          "sha256": "c0ed157841551b0b89f9bd6464d16486a9cb3abfca6bbecdab9f7ee5e419949f",
+          "size": 8942
+        }
+      }
+    },
+    "code": {
+      "source": {
+        "type": "local",
+        "name": "global",
+        "path": "/Users/joe/.claude/skills/code",
+        "fetchedAt": "2026-03-11T00:24:55.070Z"
+      },
+      "installMode": "mirror",
+      "files": {
+        "references/compare.md": {
+          "sha256": "ed195369fac1a5dc25036393ded7ef9b0b4deee2cef3c03b0f59b6851df90b3d",
+          "size": 2844
+        },
+        "references/handoff.md": {
+          "sha256": "e514dbe39d97a87214b29ae6f3730ec2176d6d6ec718c5866068cfffc74803da",
+          "size": 2224
+        },
+        "references/shrink.md": {
+          "sha256": "9e427e427e307d6635aeb41bdc853ee35e9178e34b88ef555d06ce4e31b6f0b1",
+          "size": 2434
+        },
+        "references/to-spec.md": {
+          "sha256": "7bf46542625bc4a9bdafc48ddab3fdbb2a5d7cbd95f22b50bff5a849e9727567",
+          "size": 2387
+        },
+        "SKILL.md": {
+          "sha256": "1d4299bbc2904a81123b0bd46e0b44ad47bd92016edd020d4a61e6ca41d02712",
+          "size": 6716
+        }
+      }
+    },
+    "docs": {
+      "source": {
+        "type": "local",
+        "name": "global",
+        "path": "/Users/joe/.claude/skills/docs",
+        "fetchedAt": "2026-03-11T00:24:55.070Z"
+      },
+      "installMode": "mirror",
+      "files": {
+        "references/adversarial.md": {
+          "sha256": "303df07625bd3729b5afb0b2e72e7667fe60bbad729870fb82b31826452417a3",
+          "size": 2524
+        },
+        "references/compare.md": {
+          "sha256": "7147f540a0b46abee01932ec686cd20e1f5393047bbfe8fb9097f3ae276d7d36",
+          "size": 3043
+        },
+        "references/shrink.md": {
+          "sha256": "a024645f6c6d14398282364000d038a208cb3500b514fee6f1b11d44140cb706",
+          "size": 2455
+        },
+        "SKILL.md": {
+          "sha256": "b600d23a004094a8c949d6a6a7117911c9a0c6bca85d73c799c171b532468e82",
+          "size": 5185
+        }
+      }
+    },
+    "skill-sync": {
+      "source": {
+        "type": "local",
+        "name": "global",
+        "path": "/Users/joe/.claude/skills/skill-sync",
+        "fetchedAt": "2026-03-11T00:24:55.071Z"
+      },
+      "installMode": "mirror",
+      "files": {
+        "SKILL.md": {
+          "sha256": "bb27f394fbfc96be1dffb13a930163b39f07f121494c150977988b42b4412ec2",
+          "size": 6789
+        },
+        "skill.yaml": {
+          "sha256": "c7d84823070735c9f3497d8d2fe1fddf05af58f42af2645ec567f23e9268ced8",
+          "size": 152
+        }
+      }
+    },
+    "test": {
+      "source": {
+        "type": "local",
+        "name": "global",
+        "path": "/Users/joe/.claude/skills/test",
+        "fetchedAt": "2026-03-11T00:24:55.071Z"
+      },
+      "installMode": "mirror",
+      "files": {
+        "references/cleanup.md": {
+          "sha256": "b958d6772f59a288a2f7c4018be6d8b1bcbba565affb54f63e94e706bd9dde74",
+          "size": 648
+        },
+        "references/perf.md": {
+          "sha256": "3a572eb4b4a0290d3d4d879673fa40680d3c83feee565d07172e646b3294cb0e",
+          "size": 2660
+        },
+        "SKILL.md": {
+          "sha256": "95c6b440ec5f3b073285a607556cb41927b9b98591f7f3bafe5d866a06a0a00c",
+          "size": 5215
+        }
+      }
+    },
+    "todo": {
+      "source": {
+        "type": "local",
+        "name": "global",
+        "path": "/Users/joe/.claude/skills/todo",
+        "fetchedAt": "2026-03-11T00:24:55.072Z"
+      },
+      "installMode": "mirror",
+      "files": {
+        "defaults/TODO_ENTRY_TEMPLATE.yaml": {
+          "sha256": "56c4549dcf488b7b33aaea51d1d22669527191443cfd14ab6e32b43ec0fd5552",
+          "size": 7515
+        },
+        "defaults/TODO_SCHEMA.yaml": {
+          "sha256": "8c400ff2bfbb6e504c1d9b22d7cc1e28476c0949b93c9a130e4e1c775c6a19da",
+          "size": 8773
+        },
+        "references/structure.md": {
+          "sha256": "cfa91a5d3b17939480d7a05039ea4d82ab17535a6c792844eb5708e6cccb689f",
+          "size": 3697
+        },
+        "SKILL.md": {
+          "sha256": "94c18c97b58b3c4e4d206a7768dce2a9b285a494a78094c4e748638f759f6a16",
+          "size": 8282
+        }
+      }
+    }
+  }
+}

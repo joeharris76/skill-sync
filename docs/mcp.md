@@ -2,7 +2,7 @@
 
 ## Role of the MCP Server
 
-The MCP server exposes the full `skillsync` capability set to agent clients.
+The MCP server exposes the full `skill-sync` capability set to agent clients.
 It has the same surface area as the CLI — discovery, inspection, validation,
 sync, and lifecycle management — without requiring filesystem-specific glue
 code from the consuming agent.
@@ -62,7 +62,7 @@ It imports directly from `core/` and `sources/` modules:
 - `parser.ts` — load skill packages from disk
 - `portability.ts` — validate portable path usage
 - `compatibility.ts` — check agent target compatibility
-- `config-generator.ts` — validate config overrides and generate skillsync.config.yaml
+- `config-generator.ts` — validate config overrides and generate skill-sync.config.yaml
 - `resolver.ts` — resolve skill names against configured sources
 - `syncer.ts` — plan sync operations
 - `materializer.ts` — materialize and dematerialize skills on disk
@@ -88,7 +88,7 @@ node dist/mcp/index.js /path/to/project
 # Claude Code configuration
 {
   "mcpServers": {
-    "skillsync": {
+    "skill-sync": {
       "command": "node",
       "args": ["dist/mcp/index.js", "/path/to/project"]
     }

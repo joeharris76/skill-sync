@@ -9,7 +9,7 @@ import type {
 } from "./types.js";
 
 const LOCK_VERSION = 1;
-const LOCK_FILENAME = "skillsync.lock";
+const LOCK_FILENAME = "skill-sync.lock";
 
 /** Create an empty lock file. */
 export function createLockFile(): LockFile {

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { sha256 } from "../../../src/core/hasher.js";
 
-const tmpBase = join(tmpdir(), "skillsync-drift-test");
+const tmpBase = join(tmpdir(), "skill-sync-drift-test");
 
 async function writeFileWithHash(dir: string, relPath: string, content: string) {
   const filePath = join(dir, relPath);

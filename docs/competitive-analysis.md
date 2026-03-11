@@ -1,12 +1,12 @@
-# Competitive Analysis: `skillsync` vs `SkillPort` vs `OpenSkills`
+# Competitive Analysis: `skill-sync` vs `SkillPort` vs `OpenSkills`
 
 > **Note:** This analysis was written during the planning phase (pre-implementation).
-> The `skillsync` column originally reflected intended capabilities. As of v0,
+> The `skill-sync` column originally reflected intended capabilities. As of v0,
 > the core differentiating features (lockfile, drift detection, config injection,
 > portability, shared CLI/MCP core) are implemented. Competitor capabilities may
 > have evolved since this analysis was written.
 
-This document compares `skillsync` against the two closest verified public
+This document compares `skill-sync` against the two closest verified public
 competitors:
 
 - [SkillPort](https://github.com/gotalab/skillport)
@@ -19,7 +19,7 @@ of the problem space:
 - exposing skills through an operational interface
 - keeping skills compatible with existing `SKILL.md` conventions
 
-`skillsync` is only worth building if it solves the lifecycle gaps these tools
+`skill-sync` is only worth building if it solves the lifecycle gaps these tools
 do not clearly own today.
 
 ## Source Basis
@@ -33,7 +33,7 @@ This comparison is grounded in:
   - [numman-ali/openskills](https://github.com/numman-ali/openskills)
 
 Important constraint:
-- the `skillsync` column was written pre-implementation; core features are now implemented in v0
+- the `skill-sync` column was written pre-implementation; core features are now implemented in v0
 - competitor capabilities below are limited to what was public and verifiable at time of writing
 
 ## Executive Summary
@@ -66,28 +66,28 @@ project:
 - layered overrides without full forks
 - portability as a first-class design goal
 
-That remains the strongest justification for `skillsync`.
+That remains the strongest justification for `skill-sync`.
 
 ## Feature Comparison
 
-| Capability | `skillsync` v0 | SkillPort | OpenSkills |
+| Capability | `skill-sync` v0 | SkillPort | OpenSkills |
 | --- | --- | --- | --- |
 | Primary value proposition | Local-first skill distribution, sync, portability, validation, CLI, and MCP over one core | Validate, manage, and deliver skills via CLI or MCP | Universal Claude-style skills loader and sync tool across agents |
 | Implementation status | Feature-complete (v0) | Public project, active, but still evolving | Public project, active |
 | Primary interface | CLI + MCP server | CLI + MCP | CLI |
 | Canonical internal cross-agent model | Yes: vendor-neutral SkillPackage model | Agent Skills spec-oriented | Claude-compatible skills model |
-| Skill validation | Yes: `skillsync validate` and `skillsync doctor` | Yes: `skillport validate` with CI-friendly JSON | No strong validation story visible in README |
+| Skill validation | Yes: `skill-sync validate` and `skill-sync doctor` | Yes: `skillport validate` with CI-friendly JSON | No strong validation story visible in README |
 | Multi-source install | Yes: local, git (registry planned v0.2+) | Yes: GitHub, local path, zip | Yes: GitHub, local paths, private git repos |
-| Update existing installs | Yes: `skillsync sync` with plan-then-apply | Yes: `skillport update` | Implicitly install/sync/manage oriented; not presented as full lifecycle update engine |
+| Update existing installs | Yes: `skill-sync sync` with plan-then-apply | Yes: `skillport update` | Implicitly install/sync/manage oriented; not presented as full lifecycle update engine |
 | Managed install modes | Yes: copy, symlink, mirror | Add/manage skills, but no clear lock-aware install-mode matrix in README | Supports local dev symlinks and install flows |
-| Lockfile / deterministic resolution | Yes: `skillsync.lock` with SHA256 per file | No clear evidence in README | No clear evidence in README |
+| Lockfile / deterministic resolution | Yes: `skill-sync.lock` with SHA256 per file | No clear evidence in README | No clear evidence in README |
 | Provenance / source revision tracking | Yes: source type, path/url, revision, timestamp per skill | Source-aware add/update, but no clear provenance policy surfaced | Source-based installs, but no clear provenance policy surfaced |
-| Drift detection | Yes: `skillsync status` and `skillsync diff` | No clear evidence | No clear evidence |
+| Drift detection | Yes: `skill-sync status` and `skill-sync diff` | No clear evidence | No clear evidence |
 | Conflict reporting before overwrite | Yes: blocks on drift unless `--force` | No clear evidence | Some conflict warnings around Anthropic marketplace overlaps, but not a general sync-conflict model |
 | Atomic sync plan/apply behavior | Yes: plan-then-apply model | No clear evidence | No clear evidence |
 | Bidirectional promote flow back upstream | Manual guidance in v0; automated in v0.2+ | No clear evidence | No clear evidence |
 | Project-local override layering | Yes: per-skill install mode and source overrides | No clear evidence | No clear evidence |
-| Project-specific config injection | Yes: `config` section generates `skillsync.config.yaml` | No clear evidence | No clear evidence |
+| Project-specific config injection | Yes: `config` section generates `skill-sync.config.yaml` | No clear evidence | No clear evidence |
 | Portable repo-local materialization | Yes: repo-local targets, portability validation | Project/agent delivery supported, but portability is not the main product framing | Yes, partially, through project install + AGENTS.md + universal mode |
 | Multi-agent support | Yes: Claude, Codex, generic-MCP targets | Yes: Cursor, Copilot, Windsurf, Cline, Codex, Claude via CLI/MCP | Yes: Claude Code, Cursor, Windsurf, Aider, and universal agent mode |
 | AGENTS.md generation/sync | Not implemented | Yes: `skillport doc` | Yes: `openskills sync` |
@@ -110,7 +110,7 @@ SkillPort is not just an MCP server. Its verified README shows a broader product
 - search-first loading to reduce context pressure
 - per-client filtering through categories and tags
 
-That makes it much closer to `skillsync` than MCP Skill Hub.
+That makes it much closer to `skill-sync` than MCP Skill Hub.
 
 ## Where OpenSkills Is Stronger Than The Earlier Analysis Suggested
 
@@ -126,9 +126,9 @@ already solves a large part of the "share skills across agents" problem:
 If the problem is mostly "get Claude-style skills into more places," OpenSkills
 already covers a lot of ground.
 
-## What `skillsync` Would Need To Be Better At
+## What `skill-sync` Would Need To Be Better At
 
-To justify a new project, `skillsync` needs to be clearly better at the parts
+To justify a new project, `skill-sync` needs to be clearly better at the parts
 the other tools do not visibly solve:
 
 1. Deterministic sync state
@@ -160,16 +160,16 @@ the other tools do not visibly solve:
 
 ## Recommendation
 
-Recommendation: pursue `skillsync`, but only with a narrow differentiated scope.
+Recommendation: pursue `skill-sync`, but only with a narrow differentiated scope.
 
-Do not build `skillsync` as:
+Do not build `skill-sync` as:
 - another generic skill installer
 - another MCP skill browser
 - another AGENTS.md generator
 
 Those problems already have credible solutions.
 
-Build `skillsync` only as:
+Build `skill-sync` only as:
 - a package-management-style sync layer for skills
 - a portability layer for locally materialized shared skills
 - a lifecycle/governance layer for shared-source, project-local skill usage
@@ -187,7 +187,7 @@ Use `OpenSkills` instead if your main need is:
 - sync them into `AGENTS.md`
 - share skills across multiple agents with minimal ceremony
 
-Build `skillsync` if your actual need is:
+Build `skill-sync` if your actual need is:
 - deterministic sync with lock-state
 - drift/conflict visibility over time
 - project-local configuration of shared generic skills
@@ -201,7 +201,7 @@ The best strategic path is:
 1. Treat `SkillPort` as the closest product benchmark.
 2. Treat `OpenSkills` as the strongest baseline for installer ergonomics and
    agent compatibility.
-3. Keep `skillsync` focused on the lifecycle layer neither clearly owns.
+3. Keep `skill-sync` focused on the lifecycle layer neither clearly owns.
 
 That means v0 should emphasize:
 - manifest and local-store design
@@ -218,7 +218,7 @@ It should not spend early effort competing on:
 
 ## Final Verdict
 
-`skillsync` is worth pursuing only if it remains a lifecycle and portability
+`skill-sync` is worth pursuing only if it remains a lifecycle and portability
 product.
 
 If the scope narrows to "install skills" or "serve skills over MCP," you should

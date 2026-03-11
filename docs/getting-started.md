@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks through installing skillsync, configuring a project, and
+This guide walks through installing skill-sync, configuring a project, and
 syncing skills into your AI agent workflow.
 
 ## Prerequisites
@@ -12,28 +12,28 @@ syncing skills into your AI agent workflow.
 ## Install
 
 ```bash
-npm install skillsync
+npm install skill-sync
 ```
 
-This makes the `skillsync` CLI available via `npx skillsync` (or directly if
-installed globally with `npm install -g skillsync`).
+This makes the `skill-sync` CLI available via `npx skill-sync` (or directly if
+installed globally with `npm install -g skill-sync`).
 
 ## Quick Start: The Skill Wrapper
 
-The fastest way to get started is with the bundled **skillsync skill**. Copy
+The fastest way to get started is with the bundled **skill-sync skill**. Copy
 it into your agent's skill directory and let your agent handle the rest:
 
 ```bash
 # Copy the skill into your project
-mkdir -p .claude/skills/skillsync
-cp node_modules/skillsync/skills/skillsync/SKILL.md .claude/skills/skillsync/
+mkdir -p .claude/skills/skill-sync
+cp node_modules/skill-sync/skills/skill-sync/SKILL.md .claude/skills/skill-sync/
 ```
 
 Then ask your agent:
 
-> "Set up skillsync for this project."
+> "Set up skill-sync for this project."
 
-The agent will scan your existing skills, generate a `skillsync.yaml`
+The agent will scan your existing skills, generate a `skill-sync.yaml`
 manifest, and run the first sync — no manual YAML authoring required.
 
 The skill wrapper exposes all CLI commands as natural language actions:
@@ -43,7 +43,7 @@ If you prefer manual setup, continue below.
 
 ## Create a Project Manifest
 
-Add a `skillsync.yaml` file to your project root:
+Add a `skill-sync.yaml` file to your project root:
 
 ```yaml
 version: 1
@@ -63,7 +63,7 @@ targets:
 install_mode: mirror
 ```
 
-This tells skillsync to pull the `code` and `test` skills from your local
+This tells skill-sync to pull the `code` and `test` skills from your local
 `~/.claude/skills` directory and materialize them into `.claude/skills/` in
 your project.
 
@@ -72,10 +72,10 @@ your project.
 **CLI:**
 ```bash
 # Preview what will change
-skillsync sync --dry-run
+skill-sync sync --dry-run
 
 # Apply the sync
-skillsync sync
+skill-sync sync
 ```
 
 **Via agent** (with the MCP server configured):
@@ -88,8 +88,8 @@ After sync, your project tree looks like:
 
 ```
 my-project/
-  skillsync.yaml
-  skillsync.lock
+  skill-sync.yaml
+  skill-sync.lock
   .claude/skills/
     code/
       SKILL.md
@@ -97,7 +97,7 @@ my-project/
     test/
       SKILL.md
       skill.yaml
-    skillsync.config.yaml
+    skill-sync.config.yaml
 ```
 
 The lock file records exact file checksums and source provenance so future
@@ -108,10 +108,10 @@ syncs are deterministic.
 **CLI:**
 ```bash
 # Check manifest, portability, and installed state
-skillsync validate
+skill-sync validate
 
 # Full health diagnostics
-skillsync doctor
+skill-sync doctor
 ```
 
 **Via agent** (when the MCP server is configured, ask your agent directly):
@@ -151,7 +151,7 @@ targets:
 install_mode: mirror
 ```
 
-Running `skillsync sync` now materializes the same skills into both
+Running `skill-sync sync` now materializes the same skills into both
 `.claude/skills/` and `.codex/skills/`. Each agent reads from its own
 directory.
 
@@ -186,7 +186,7 @@ config:
     format: "npx prettier --write ."
 ```
 
-Skillsync generates a `skillsync.config.yaml` in each target directory with
+skill-sync generates a `skill-sync.config.yaml` in each target directory with
 these values merged over skill defaults. Skills read this file at runtime --
 no skill files are modified.
 
@@ -197,7 +197,7 @@ pick up upstream changes:
 
 **CLI:**
 ```bash
-skillsync pin code
+skill-sync pin code
 ```
 
 **Via agent:**
@@ -208,7 +208,7 @@ Unpin when you want to receive updates again:
 
 **CLI:**
 ```bash
-skillsync unpin code
+skill-sync unpin code
 ```
 
 **Via agent:**

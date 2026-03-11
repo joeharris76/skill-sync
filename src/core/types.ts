@@ -1,4 +1,4 @@
-// Core type definitions for skillsync.
+// Core type definitions for skill-sync.
 // These are vendor-neutral canonical representations used by all layers.
 
 // ---------------------------------------------------------------------------
@@ -11,7 +11,7 @@ export interface SkillPackage {
   description: string;
   /** Absolute path to skill directory on disk. */
   path: string;
-  /** Parsed SKILL.md frontmatter (read-only, never modified by skillsync). */
+  /** Parsed SKILL.md frontmatter (read-only, never modified by skill-sync). */
   skillMd: SkillMdMetadata;
   /** Parsed skill.yaml sidecar, or null if absent. */
   meta: SkillSyncMeta | null;
@@ -87,7 +87,7 @@ export interface SkillFile {
 }
 
 // ---------------------------------------------------------------------------
-// Project Manifest (skillsync.yaml)
+// Project Manifest (skill-sync.yaml)
 // ---------------------------------------------------------------------------
 
 export type InstallMode = "copy" | "symlink" | "mirror";
@@ -122,7 +122,7 @@ export interface SkillOverride {
 }
 
 // ---------------------------------------------------------------------------
-// Lock File (skillsync.lock)
+// Lock File (skill-sync.lock)
 // ---------------------------------------------------------------------------
 
 export interface LockFile {

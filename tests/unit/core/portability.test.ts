@@ -13,7 +13,7 @@ describe("isPortableMode", () => {
 });
 
 describe("checkPortability", () => {
-  const tmpBase = join(tmpdir(), "skillsync-portability-test");
+  const tmpBase = join(tmpdir(), "skill-sync-portability-test");
 
   async function makeSkillWithContent(
     name: string,

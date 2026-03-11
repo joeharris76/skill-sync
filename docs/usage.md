@@ -1,6 +1,6 @@
 # Common Usage
 
-Practical examples of using skillsync with Claude Code and OpenAI Codex in
+Practical examples of using skill-sync with Claude Code and OpenAI Codex in
 day-to-day workflows.
 
 ## Claude Code
@@ -8,11 +8,11 @@ day-to-day workflows.
 ### Setting Up a Project
 
 The quickest path is the [skill wrapper](getting-started.md#quick-start-the-skill-wrapper) —
-copy `skills/skillsync/SKILL.md` into `.claude/skills/skillsync/` and ask
-your agent to "set up skillsync." It will generate the manifest below
+copy `skills/skill-sync/SKILL.md` into `.claude/skills/skill-sync/` and ask
+your agent to "set up skill-sync." It will generate the manifest below
 automatically.
 
-For manual setup, create `skillsync.yaml` at your project root:
+For manual setup, create `skill-sync.yaml` at your project root:
 
 ```yaml
 version: 1
@@ -49,8 +49,8 @@ Sync and verify:
 
 **CLI:**
 ```bash
-skillsync sync
-skillsync status
+skill-sync sync
+skill-sync status
 ```
 
 **Via agent** (with the MCP server configured):
@@ -64,16 +64,16 @@ additional configuration required.
 
 ### Using the MCP Server with Claude Code
 
-The skillsync MCP server gives Claude the same capabilities as the CLI —
+The skill-sync MCP server gives Claude the same capabilities as the CLI —
 syncing, validating, pinning, pruning, and discovering skills — without
 leaving the conversation. Add it to your Claude Code MCP configuration:
 
 ```json
 {
   "mcpServers": {
-    "skillsync": {
+    "skill-sync": {
       "command": "node",
-      "args": ["node_modules/skillsync/dist/mcp/index.js", "."]
+      "args": ["node_modules/skill-sync/dist/mcp/index.js", "."]
     }
   }
 }
@@ -98,7 +98,7 @@ what changed:
 
 **CLI:**
 ```bash
-skillsync status
+skill-sync status
 ```
 
 ```
@@ -118,7 +118,7 @@ To preview what sync would overwrite:
 
 **CLI:**
 ```bash
-skillsync diff
+skill-sync diff
 ```
 
 **Via agent:**
@@ -129,8 +129,8 @@ To sync and overwrite local changes, or promote them back to the source:
 
 **CLI:**
 ```bash
-skillsync sync --force
-skillsync promote
+skill-sync sync --force
+skill-sync promote
 ```
 
 **Via agent:**
@@ -147,8 +147,8 @@ In CI, ensure skills are portable and intact:
 # .github/workflows/check.yml
 - name: Validate skills
   run: |
-    npx skillsync validate --exit-code
-    npx skillsync status --json
+    npx skill-sync validate --exit-code
+    npx skill-sync status --json
 ```
 
 Use `mirror` install mode (the default) for CI -- `symlink` mode is not
@@ -166,7 +166,7 @@ The same checks are available via agent prompts for MCP-integrated pipelines:
 
 ### Setting Up a Project
 
-Codex reads skills from `.codex/skills/`. Configure skillsync to target
+Codex reads skills from `.codex/skills/`. Configure skill-sync to target
 that directory:
 
 ```yaml
@@ -199,7 +199,7 @@ config:
 
 **CLI:**
 ```bash
-skillsync sync
+skill-sync sync
 ```
 
 **Via agent** (with the MCP server configured):
@@ -251,14 +251,14 @@ config:
     typecheck: "uv run ty check"
 ```
 
-Running `skillsync sync` materializes skills into both directories. The same
+Running `skill-sync sync` materializes skills into both directories. The same
 skill content is written to both targets -- only the destination path differs.
 
 Check compatibility for both targets:
 
 **CLI:**
 ```bash
-skillsync validate
+skill-sync validate
 ```
 
 **Via agent:**
@@ -266,7 +266,7 @@ skillsync validate
 > "Validate my skills and check for any compatibility issues between Claude and Codex."
 
 If a skill uses features one target doesn't support (e.g., `allowed-tools`
-in Claude Code that Codex ignores), skillsync reports a diagnostic warning
+in Claude Code that Codex ignores), skill-sync reports a diagnostic warning
 but still materializes the skill.
 
 ---
@@ -337,23 +337,23 @@ team repo when ready.
 **CLI:**
 ```bash
 # Morning: pull latest team skills
-skillsync sync
+skill-sync sync
 
 # Work: modify a skill locally if needed
 # ...edit .claude/skills/code/SKILL.md...
 
 # Check: see what drifted
-skillsync status
+skill-sync status
 
 # Validate: ensure portability
-skillsync validate
+skill-sync validate
 
 # Lock: freeze a skill before a release
-skillsync pin code
+skill-sync pin code
 
 # Clean up: remove skills dropped from manifest
-skillsync prune --dry-run
-skillsync prune
+skill-sync prune --dry-run
+skill-sync prune
 ```
 
 **Via agent:**
@@ -375,7 +375,7 @@ skillsync prune
 All commands support `--json` for machine-readable output:
 
 ```bash
-skillsync status --json | jq '.targets.claude.skills[] | select(.state != "clean")'
+skill-sync status --json | jq '.targets.claude.skills[] | select(.state != "clean")'
 ```
 
 ### Per-Skill Install Mode Overrides

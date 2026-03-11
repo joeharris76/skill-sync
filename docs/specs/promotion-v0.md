@@ -1,4 +1,4 @@
-# SkillSync Promotion & Upstream Sync Specification v0
+# skill-sync Promotion & Upstream Sync Specification v0
 
 This document describes how project-local skill changes are promoted back to
 a shared canonical source.
@@ -9,9 +9,9 @@ When you refine a skill in-project (fixing a bug, adding a reference, tuning
 instructions), that change lives only in the project's installed store. Without
 promotion, the canonical source gets stale and other projects never benefit.
 
-## v0 Approach: Manual Guidance via `skillsync promote`
+## v0 Approach: Manual Guidance via `skill-sync promote`
 
-In v0, the `skillsync promote` command exists but provides **manual guidance**
+In v0, the `skill-sync promote` command exists but provides **manual guidance**
 rather than automation. It prints the steps for manually copying changes back
 to the canonical source. Full automated promotion (with conflict resolution
 and multi-project propagation) is deferred to v0.2.
@@ -29,7 +29,7 @@ and multi-project propagation) is deferred to v0.2.
 ### 1. Detect Drift
 
 ```bash
-skillsync status
+skill-sync status
 ```
 
 Output shows which skills have local modifications:
@@ -44,7 +44,7 @@ Skills:
 ### 2. Inspect Changes
 
 ```bash
-skillsync diff test
+skill-sync diff test
 ```
 
 Output shows file-level diffs between installed state and lock file:
@@ -72,7 +72,7 @@ cp .claude/skills/test/SKILL.md ~/.claude/skills/test/SKILL.md
 ### 4. Re-sync to Update Lock
 
 ```bash
-skillsync sync
+skill-sync sync
 ```
 
 This re-syncs from the now-updated canonical source, updating the lock file
@@ -83,17 +83,17 @@ to reflect the promoted changes. The drift disappears.
 In other projects that use the same canonical source:
 
 ```bash
-skillsync sync
+skill-sync sync
 ```
 
 This pulls the promoted changes into each project.
 
-## Future: Automated `skillsync promote` (v0.2+)
+## Future: Automated `skill-sync promote` (v0.2+)
 
 The `promote` command will be extended to automate the workflow above:
 
 ```bash
-skillsync promote test
+skill-sync promote test
 ```
 
 Expected behavior:
@@ -110,7 +110,7 @@ Expected behavior:
   a skill, or only the whole skill?
 - **Git integration**: If the canonical source is a git repo, should `promote`
   create a commit or branch?
-- **Multi-project awareness**: Should `~/.skillsync/` track which projects use
+- **Multi-project awareness**: Should `~/.skill-sync/` track which projects use
   which sources to enable "promote and propagate everywhere"?
 - **Conflict handling**: If the canonical source has also changed since the
   last sync, how should conflicts be presented?
@@ -119,8 +119,8 @@ Expected behavior:
 
 | Feature | Role in Promotion |
 |---------|------------------|
-| `skillsync status` | Detects which skills have drifted |
-| `skillsync diff` | Shows file-level changes |
-| `skillsync.lock` | Records expected state for drift detection |
-| `skillsync sync` | Re-syncs after manual promotion |
+| `skill-sync status` | Detects which skills have drifted |
+| `skill-sync diff` | Shows file-level changes |
+| `skill-sync.lock` | Records expected state for drift detection |
+| `skill-sync sync` | Re-syncs after manual promotion |
 | Lock file provenance | Identifies which source to promote back to |

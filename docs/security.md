@@ -1,9 +1,9 @@
-# SkillSync Security & Trust Model
+# skill-sync Security & Trust Model
 
 ## Trust Policy
 
-SkillSync uses a declarative trust policy to control which skill sources
-are allowed in a project. In v0, all sources declared in `skillsync.yaml`
+skill-sync uses a declarative trust policy to control which skill sources
+are allowed in a project. In v0, all sources declared in `skill-sync.yaml`
 are trusted by default.
 
 ### Source Allowlists
@@ -11,7 +11,7 @@ are trusted by default.
 Projects can restrict sources to an explicit allowlist:
 
 ```yaml
-# skillsync.yaml
+# skill-sync.yaml
 trust:
   allowed_sources:
     - type: local                           # Allow all local sources
@@ -22,13 +22,13 @@ trust:
 
 ### Provenance Tracking
 
-Every installed skill records its source provenance in `skillsync.lock`:
+Every installed skill records its source provenance in `skill-sync.lock`:
 - Source type and name
 - Path or URL
 - Git ref and resolved commit SHA (for git sources)
 - Fetch timestamp
 
-Run `skillsync status --json` to inspect provenance for all installed skills.
+Run `skill-sync status --json` to inspect provenance for all installed skills.
 
 ### Trust Policy Enforcement
 
@@ -41,9 +41,9 @@ Run `skillsync status --json` to inspect provenance for all installed skills.
 
 ## Executable Scripts
 
-Skills may contain `scripts/` directories with executable files. SkillSync:
+Skills may contain `scripts/` directories with executable files. skill-sync:
 
-1. **Warns** about executable scripts during `skillsync validate`
+1. **Warns** about executable scripts during `skill-sync validate`
 2. **Never executes** scripts — it only copies/materializes them
 3. Can be configured to **error** on scripts via trust policy
 
@@ -57,7 +57,7 @@ Supported agent targets handle scripts differently:
 
 ## Validation Diagnostics
 
-`skillsync validate` checks:
+`skill-sync validate` checks:
 
 - **Manifest validity**: version, sources, skills, targets
 - **Source type support**: warns on unimplemented source types (e.g., registry)

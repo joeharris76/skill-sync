@@ -4,7 +4,7 @@ import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-const tmpBase = join(tmpdir(), "skillsync-parser-error-test");
+const tmpBase = join(tmpdir(), "skill-sync-parser-error-test");
 
 describe("loadSkillPackage sidecar error handling", () => {
   it("loads fine when no sidecar exists", async () => {

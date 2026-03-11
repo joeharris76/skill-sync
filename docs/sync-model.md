@@ -2,7 +2,7 @@
 
 ## Sync Philosophy
 
-`skillsync` should behave like a package manager for skills, while keeping the
+`skill-sync` should behave like a package manager for skills, while keeping the
 result locally materialized and inspectable.
 
 The sync process should be explicit, deterministic, and safe:
@@ -115,7 +115,7 @@ Dry-run output should be first-class. Users should be able to see:
 
 ## Why This Is Different
 
-The differentiator for `skillsync` is not just pulling files from somewhere.
+The differentiator for `skill-sync` is not just pulling files from somewhere.
 It is the lifecycle model around:
 - deterministic state
 - explicit drift visibility

@@ -22,7 +22,7 @@ describeManifest("core/manifest contract", () => {
   });
 
   it("parses a complete project manifest fixture", () => {
-    const parsed = manifestModule.parseManifest(readFixture("project", "skillsync.yaml")) as {
+    const parsed = manifestModule.parseManifest(readFixture("project", "skill-sync.yaml")) as {
       version: number;
       sources: Array<{ name: string; type: string }>;
       skills: string[];
@@ -45,7 +45,7 @@ describeManifest("core/manifest contract", () => {
   });
 
   it("serializes parsed manifests without losing core fields", () => {
-    const fixture = readFixture("project", "skillsync.yaml");
+    const fixture = readFixture("project", "skill-sync.yaml");
     const parsed = manifestModule.parseManifest(fixture);
     const serialized = manifestModule.serializeManifest(parsed);
     const reparsed = manifestModule.parseManifest(serialized) as {
@@ -61,7 +61,7 @@ describeManifest("core/manifest contract", () => {
 
   it("rejects invalid manifests that omit required install configuration", () => {
     expect(() =>
-      manifestModule.parseManifest(readFixture("project", "skillsync.invalid.yaml")),
+      manifestModule.parseManifest(readFixture("project", "skill-sync.invalid.yaml")),
     ).toThrow();
   });
 });

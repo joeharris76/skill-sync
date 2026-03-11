@@ -17,7 +17,7 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
     } catch (err) {
       if (dryRun) {
         const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], skipped: [], warnings: [] };
-        return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skillsync.yaml found. Nothing to sync.") };
+        return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skill-sync.yaml found. Nothing to sync.") };
       }
       throw err;
     }
@@ -33,8 +33,8 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
       const conflictNames = result.conflicts.map((c) => c.name).join(", ");
       const msg =
         `Sync blocked by ${result.conflicts.length} conflict(s): ${conflictNames}\n` +
-        `Run \`skillsync promote\` to push local changes upstream first,\n` +
-        `or use \`skillsync sync --force\` to overwrite local modifications.`;
+        `Run \`skill-sync promote\` to push local changes upstream first,\n` +
+        `or use \`skill-sync sync --force\` to overwrite local modifications.`;
       if (mode === "json") {
         return {
           exitCode: 1,

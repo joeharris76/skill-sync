@@ -19,7 +19,7 @@ interface TargetRoot {
 }
 
 /**
- * Create a skillsync MCP server backed by a project directory.
+ * Create a skill-sync MCP server backed by a project directory.
  *
  * The server exposes installed skills as MCP resources, provides
  * search and validation tools, and offers a use-skill prompt.
@@ -28,7 +28,7 @@ export function createServer(projectRoot: string): McpServer {
   const root = resolve(projectRoot);
 
   const server = new McpServer({
-    name: "skillsync",
+    name: "skill-sync",
     version: "0.0.1",
   });
 
@@ -166,7 +166,7 @@ export function createServer(projectRoot: string): McpServer {
       const lockFile = await readLockFile(root);
       if (!lockFile) {
         return {
-          content: [{ type: "text" as const, text: "No lock file found. Run `skillsync sync` first." }],
+          content: [{ type: "text" as const, text: "No lock file found. Run `skill-sync sync` first." }],
         };
       }
       const targets = await getTargetRoots(root);

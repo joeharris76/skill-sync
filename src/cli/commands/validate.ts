@@ -22,8 +22,8 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
     try {
       manifest = await readManifest(projectRoot);
     } catch {
-      const result = { valid: true, diagnostics: [{ rule: "no-manifest", severity: "warning" as const, message: "No skillsync.yaml found." }] };
-      return { exitCode: 0, stdout: formatOutput(result, mode, () => "WARN  No skillsync.yaml found.\n\nValidation passed with warnings.") };
+      const result = { valid: true, diagnostics: [{ rule: "no-manifest", severity: "warning" as const, message: "No skill-sync.yaml found." }] };
+      return { exitCode: 0, stdout: formatOutput(result, mode, () => "WARN  No skill-sync.yaml found.\n\nValidation passed with warnings.") };
     }
     const lockFile = await readLockFile(projectRoot);
 
@@ -44,7 +44,7 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
       diagnostics.push({
         rule: "no-lock-file",
         severity: "warning",
-        message: "No lock file found. Run `skillsync sync` to create one.",
+        message: "No lock file found. Run `skill-sync sync` to create one.",
       });
     }
 
@@ -54,7 +54,7 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
       diagnostics.push({
         rule: "no-targets",
         severity: "error",
-        message: "No targets defined in skillsync.yaml",
+        message: "No targets defined in skill-sync.yaml",
       });
     }
 

@@ -81,7 +81,7 @@ export class GitSource implements SkillSource {
   private async ensureCloned(): Promise<void> {
     if (this.clonePath) return;
 
-    const tmpDir = await mkdtemp(join(tmpdir(), "skillsync-git-"));
+    const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-git-"));
     try {
       await exec("git", [
         "clone",

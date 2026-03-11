@@ -5,7 +5,7 @@
 
 ## Canonical Skill Package
 
-At release, `skillsync` should manage a canonical skill package model with
+At release, `skill-sync` should manage a canonical skill package model with
 enough structure to support sync, portability, validation, and adaptation.
 
 A skill package may include:
@@ -59,7 +59,7 @@ The managed store should:
 ## Example Store Shape
 
 ```text
-.skillsync/
+.skill-sync/
   store/
     skills/
       code/
@@ -81,7 +81,7 @@ the same concepts.
 
 ## Override Model
 
-`skillsync` should support narrow local customization without requiring a full
+`skill-sync` should support narrow local customization without requiring a full
 copy of upstream skills.
 
 The expected override mechanisms are:

@@ -104,7 +104,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     // Detect drift across all targets
     const targetEntries = Object.entries(manifest.targets);
     if (!targetEntries[0]) {
-      throw new Error("No targets defined in skillsync.yaml");
+      throw new Error("No targets defined in skill-sync.yaml");
     }
 
     const driftReports = await Promise.all(
@@ -255,7 +255,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
       delete updatedLock.skills[name];
     }
 
-    // Generate skillsync.config.yaml
+    // Generate skill-sync.config.yaml
     if (Object.keys(manifest.config).length > 0) {
       for (const { targetRoot } of driftReports) {
         const installedPkgs = [];
@@ -319,7 +319,7 @@ export async function pinOperation(
   const lockFile = await readLockFile(projectRoot);
 
   if (!lockFile) {
-    throw new Error("No lock file found. Run `skillsync sync` first.");
+    throw new Error("No lock file found. Run `skill-sync sync` first.");
   }
 
   const locked = lockFile.skills[skillName];
@@ -340,7 +340,7 @@ export async function pinOperation(
   manifest.overrides[skillName]!.revision = locked.source.revision;
 
   await writeFile(
-    join(projectRoot, "skillsync.yaml"),
+    join(projectRoot, "skill-sync.yaml"),
     serializeManifest(manifest),
     "utf-8",
   );
@@ -391,7 +391,7 @@ export async function unpinOperation(
   }
 
   await writeFile(
-    join(projectRoot, "skillsync.yaml"),
+    join(projectRoot, "skill-sync.yaml"),
     serializeManifest(manifest),
     "utf-8",
   );
@@ -424,7 +424,7 @@ export async function pruneOperation(
   const targetEntries = Object.entries(manifest.targets);
   const primaryTarget = targetEntries[0]?.[1];
   if (!primaryTarget) {
-    throw new Error("No targets defined in skillsync.yaml");
+    throw new Error("No targets defined in skill-sync.yaml");
   }
 
   const drift = await detectDrift(resolve(projectRoot, primaryTarget), lockFile);
@@ -473,12 +473,12 @@ export async function doctorOperation(
   let manifest;
   try {
     manifest = await readManifest(projectRoot);
-    checks.push({ check: "manifest", status: "ok", message: "skillsync.yaml found and valid" });
+    checks.push({ check: "manifest", status: "ok", message: "skill-sync.yaml found and valid" });
   } catch (err) {
     checks.push({
       check: "manifest",
       status: "error",
-      message: err instanceof Error ? err.message : "skillsync.yaml not found or invalid",
+      message: err instanceof Error ? err.message : "skill-sync.yaml not found or invalid",
     });
   }
 
@@ -487,7 +487,7 @@ export async function doctorOperation(
   if (lockFile) {
     checks.push({ check: "lockfile", status: "ok", message: `Lock file has ${Object.keys(lockFile.skills).length} skill(s)` });
   } else {
-    checks.push({ check: "lockfile", status: "warn", message: "No lock file. Run `skillsync sync` to create one." });
+    checks.push({ check: "lockfile", status: "warn", message: "No lock file. Run `skill-sync sync` to create one." });
   }
 
   // Check 3: Sources and target directories

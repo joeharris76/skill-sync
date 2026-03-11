@@ -7,7 +7,7 @@ import { sha256 } from "../../../src/core/hasher.js";
 
 describe("planSync", () => {
   it("skips update when on-disk content matches source (disk-matches-source)", async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), "skillsync-syncer-disk-"));
+    const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-syncer-disk-"));
     const skillDir = join(tmpDir, "code");
     await mkdir(skillDir, { recursive: true });
 
@@ -50,7 +50,7 @@ describe("planSync", () => {
   });
 
   it("does not skip when on-disk content differs from source", async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), "skillsync-syncer-nodisk-"));
+    const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-syncer-nodisk-"));
     const skillDir = join(tmpDir, "code");
     await mkdir(skillDir, { recursive: true });
 
@@ -93,7 +93,7 @@ describe("planSync", () => {
   });
 
   it("does not skip when skill directory does not exist on disk", async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), "skillsync-syncer-nodir-"));
+    const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-syncer-nodir-"));
     // No skill directory created — disk is empty
 
     const plan = await planSync({
@@ -158,7 +158,7 @@ describe("planSync", () => {
   });
 
   it("does not skip when disk has extra files not in source", async () => {
-    const tmpDir = await mkdtemp(join(tmpdir(), "skillsync-syncer-extra-"));
+    const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-syncer-extra-"));
     const skillDir = join(tmpDir, "code");
     await mkdir(skillDir, { recursive: true });
 
@@ -199,8 +199,8 @@ describe("planSync", () => {
   });
 
   it("does not skip when only one target matches source", async () => {
-    const targetA = await mkdtemp(join(tmpdir(), "skillsync-syncer-target-a-"));
-    const targetB = await mkdtemp(join(tmpdir(), "skillsync-syncer-target-b-"));
+    const targetA = await mkdtemp(join(tmpdir(), "skill-sync-syncer-target-a-"));
+    const targetB = await mkdtemp(join(tmpdir(), "skill-sync-syncer-target-b-"));
     const newContent = "# Code Skill\nUpdated version.\n";
     const newHash = sha256(newContent);
 
@@ -311,7 +311,7 @@ describe("applySync", () => {
         },
         targets: [],
       }),
-    ).rejects.toThrow("skillsync promote");
+    ).rejects.toThrow("skill-sync promote");
   });
 
   it("does not throw on conflicts when force=true", async () => {

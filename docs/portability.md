@@ -9,7 +9,7 @@ developer's workstation layout. That breaks in:
 - web-based agent environments
 - other contributors' machines
 
-`skillsync` should treat portability as a first-class design target rather than
+`skill-sync` should treat portability as a first-class design target rather than
 an afterthought.
 
 ## Portability Goals
@@ -57,7 +57,7 @@ rewrites.
 
 ## Compatibility Adapters
 
-`skillsync` should be able to materialize compatible local outputs for:
+`skill-sync` should be able to materialize compatible local outputs for:
 - Claude-style skill directories
 - Codex-style skill directories
 - generic MCP consumers

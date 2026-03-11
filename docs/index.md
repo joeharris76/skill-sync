@@ -1,4 +1,4 @@
-# `skillsync` Documentation
+# `skill-sync` Documentation
 
 ## Reading Order
 
@@ -19,7 +19,7 @@
 
 ## Product Goal
 
-`skillsync` is a local-first skill lifecycle manager for AI agents. It lets
+`skill-sync` is a local-first skill lifecycle manager for AI agents. It lets
 projects consume shared skills from external sources, materialize them locally
 in a portable way, customize them safely for local needs, and expose them
 through both a CLI and an MCP server.
@@ -35,7 +35,7 @@ through both a CLI and an MCP server.
 
 ## Scope Boundaries
 
-`skillsync` is not intended to be:
+`skill-sync` is not intended to be:
 - a generic prompt marketplace
 - a consumer-facing hosted registry
 - only an MCP skill browser

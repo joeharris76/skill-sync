@@ -1,29 +1,29 @@
 ---
-name: skillsync
-description: This skill should be used when the user asks to "sync skills", "set up skillsync", "check skill status", "validate skills", "preview skill changes", "diagnose skills", "pin a skill", "unpin a skill", "prune skills", or "promote skill changes".
+name: skill-sync
+description: This skill should be used when the user asks to "sync skills", "set up skill-sync", "check skill status", "validate skills", "preview skill changes", "diagnose skills", "pin a skill", "unpin a skill", "prune skills", or "promote skill changes".
 version: 0.1.0
 tools: Bash, Read, Write, Edit
 ---
 
-# SkillSync Workflow
+# skill-sync Workflow
 
 Manage AI agent skills across projects — sync, validate, and maintain shared skill libraries.
 
 ## Project Configuration
 
-SkillSync uses `skillsync.yaml` at the project root as the manifest. Run `skillsync doctor` to check configuration health.
+skill-sync uses `skill-sync.yaml` at the project root as the manifest. Run `skill-sync doctor` to check configuration health.
 
 Key files:
-- `skillsync.yaml` — manifest: sources, skills, targets, install mode, config overrides
-- `skillsync.lock` — integrity checksums (auto-generated)
+- `skill-sync.yaml` — manifest: sources, skills, targets, install mode, config overrides
+- `skill-sync.lock` — integrity checksums (auto-generated)
 - `skill.yaml` — per-skill package descriptor (inside each skill directory)
-- `skillsync.config.yaml` — merged runtime config (auto-generated in each target directory)
+- `skill-sync.config.yaml` — merged runtime config (auto-generated in each target directory)
 
 ## Actions
 
 | Action | Trigger | Description |
 |--------|---------|-------------|
-| `setup` | "set up skillsync", "bootstrap skills" | Detect install, scaffold manifest from existing skills |
+| `setup` | "set up skill-sync", "bootstrap skills" | Detect install, scaffold manifest from existing skills |
 | `sync` | "sync skills", "update skills" | Resolve, plan, and apply skill changes |
 | `status` | "skill status", "check skills" | Report installed skill health and drift |
 | `validate` | "validate skills", "check manifest" | Validate manifest, skills, config, compatibility |
@@ -40,14 +40,14 @@ Key files:
 
 **Input**: Empty (auto-detect), or project path
 
-Bootstraps skillsync in a project that already has skills but no `skillsync.yaml`.
+Bootstraps skill-sync in a project that already has skills but no `skill-sync.yaml`.
 
 **Steps**:
-1. Check for skillsync installation:
+1. Check for skill-sync installation:
    ```bash
-   skillsync --version
+   skill-sync --version
    ```
-   If not found, instruct the user to install: `npm install -g skillsync`
+   If not found, instruct the user to install: `npm install -g skill-sync`
 
 2. Scan for existing skill directories:
    ```bash
@@ -60,22 +60,22 @@ Bootstraps skillsync in a project that already has skills but no `skillsync.yaml
    ls ~/.claude/skills/ 2>/dev/null
    ```
 
-4. Generate `skillsync.yaml` manifest with discovered skills, sources, and targets.
+4. Generate `skill-sync.yaml` manifest with discovered skills, sources, and targets.
    Use `mirror` as the default install mode. Include all target directories found
    (`.claude/skills`, `.codex/skills`).
 
 5. Run initial sync to establish the lock file:
    ```bash
-   skillsync sync --dry-run --json
+   skill-sync sync --dry-run --json
    ```
    Show the plan to the user. If approved:
    ```bash
-   skillsync sync
+   skill-sync sync
    ```
 
 6. Verify setup:
    ```bash
-   skillsync doctor --json
+   skill-sync doctor --json
    ```
 
 ---
@@ -85,10 +85,10 @@ Bootstraps skillsync in a project that already has skills but no `skillsync.yaml
 **Input**: Empty, `--dry-run`, `--force`, or `--json`
 
 ```bash
-skillsync sync              # Resolve, plan, apply
-skillsync sync --dry-run    # Preview without applying
-skillsync sync --force      # Override conflict checks
-skillsync sync --json       # Machine-readable output
+skill-sync sync              # Resolve, plan, apply
+skill-sync sync --dry-run    # Preview without applying
+skill-sync sync --force      # Override conflict checks
+skill-sync sync --json       # Machine-readable output
 ```
 
 Behavior:
@@ -96,11 +96,11 @@ Behavior:
 - Follows transitive dependencies from `skill.yaml`
 - Detects drift and reports conflicts before overwrite
 - Materializes to all configured targets
-- Updates `skillsync.lock` and generates `skillsync.config.yaml`
+- Updates `skill-sync.lock` and generates `skill-sync.config.yaml`
 
 If conflicts are reported, explain the options:
-1. `skillsync promote` — push local changes upstream first
-2. `skillsync sync --force` — overwrite local modifications
+1. `skill-sync promote` — push local changes upstream first
+2. `skill-sync sync --force` — overwrite local modifications
 
 ---
 
@@ -109,8 +109,8 @@ If conflicts are reported, explain the options:
 **Input**: Empty or `--json`
 
 ```bash
-skillsync status            # Human-readable report
-skillsync status --json     # Structured output
+skill-sync status            # Human-readable report
+skill-sync status --json     # Structured output
 ```
 
 Shows per-target: installed skills, install mode, lockfile alignment (clean, modified, missing, extra), file-level drift details.
@@ -122,9 +122,9 @@ Shows per-target: installed skills, install mode, lockfile alignment (clean, mod
 **Input**: Empty, `--exit-code`, or `--json`
 
 ```bash
-skillsync validate                  # Check everything
-skillsync validate --exit-code      # Exit 1 on errors (for CI)
-skillsync validate --json           # Structured output
+skill-sync validate                  # Check everything
+skill-sync validate --exit-code      # Exit 1 on errors (for CI)
+skill-sync validate --json           # Structured output
 ```
 
 Checks: manifest structure, source definitions, SKILL.md presence and frontmatter, portability constraints, compatibility declarations, config override validity.
@@ -136,11 +136,11 @@ Checks: manifest structure, source definitions, SKILL.md presence and frontmatte
 **Input**: Empty or `--json`
 
 ```bash
-skillsync diff              # Preview what sync would change
-skillsync diff --json       # Structured output
+skill-sync diff              # Preview what sync would change
+skill-sync diff --json       # Structured output
 ```
 
-Equivalent to `skillsync sync --dry-run`. Shows installs, updates, removals, and conflicts without applying.
+Equivalent to `skill-sync sync --dry-run`. Shows installs, updates, removals, and conflicts without applying.
 
 ---
 
@@ -149,8 +149,8 @@ Equivalent to `skillsync sync --dry-run`. Shows installs, updates, removals, and
 **Input**: Empty or `--json`
 
 ```bash
-skillsync doctor            # Comprehensive diagnostics
-skillsync doctor --json     # Structured output
+skill-sync doctor            # Comprehensive diagnostics
+skill-sync doctor --json     # Structured output
 ```
 
 Checks: manifest validity, lock file presence, source availability, target directory existence, drift detection, portability validation.
@@ -162,10 +162,10 @@ Checks: manifest validity, lock file presence, source availability, target direc
 **Input**: Skill name (required)
 
 ```bash
-skillsync pin <skill-name>
+skill-sync pin <skill-name>
 ```
 
-Locks a skill to its current git revision. Only works for git sources. Records the commit SHA in `skillsync.yaml` overrides so future syncs use that exact revision.
+Locks a skill to its current git revision. Only works for git sources. Records the commit SHA in `skill-sync.yaml` overrides so future syncs use that exact revision.
 
 ---
 
@@ -174,7 +174,7 @@ Locks a skill to its current git revision. Only works for git sources. Records t
 **Input**: Skill name (required)
 
 ```bash
-skillsync unpin <skill-name>
+skill-sync unpin <skill-name>
 ```
 
 Removes a revision pin, allowing the skill to float and receive updates on future syncs.
@@ -186,8 +186,8 @@ Removes a revision pin, allowing the skill to float and receive updates on futur
 **Input**: Empty, `--dry-run`, or `--json`
 
 ```bash
-skillsync prune             # Remove undeclared skills
-skillsync prune --dry-run   # Preview what would be removed
+skill-sync prune             # Remove undeclared skills
+skill-sync prune --dry-run   # Preview what would be removed
 ```
 
 Removes installed skills not declared in the manifest, including untracked directories in targets that are not in the lock file.
@@ -199,15 +199,15 @@ Removes installed skills not declared in the manifest, including untracked direc
 **Input**: Empty or `--json`
 
 ```bash
-skillsync promote           # Show promotion guidance
-skillsync promote --json    # Structured output
+skill-sync promote           # Show promotion guidance
+skill-sync promote --json    # Structured output
 ```
 
 In v0, promotion is a manual workflow:
-1. `skillsync status` — identify modified skills
-2. `skillsync diff` — review changes
+1. `skill-sync status` — identify modified skills
+2. `skill-sync diff` — review changes
 3. Copy modified files from target directory back to source
-4. `skillsync sync` — confirm source and target are in sync
+4. `skill-sync sync` — confirm source and target are in sync
 
 ---
 
@@ -226,7 +226,7 @@ All commands support:
 ## Output Format
 
 ```markdown
-## SkillSync {Action}
+## skill-sync {Action}
 
 ### Summary
 {what was done}

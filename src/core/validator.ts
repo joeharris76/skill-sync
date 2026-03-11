@@ -72,7 +72,7 @@ export async function validateSkillPackage(
 }
 
 /**
- * Validate a skillsync.yaml manifest file.
+ * Validate a skill-sync.yaml manifest file.
  *
  * Checks:
  * - Valid YAML with required version field

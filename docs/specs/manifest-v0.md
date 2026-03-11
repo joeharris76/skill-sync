@@ -1,16 +1,16 @@
-# SkillSync Manifest Specification v0
+# skill-sync Manifest Specification v0
 
 This document defines the canonical skill package model, the project manifest
-(`skillsync.yaml`), and the sidecar metadata file (`skill.yaml`) used
-by skillsync to manage, sync, and distribute skills.
+(`skill-sync.yaml`), and the sidecar metadata file (`skill.yaml`) used
+by skill-sync to manage, sync, and distribute skills.
 
 ## Design Principles
 
-1. **Standard SKILL.md is untouched.** SkillSync never modifies or extends the
+1. **Standard SKILL.md is untouched.** skill-sync never modifies or extends the
    industry-standard SKILL.md frontmatter. Sync metadata lives in sidecar files.
 2. **Skills are directories, not files.** A skill is always a directory containing
    at least a SKILL.md. Everything else is optional.
-3. **The internal model is vendor-neutral.** SkillSync uses a canonical
+3. **The internal model is vendor-neutral.** skill-sync uses a canonical
    representation internally, with adapters for Claude Code, Codex, and MCP output.
 4. **Installed skills are plain files.** No database, no opaque cache. A human can
    inspect and understand the installed store with `ls` and `cat`.
@@ -24,7 +24,7 @@ A skill package is a directory with this layout:
 ```
 my-skill/
   SKILL.md              # Required. YAML frontmatter + markdown instructions.
-  skill.yaml   # Optional. SkillSync-specific metadata (sidecar).
+  skill.yaml   # Optional. skill-sync-specific metadata (sidecar).
   references/           # Optional. Supporting documentation.
   scripts/              # Optional. Executable helpers.
   assets/               # Optional. Templates, images, data files.
@@ -46,11 +46,11 @@ Follows the Agent Skills specification shared by Anthropic and OpenAI.
 
 **Markdown body:** Free-form instructions, examples, and guidelines for the agent.
 
-SkillSync reads but never writes to SKILL.md frontmatter.
+skill-sync reads but never writes to SKILL.md frontmatter.
 
 ### 1.2 skill.yaml (Sidecar)
 
-SkillSync-specific metadata that lives alongside SKILL.md. This file is optional
+skill-sync-specific metadata that lives alongside SKILL.md. This file is optional
 for consumed skills but is generated during sync operations.
 
 ```yaml
@@ -98,10 +98,10 @@ These directories follow the Agent Skills convention:
 
 - `references/` — Markdown documentation loaded on demand. Skill instructions
   reference these by relative path (e.g., "See `references/compare.md`").
-- `scripts/` — Executable helpers invoked by the skill. SkillSync tracks but does
+- `scripts/` — Executable helpers invoked by the skill. skill-sync tracks but does
   not execute these automatically. Trust policy applies.
 - `assets/` — Templates, images, data files. Passthrough; not interpreted by
-  skillsync.
+  skill-sync.
 
 All paths within a skill package must be relative to the skill root directory.
 Absolute paths or paths referencing `~/` are a validation error.
@@ -125,18 +125,18 @@ SHARED/
 ```
 
 Frameworks are resolved through the `depends` field in `skill.yaml`.
-When a skill declares a dependency on `SHARED/commit-framework`, skillsync
+When a skill declares a dependency on `SHARED/commit-framework`, skill-sync
 ensures that framework is present in the installed store before the dependent
 skill is considered complete.
 
 ---
 
-## 3. Project Manifest: skillsync.yaml
+## 3. Project Manifest: skill-sync.yaml
 
-Lives at the project root. Declares what the project needs from skillsync.
+Lives at the project root. Declares what the project needs from skill-sync.
 
 ```yaml
-# skillsync.yaml
+# skill-sync.yaml
 version: 1
 
 # Where to look for skills, in priority order.
@@ -165,7 +165,7 @@ skills:
   - SHARED/research-framework
 
 # Optional: apply a named profile instead of listing skills individually.
-# Profiles are defined in ~/.skillsync/profiles/.
+# Profiles are defined in ~/.skill-sync/profiles/.
 # profile: python-backend
 
 # Where to materialize skills in this project.
@@ -211,7 +211,7 @@ skills to shadow community skills.
 ### 3.2 Target Materialization
 
 Each target entry maps an agent identifier to a local directory path. During
-`skillsync sync`, skills are materialized into each configured target directory.
+`skill-sync sync`, skills are materialized into each configured target directory.
 The same skill content is written to all targets; only the destination path
 differs.
 
@@ -219,12 +219,12 @@ differs.
 
 The `config` section provides values for `config_inputs` declared in each skill's
 `skill.yaml`. These values are written to a generated
-`skillsync.config.yaml` in each target directory, making them available to skills
+`skill-sync.config.yaml` in each target directory, making them available to skills
 at runtime without modifying the skill body.
 
 ---
 
-## 4. Lock File: skillsync.lock
+## 4. Lock File: skill-sync.lock
 
 JSON file at the project root recording the exact installed state.
 
@@ -279,19 +279,19 @@ JSON file at the project root recording the exact installed state.
 - Every file in every installed skill has a SHA256 digest and byte size.
 - Source provenance (name, type, path/url, revision) is recorded per skill.
 - Install mode is recorded per skill.
-- `skillsync status` compares materialized files against lock digests and reports
+- `skill-sync status` compares materialized files against lock digests and reports
   drift, missing files, or extra files.
-- `skillsync sync` updates the lock file atomically after successful
+- `skill-sync sync` updates the lock file atomically after successful
   materialization.
 
 ---
 
 ## 5. Profiles
 
-Named skill sets stored at `~/.skillsync/profiles/`:
+Named skill sets stored at `~/.skill-sync/profiles/`:
 
 ```yaml
-# ~/.skillsync/profiles/python-backend.yaml
+# ~/.skill-sync/profiles/python-backend.yaml
 name: python-backend
 description: Standard skills for Python backend projects
 skills:
@@ -315,7 +315,7 @@ entries take precedence over profile entries.
 
 ## 6. Directory Layout: Installed Store
 
-After `skillsync sync`, a project's target directory looks like:
+After `skill-sync sync`, a project's target directory looks like:
 
 ```
 .claude/skills/               # Target directory (Claude Code)
@@ -338,10 +338,10 @@ After `skillsync sync`, a project's target directory looks like:
       SKILL.md
     verify-framework/
       SKILL.md
-  skillsync.config.yaml         # Generated from manifest config section
+  skill-sync.config.yaml         # Generated from manifest config section
 ```
 
-The `skillsync.config.yaml` is generated by skillsync during sync, merging the
+The `skill-sync.config.yaml` is generated by skill-sync during sync, merging the
 manifest's `config` section into a format that skills can read at runtime. It is
 **not** committed to the lock file because it is derived from the manifest.
 
@@ -349,7 +349,7 @@ manifest's `config` section into a format that skills can read at runtime. It is
 
 ## 7. Validation Rules
 
-SkillSync validates installed skills against these rules:
+skill-sync validates installed skills against these rules:
 
 | Rule | Severity | Status | Description |
 |------|----------|--------|-------------|
@@ -385,7 +385,7 @@ Additionally, `validateManifest()` enforces:
 file, or support both?**
 
 A: Sibling file (`skill.yaml`). SKILL.md frontmatter follows the
-industry standard and is never modified by skillsync. Sync metadata,
+industry standard and is never modified by skill-sync. Sync metadata,
 dependencies, and config inputs live in the sidecar.
 
 **Q: How opinionated should the core model be about scripts, assets, and

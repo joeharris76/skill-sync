@@ -9,7 +9,7 @@ describe("runCli", () => {
   it("returns help text for --help", async () => {
     const result = await runCli(["--help"]);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("skillsync");
+    expect(result.stdout).toContain("skill-sync");
     expect(result.stdout).toContain("sync");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("validate");
@@ -64,7 +64,7 @@ describe("runCli", () => {
     const result = await runCli(["status", "--json"]);
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout!);
-    expect(parsed).toHaveProperty("skills");
+    expect(parsed).toHaveProperty("targets");
   });
 
   it("validate --json returns valid JSON without manifest", async () => {
@@ -104,9 +104,9 @@ describe("runCli", () => {
   });
 
   it("pin stores the locked git revision in manifest overrides", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-pin-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-pin-"));
     await writeFile(
-      join(projectRoot, "skillsync.yaml"),
+      join(projectRoot, "skill-sync.yaml"),
       [
         "version: 1",
         "sources:",
@@ -123,7 +123,7 @@ describe("runCli", () => {
       "utf8",
     );
     await writeFile(
-      join(projectRoot, "skillsync.lock"),
+      join(projectRoot, "skill-sync.lock"),
       JSON.stringify(
         {
           version: 1,
@@ -152,7 +152,7 @@ describe("runCli", () => {
     );
 
     const result = await runCli(["pin", "code", "--project", projectRoot]);
-    const manifest = await readFile(join(projectRoot, "skillsync.yaml"), "utf8");
+    const manifest = await readFile(join(projectRoot, "skill-sync.yaml"), "utf8");
 
     expect(result.exitCode).toBe(0);
     expect(manifest).toContain("source_name: team");
@@ -162,9 +162,9 @@ describe("runCli", () => {
   });
 
   it("validate fails on unimplemented registry sources", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-validate-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-validate-"));
     await writeFile(
-      join(projectRoot, "skillsync.yaml"),
+      join(projectRoot, "skill-sync.yaml"),
       [
         "version: 1",
         "sources:",
@@ -189,7 +189,7 @@ describe("runCli", () => {
   });
 
   it("sync materializes skills and config to every configured target", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-sync-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-sync-"));
     const sourceRoot = join(projectRoot, "source-skills");
     const skillRoot = join(sourceRoot, "code");
     await mkdir(join(skillRoot, "references"), { recursive: true });
@@ -221,7 +221,7 @@ describe("runCli", () => {
     );
     await writeFile(join(skillRoot, "references", "compare.md"), "# Compare\n", "utf8");
     await writeFile(
-      join(projectRoot, "skillsync.yaml"),
+      join(projectRoot, "skill-sync.yaml"),
       [
         "version: 1",
         "sources:",
@@ -247,14 +247,14 @@ describe("runCli", () => {
     expect(result.exitCode).toBe(0);
     expect(await readFile(join(projectRoot, ".claude/skills/code/SKILL.md"), "utf8")).toContain("name: code");
     expect(await readFile(join(projectRoot, ".codex/skills/code/SKILL.md"), "utf8")).toContain("name: code");
-    expect(await readFile(join(projectRoot, ".claude/skills/skillsync.config.yaml"), "utf8")).toContain("verify: npm run test:run");
-    expect(await readFile(join(projectRoot, ".codex/skills/skillsync.config.yaml"), "utf8")).toContain("verify: npm run test:run");
+    expect(await readFile(join(projectRoot, ".claude/skills/skill-sync.config.yaml"), "utf8")).toContain("verify: npm run test:run");
+    expect(await readFile(join(projectRoot, ".codex/skills/skill-sync.config.yaml"), "utf8")).toContain("verify: npm run test:run");
 
     await rm(projectRoot, { recursive: true, force: true });
   });
 
   it("sync detects conflicts on non-primary targets", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-multi-target-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-multi-target-"));
     const sourceRoot = join(projectRoot, "source-skills");
     const skillRoot = join(sourceRoot, "code");
     await mkdir(skillRoot, { recursive: true });
@@ -271,7 +271,7 @@ describe("runCli", () => {
     await writeFile(join(codexSkillDir, "SKILL.md"), "# Locally modified\n", "utf8");
 
     await writeFile(
-      join(projectRoot, "skillsync.yaml"),
+      join(projectRoot, "skill-sync.yaml"),
       [
         "version: 1",
         "sources:",
@@ -290,7 +290,7 @@ describe("runCli", () => {
     );
 
     await writeFile(
-      join(projectRoot, "skillsync.lock"),
+      join(projectRoot, "skill-sync.lock"),
       JSON.stringify(
         {
           version: 1,
@@ -315,13 +315,13 @@ describe("runCli", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("conflict");
-    expect(result.stderr).toContain("skillsync promote");
+    expect(result.stderr).toContain("skill-sync promote");
 
     await rm(projectRoot, { recursive: true, force: true });
   });
 
   it("sync honors pinned source_name when multiple sources contain the same skill", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-pinned-source-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-pinned-source-"));
     const personalRoot = join(projectRoot, "personal-skills");
     const teamRoot = join(projectRoot, "team-skills");
     await mkdir(join(personalRoot, "code"), { recursive: true });
@@ -339,7 +339,7 @@ describe("runCli", () => {
     );
 
     await writeFile(
-      join(projectRoot, "skillsync.yaml"),
+      join(projectRoot, "skill-sync.yaml"),
       [
         "version: 1",
         "sources:",
@@ -370,7 +370,7 @@ describe("runCli", () => {
   });
 
   it("sync --force overwrites conflicting skills", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-force-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-force-"));
     const sourceRoot = join(projectRoot, "source-skills");
     const skillRoot = join(sourceRoot, "code");
     await mkdir(skillRoot, { recursive: true });
@@ -386,7 +386,7 @@ describe("runCli", () => {
     await writeFile(join(claudeSkillDir, "SKILL.md"), "# Code v1 (locally modified)\n", "utf8");
 
     await writeFile(
-      join(projectRoot, "skillsync.yaml"),
+      join(projectRoot, "skill-sync.yaml"),
       [
         "version: 1",
         "sources:",
@@ -406,7 +406,7 @@ describe("runCli", () => {
     // Create lock with different hash than what's on disk (triggers drift)
     // and different from source (triggers upstream change)
     await writeFile(
-      join(projectRoot, "skillsync.lock"),
+      join(projectRoot, "skill-sync.lock"),
       JSON.stringify(
         {
           version: 1,
@@ -431,7 +431,7 @@ describe("runCli", () => {
     const blocked = await runCli(["sync", "--project", projectRoot]);
     expect(blocked.exitCode).toBe(1);
     expect(blocked.stderr).toContain("conflict");
-    expect(blocked.stderr).toContain("skillsync promote");
+    expect(blocked.stderr).toContain("skill-sync promote");
 
     // With --force: should succeed and overwrite
     const forced = await runCli(["sync", "--force", "--project", projectRoot]);
@@ -443,7 +443,7 @@ describe("runCli", () => {
   });
 
   it("sync conflict --json includes conflicts array and promote guidance", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-conflict-json-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-conflict-json-"));
     const sourceRoot = join(projectRoot, "source-skills");
     const skillRoot = join(sourceRoot, "code");
     await mkdir(skillRoot, { recursive: true });
@@ -458,7 +458,7 @@ describe("runCli", () => {
     await writeFile(join(claudeSkillDir, "SKILL.md"), "# Locally modified\n", "utf8");
 
     await writeFile(
-      join(projectRoot, "skillsync.yaml"),
+      join(projectRoot, "skill-sync.yaml"),
       [
         "version: 1",
         "sources:",
@@ -475,7 +475,7 @@ describe("runCli", () => {
     );
 
     await writeFile(
-      join(projectRoot, "skillsync.lock"),
+      join(projectRoot, "skill-sync.lock"),
       JSON.stringify({
         version: 1,
         lockedAt: "2026-03-07T10:00:00Z",
@@ -496,18 +496,18 @@ describe("runCli", () => {
     expect(parsed.error).toBe("conflicts");
     expect(parsed.conflicts).toHaveLength(1);
     expect(parsed.conflicts[0].name).toBe("code");
-    expect(result.stderr).toContain("skillsync promote");
+    expect(result.stderr).toContain("skill-sync promote");
 
     await rm(projectRoot, { recursive: true, force: true });
   });
 
   it("doctor reports drift per target", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "skillsync-cli-doctor-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-doctor-"));
     await mkdir(join(projectRoot, ".claude/skills/code"), { recursive: true });
     await mkdir(join(projectRoot, ".codex/skills"), { recursive: true });
     await writeFile(join(projectRoot, ".claude/skills/code/SKILL.md"), "# Code\n", "utf8");
     await writeFile(
-      join(projectRoot, "skillsync.yaml"),
+      join(projectRoot, "skill-sync.yaml"),
       [
         "version: 1",
         "sources: []",
@@ -521,7 +521,7 @@ describe("runCli", () => {
       "utf8",
     );
     await writeFile(
-      join(projectRoot, "skillsync.lock"),
+      join(projectRoot, "skill-sync.lock"),
       JSON.stringify(
         {
           version: 1,

@@ -4,7 +4,7 @@ import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-const tmpBase = join(tmpdir(), "skillsync-validator-test");
+const tmpBase = join(tmpdir(), "skill-sync-validator-test");
 
 describe("validateSkillPackage", () => {
   it("passes for a valid skill", async () => {

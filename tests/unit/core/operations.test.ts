@@ -12,7 +12,7 @@ import { readManifest } from "../../../src/core/manifest.js";
 import { writeLockFile } from "../../../src/core/lock.js";
 import type { LockFile } from "../../../src/core/types.js";
 
-const tmpBase = join(tmpdir(), "skillsync-operations-test-" + Date.now());
+const tmpBase = join(tmpdir(), "skill-sync-operations-test-" + Date.now());
 
 async function writeManifest(
   projectRoot: string,
@@ -26,7 +26,7 @@ async function writeManifest(
     install_mode: "mirror",
   };
   if (overrides) manifest.overrides = overrides;
-  await writeFile(join(projectRoot, "skillsync.yaml"), stringifyYaml(manifest));
+  await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml(manifest));
 }
 
 function createTestLockFile(): LockFile {
@@ -221,7 +221,7 @@ describe("pruneOperation", () => {
       targets: { claude: ".claude/skills" },
       install_mode: "mirror",
     };
-    await writeFile(join(projectRoot, "skillsync.yaml"), stringifyYaml(manifest));
+    await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml(manifest));
     await writeLockFile(projectRoot, createTestLockFile());
 
     const result = await pruneOperation(projectRoot, true);

@@ -3,13 +3,13 @@ import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import type { Manifest, SourceConfig, InstallMode } from "./types.js";
 
-const MANIFEST_FILENAME = "skillsync.yaml";
+const MANIFEST_FILENAME = "skill-sync.yaml";
 const SUPPORTED_VERSION = 1;
 
 const VALID_INSTALL_MODES = new Set<InstallMode>(["copy", "symlink", "mirror"]);
 
 /**
- * Read and parse a skillsync.yaml manifest from a project root.
+ * Read and parse a skill-sync.yaml manifest from a project root.
  * Throws if the file is missing or malformed.
  */
 export async function readManifest(projectRoot: string): Promise<Manifest> {
@@ -18,7 +18,7 @@ export async function readManifest(projectRoot: string): Promise<Manifest> {
   return parseManifest(content);
 }
 
-/** Parse a skillsync.yaml string into a validated Manifest. */
+/** Parse a skill-sync.yaml string into a validated Manifest. */
 export function parseManifest(content: string): Manifest {
   const raw = parseYaml(content) as Record<string, unknown>;
 

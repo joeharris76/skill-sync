@@ -111,7 +111,7 @@ are already stable.
 ## Suggested Package Layout
 
 ```text
-src/skillsync/
+src/skill-sync/
   models/
   sources/
   sync/

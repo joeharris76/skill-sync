@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { stringify as stringifyYaml } from "yaml";
 
-const tmpBase = join(tmpdir(), "skillsync-mcp-test");
+const tmpBase = join(tmpdir(), "skill-sync-mcp-test");
 
 async function setupTestProject() {
   const projectRoot = join(tmpBase, "project");
@@ -13,7 +13,7 @@ async function setupTestProject() {
 
   // Create manifest
   await mkdir(projectRoot, { recursive: true });
-  await writeFile(join(projectRoot, "skillsync.yaml"), stringifyYaml({
+  await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml({
     version: 1,
     sources: [{ name: "test", type: "local", path: "/tmp" }],
     skills: ["code", "test"],
@@ -189,7 +189,7 @@ describe("MCP server skill discovery", () => {
     await mkdir(join(claudeDir, "code"), { recursive: true });
     await mkdir(join(codexDir, "test"), { recursive: true });
     await writeFile(
-      join(multiRoot, "skillsync.yaml"),
+      join(multiRoot, "skill-sync.yaml"),
       stringifyYaml({
         version: 1,
         sources: [{ name: "test", type: "local", path: "/tmp" }],

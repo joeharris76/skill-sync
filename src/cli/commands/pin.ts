@@ -9,7 +9,7 @@ export async function pinCommand(args: ParsedArgs): Promise<CliResult> {
   const skillName = args.positionals[0];
 
   if (!skillName) {
-    return { exitCode: 1, stderr: "Usage: skillsync pin <skill-name>" };
+    return { exitCode: 1, stderr: "Usage: skill-sync pin <skill-name>" };
   }
 
   try {
@@ -30,7 +30,7 @@ export async function unpinCommand(args: ParsedArgs): Promise<CliResult> {
   const skillName = args.positionals[0];
 
   if (!skillName) {
-    return { exitCode: 1, stderr: "Usage: skillsync unpin <skill-name>" };
+    return { exitCode: 1, stderr: "Usage: skill-sync unpin <skill-name>" };
   }
 
   try {

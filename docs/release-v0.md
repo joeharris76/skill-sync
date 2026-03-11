@@ -1,4 +1,4 @@
-# SkillSync v0 Release Criteria
+# skill-sync v0 Release Criteria
 
 ## Support Matrix
 
@@ -15,7 +15,7 @@
 | Claude target | Implemented | .claude/skills |
 | Codex target | Implemented | .codex/skills |
 | Generic MCP target | Implemented | .agent/skills |
-| Config injection | Implemented | skillsync.config.yaml generation |
+| Config injection | Implemented | skill-sync.config.yaml generation |
 | Portability validation | Implemented | Non-portable path detection |
 | Compatibility checking | Implemented | Agent feature support matrix |
 | Trust policy | Implemented | Allowlist, blocklist, provenance |
@@ -56,7 +56,7 @@ npx vitest run
 ## Known Limitations
 
 1. **Registry sources not implemented** — `type: registry` is parsed but cannot be resolved
-2. **Promotion is manual** — No `skillsync promote --auto` in v0
+2. **Promotion is manual** — No `skill-sync promote --auto` in v0
 3. **Trust enforced at validation only** — `sync` does not block untrusted sources
 4. **No content signatures** — Skills are integrity-checked (SHA256) but not cryptographically signed
 5. **No plugin system** — Source types are hardcoded (local, git)
@@ -66,16 +66,16 @@ npx vitest run
 
 ```bash
 # npm package
-npm install -g skillsync
+npm install -g skill-sync
 
 # Binary entrypoint
-skillsync --help
+skill-sync --help
 
 # MCP server (stdio)
 node dist/mcp/index.js [project-root]
 
 # Programmatic API
-import { parseManifest, planSync, createLockFile } from "skillsync/core"
+import { parseManifest, planSync, createLockFile } from "skill-sync/core"
 ```
 
 ## Release Checklist
@@ -84,6 +84,6 @@ import { parseManifest, planSync, createLockFile } from "skillsync/core"
 - [ ] TypeScript compiles cleanly (`npx tsc --noEmit`)
 - [ ] `package.json` version set to `0.1.0`
 - [ ] README.md with quick-start guide
-- [ ] `skillsync --help` covers all commands
+- [ ] `skill-sync --help` covers all commands
 - [ ] Build output (`dist/`) is correct
 - [ ] npm publish dry-run succeeds

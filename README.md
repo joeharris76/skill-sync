@@ -1,6 +1,6 @@
-# skillsync
+# skill-sync
 
-`skillsync` is a local-first skill distribution system for AI agents.
+`skill-sync` is a local-first skill distribution system for AI agents.
 
 It provides:
 - a CLI for syncing, validating, and inspecting shared skills
@@ -28,7 +28,7 @@ Shared skills are useful, but the current ecosystem is fragile:
 - sync behavior is frequently ad hoc, with no lockfile, provenance, or drift reporting
 - CLI and MCP access are usually separate integrations over the same underlying files
 
-`skillsync` solves those issues with one consistent model.
+`skill-sync` solves those issues with one consistent model.
 
 ## Quick Start
 
@@ -36,19 +36,19 @@ The fastest way to get started is with the bundled skill wrapper. Copy it into
 your agent's skill directory:
 
 ```bash
-npm install skillsync
-mkdir -p .claude/skills/skillsync
-cp node_modules/skillsync/skills/skillsync/SKILL.md .claude/skills/skillsync/
+npm install skill-sync
+mkdir -p .claude/skills/skill-sync
+cp node_modules/skill-sync/skills/skill-sync/SKILL.md .claude/skills/skill-sync/
 ```
 
-Then ask your agent: *"Set up skillsync for this project."* It will scan your
+Then ask your agent: *"Set up skill-sync for this project."* It will scan your
 existing skills, generate a manifest, and run the first sync automatically.
 
 See [Getting Started](docs/getting-started.md) for the full guide.
 
 ## What It Does
 
-`skillsync` lets a project declare one or more skill sources, materialize them
+`skill-sync` lets a project declare one or more skill sources, materialize them
 locally, and expose the resulting skill set through both a CLI and MCP server.
 
 Core capabilities:
@@ -62,7 +62,7 @@ Core capabilities:
 
 ## What A Skill Looks Like
 
-`skillsync` manages skill packages that contain:
+`skill-sync` manages skill packages that contain:
 - a primary `SKILL.md`
 - package metadata and compatibility declarations
 - references, assets, helper scripts, and examples
@@ -95,7 +95,7 @@ Sync behavior:
 
 Portability is a first-class requirement.
 
-`skillsync` supports:
+`skill-sync` supports:
 - repo-local materialization for web-safe and CI-safe use
 - compatibility mapping across Claude-style, Codex-style, and generic MCP-facing skill consumers
 - project-local config injection for paths, commands, fixtures, modules, or other environment-specific values
@@ -108,22 +108,22 @@ The design target is "shared source of truth, local usable result."
 The CLI is the main operational surface for developers and projects.
 
 Commands:
-- `skillsync sync` — resolve, plan, and apply skill installation
-- `skillsync status` — report drift, lockfile alignment, and validation state
-- `skillsync validate` — check manifests, paths, portability, and compatibility
-- `skillsync diff` — preview changes without applying (dry-run)
-- `skillsync doctor` — comprehensive health diagnostics
-- `skillsync pin <skill>` — lock a skill to its current revision
-- `skillsync unpin <skill>` — allow a pinned skill to float for updates
-- `skillsync prune` — remove skills not declared in the manifest
-- `skillsync promote` — guidance for promoting local changes back upstream (manual in v0)
+- `skill-sync sync` — resolve, plan, and apply skill installation
+- `skill-sync status` — report drift, lockfile alignment, and validation state
+- `skill-sync validate` — check manifests, paths, portability, and compatibility
+- `skill-sync diff` — preview changes without applying (dry-run)
+- `skill-sync doctor` — comprehensive health diagnostics
+- `skill-sync pin <skill>` — lock a skill to its current revision
+- `skill-sync unpin <skill>` — allow a pinned skill to float for updates
+- `skill-sync prune` — remove skills not declared in the manifest
+- `skill-sync promote` — guidance for promoting local changes back upstream (manual in v0)
 
 All commands support `--json` for machine-readable output and `--project`/`-p`
 to specify the project root.
 
 ## MCP Server
 
-The MCP server exposes the local `skillsync` store so agent clients can
+The MCP server exposes the local `skill-sync` store so agent clients can
 discover and consume installed skills without filesystem-specific glue code.
 
 The v0 server provides the same capabilities as the CLI:
@@ -133,7 +133,7 @@ The v0 server provides the same capabilities as the CLI:
 
 ## Validation And Trust
 
-`skillsync` includes validation and trust controls covering:
+`skill-sync` includes validation and trust controls covering:
 - manifest/schema validation
 - broken reference and path checks
 - compatibility validation for requested targets

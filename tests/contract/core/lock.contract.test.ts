@@ -22,7 +22,7 @@ describeLock("core/lock contract", () => {
   });
 
   it("parses a lock file fixture with provenance and file digests", () => {
-    const parsed = lockModule.parseLockFile(readFixture("project", "skillsync.lock.json")) as {
+    const parsed = lockModule.parseLockFile(readFixture("project", "skill-sync.lock.json")) as {
       version: number;
       lockedAt: string;
       skills: Record<
@@ -46,7 +46,7 @@ describeLock("core/lock contract", () => {
   });
 
   it("round-trips lock files without dropping tracked files", () => {
-    const parsed = lockModule.parseLockFile(readFixture("project", "skillsync.lock.json"));
+    const parsed = lockModule.parseLockFile(readFixture("project", "skill-sync.lock.json"));
     const serialized = lockModule.serializeLockFile(parsed);
     const reparsed = lockModule.parseLockFile(serialized) as {
       skills: Record<string, { files: Record<string, unknown> }>;

@@ -14,13 +14,13 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
     try {
       manifest = await readManifest(projectRoot);
     } catch {
-      const data = { locked: false, skills: [], message: "No skillsync.yaml found." };
+      const data = { locked: false, skills: [], message: "No skill-sync.yaml found." };
       return { exitCode: 0, stdout: formatOutput(data, mode, () => data.message) };
     }
     const lockFile = await readLockFile(projectRoot);
 
     if (!lockFile) {
-      const msg = "No lock file found. Run `skillsync sync` first.";
+      const msg = "No lock file found. Run `skill-sync sync` first.";
       if (mode === "json") {
         return { exitCode: 0, stdout: JSON.stringify({ locked: false, skills: [] }, null, 2) };
       }
@@ -30,7 +30,7 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
     const targetEntries = Object.entries(manifest.targets);
     const primaryTarget = targetEntries[0]?.[1];
     if (!primaryTarget) {
-      return { exitCode: 1, stderr: "No targets defined in skillsync.yaml" };
+      return { exitCode: 1, stderr: "No targets defined in skill-sync.yaml" };
     }
     const perTarget = await Promise.all(
       targetEntries.map(async ([targetName, targetPath]) => {

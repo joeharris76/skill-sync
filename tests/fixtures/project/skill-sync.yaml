@@ -20,7 +20,7 @@ config:
   test:
     runner: uv run pytest
     test_dir: tests/
-    coverage_package: skillsync
+    coverage_package: skill-sync
   code:
     verify: npm run test:run
 overrides:

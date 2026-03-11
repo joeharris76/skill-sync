@@ -49,7 +49,7 @@ describeValidator("core/validator contract", () => {
     }
 
     const result = await validatorModule.validateManifest(
-      projectPath("tests", "fixtures", "project", "skillsync.invalid.yaml"),
+      projectPath("tests", "fixtures", "project", "skill-sync.invalid.yaml"),
     );
 
     expect(result.valid).toBe(false);

@@ -12,3 +12,4 @@
 - [Security](security.md)
 - [Release Criteria](release-v0.md)
 - [Competitive Analysis](competitive-analysis.md)
+- [Naming](naming.md)

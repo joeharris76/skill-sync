@@ -1,6 +1,6 @@
-# SkillSync Architecture Specification v0
+# skill-sync Architecture Specification v0
 
-This document defines the internal architecture of skillsync: the layered module
+This document defines the internal architecture of skill-sync: the layered module
 structure, source abstraction, installed-store model, and the boundaries between
 the core library, CLI, and MCP server.
 
@@ -20,14 +20,14 @@ the core library, CLI, and MCP server.
 ## 1. Module Architecture
 
 ```
-skillsync/
+skill-sync/
   src/
     index.ts              # Package entry point (exports core API)
 
     core/                 # Business logic - no CLI or MCP dependencies
       types.ts            # Shared type definitions
-      manifest.ts         # Parse/validate skillsync.yaml
-      lock.ts             # Read/write/diff skillsync.lock
+      manifest.ts         # Parse/validate skill-sync.yaml
+      lock.ts             # Read/write/diff skill-sync.lock
       parser.ts           # Parse SKILL.md frontmatter and skill.yaml
       resolver.ts         # Multi-source skill resolution
       syncer.ts           # Plan and apply sync operations
@@ -88,7 +88,7 @@ skillsync/
 | `mcp/` | `core/`, `sources/` | `cli/` |
 
 The core library is independently importable. A downstream tool could use
-`skillsync/core` without pulling in CLI or MCP dependencies.
+`skill-sync/core` without pulling in CLI or MCP dependencies.
 
 ---
 
@@ -106,7 +106,7 @@ interface SkillPackage {
   description: string;
   path: string;                    // Absolute path to skill directory
   skillMd: SkillMdMetadata;        // Parsed SKILL.md frontmatter
-  meta: SkillSyncMeta | null;      // Parsed skill.yaml, if present
+  meta: skill-syncMeta | null;      // Parsed skill.yaml, if present
   files: SkillFile[];              // All files in the package
 }
 
@@ -121,7 +121,7 @@ interface SkillMdMetadata {
 }
 
 /** Parsed skill.yaml sidecar. */
-interface SkillSyncMeta {
+interface skill-syncMeta {
   tags: string[];
   category?: string;
   depends: string[];               // e.g. ["SHARED/commit-framework"]
@@ -155,7 +155,7 @@ interface SkillFile {
   sha256: string;
 }
 
-/** Project manifest (parsed skillsync.yaml). */
+/** Project manifest (parsed skill-sync.yaml). */
 interface Manifest {
   version: number;
   sources: SourceConfig[];
@@ -313,13 +313,13 @@ external paths.
       SKILL.md
       skill.yaml
     ...
-  skillsync.config.yaml            # Generated from manifest config section
+  skill-sync.config.yaml            # Generated from manifest config section
 ```
 
 ### Store Rules
 
 1. **Mirror mode** (default): Files are copied and tracked in the lock file.
-   `skillsync check` verifies SHA256 digests. Drift is detectable.
+   `skill-sync check` verifies SHA256 digests. Drift is detectable.
 
 2. **Copy mode**: Files are copied but not tracked in the lock file beyond
    source provenance. Lighter weight; no integrity checking.
@@ -328,7 +328,7 @@ external paths.
    Only works with local sources. Not portable. Intended for active skill
    development where you want edits to be visible immediately.
 
-4. **skillsync.config.yaml** is generated during sync from the manifest's
+4. **skill-sync.config.yaml** is generated during sync from the manifest's
    `config` section. It is overwritten on every sync. It is not locked.
 
 ### Store Operations
@@ -446,7 +446,7 @@ interface ConflictEntry {
 3. **Remove:** Delete skill directory from all targets. Remove from lock file.
 
 4. **Config generation:** After all skill operations, regenerate
-   `skillsync.config.yaml` in each target directory from the manifest's `config`
+   `skill-sync.config.yaml` in each target directory from the manifest's `config`
    section.
 
 5. **Lock file update:** Written atomically after all file operations succeed.
@@ -462,16 +462,16 @@ output formatting, and user interaction (confirmation prompts, progress).
 
 | CLI Command | Core Operation |
 |-------------|---------------|
-| `skillsync sync` | `resolver.resolveSkill()` → `syncer.planSync()` → `materializer.materialize()` |
-| `skillsync sync --dry-run` | `resolver.resolveSkill()` → `syncer.planSync()` → format plan |
-| `skillsync status` | `drift.detectDrift()` against lock file, per target |
-| `skillsync diff` | Wraps `sync --dry-run` |
-| `skillsync validate` | `validator.validateSkillPackage()` + `validator.validateManifest()` |
-| `skillsync doctor` | Manifest check + lock file + targets + drift + portability |
-| `skillsync pin <skill>` | Write revision override to `skillsync.yaml` |
-| `skillsync unpin <skill>` | Remove revision override from `skillsync.yaml` |
-| `skillsync prune` | Remove installed skills not in manifest |
-| `skillsync promote` | Print manual promotion guidance (automated in v0.2+) |
+| `skill-sync sync` | `resolver.resolveSkill()` → `syncer.planSync()` → `materializer.materialize()` |
+| `skill-sync sync --dry-run` | `resolver.resolveSkill()` → `syncer.planSync()` → format plan |
+| `skill-sync status` | `drift.detectDrift()` against lock file, per target |
+| `skill-sync diff` | Wraps `sync --dry-run` |
+| `skill-sync validate` | `validator.validateSkillPackage()` + `validator.validateManifest()` |
+| `skill-sync doctor` | Manifest check + lock file + targets + drift + portability |
+| `skill-sync pin <skill>` | Write revision override to `skill-sync.yaml` |
+| `skill-sync unpin <skill>` | Remove revision override from `skill-sync.yaml` |
+| `skill-sync prune` | Remove installed skills not in manifest |
+| `skill-sync promote` | Print manual promotion guidance (automated in v0.2+) |
 
 ### Output Modes
 
@@ -524,7 +524,7 @@ skills by scanning target directories for `SKILL.md` files.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 function createServer(projectRoot: string): McpServer {
-  const server = new McpServer({ name: "skillsync", version: "0.0.1" });
+  const server = new McpServer({ name: "skill-sync", version: "0.0.1" });
 
   server.resource("skills-list", "skill://list", ...);
   server.resource("skill", new ResourceTemplate("skill://{name}", ...), ...);
@@ -556,17 +556,17 @@ found in any source, sync fails with an actionable error.
 Project-specific config is injected at sync time, not at skill runtime:
 
 1. The manifest's `config` section maps skill names to key-value pairs.
-2. During sync, skillsync generates `skillsync.config.yaml` in each target
+2. During sync, skill-sync generates `skill-sync.config.yaml` in each target
    directory.
-3. Skills read `skillsync.config.yaml` at runtime (same as the existing
-   `.claude/skillsync.config.yaml` convention).
+3. Skills read `skill-sync.config.yaml` at runtime (same as the existing
+   `.claude/skill-sync.config.yaml` convention).
 
 This avoids modifying skill bodies and keeps config changes visible as a single
 generated file.
 
 ```yaml
-# Generated: .claude/skills/skillsync.config.yaml
-# Do not edit manually. Regenerated by skillsync sync.
+# Generated: .claude/skills/skill-sync.config.yaml
+# Do not edit manually. Regenerated by skill-sync sync.
 code:
   lint: "uv run ruff check ."
   typecheck: "uv run ty check"
@@ -585,7 +585,7 @@ test:
 |-----------|--------|-----------|
 | Language | TypeScript | MCP SDK alignment, ecosystem fit, iteration speed |
 | Runtime | Node.js 20+ | LTS, native ESM, stable |
-| Package manager | npm | Standard distribution, `npx skillsync` zero-install |
+| Package manager | npm | Standard distribution, `npx skill-sync` zero-install |
 | MCP SDK | `@modelcontextprotocol/sdk` | Official TypeScript SDK |
 | CLI framework | Manual zero-dependency parser | No external dependencies, full control |
 | YAML parsing | `yaml` (npm) | YAML 1.2 compliant |
@@ -600,21 +600,21 @@ test:
 
 ```json
 {
-  "name": "skillsync",
+  "name": "skill-sync",
   "bin": {
-    "skillsync": "./dist/cli/index.js"
+    "skill-sync": "./dist/cli/index.js"
   }
 }
 ```
 
-- `npm install -g skillsync` — global install
-- `npx skillsync` — zero-install execution
+- `npm install -g skill-sync` — global install
+- `npx skill-sync` — zero-install execution
 
 MCP server configuration for Claude Code:
 ```json
 {
   "mcpServers": {
-    "skillsync": {
+    "skill-sync": {
       "command": "node",
       "args": ["dist/mcp/index.js", "/path/to/project"]
     }

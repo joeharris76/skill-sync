@@ -65,9 +65,9 @@ Expected release-state behavior:
 ## CLI and MCP Consistency
 
 Validation and trust state should be reflected consistently through:
-- `skillsync validate`
-- `skillsync doctor`
-- `skillsync status`
+- `skill-sync validate`
+- `skill-sync doctor`
+- `skill-sync status`
 - MCP read surfaces that expose install health
 
 ## Release Readiness Expectations

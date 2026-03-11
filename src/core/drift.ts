@@ -72,7 +72,7 @@ export async function detectDrift(
 
   // Check for skills on disk but not in lock
   for (const name of installedNames) {
-    if (!lockedNames.has(name) && name !== "skillsync.config.yaml") {
+    if (!lockedNames.has(name) && name !== "skill-sync.config.yaml") {
       report.extra.push(name);
     }
   }
