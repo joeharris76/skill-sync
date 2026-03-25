@@ -10,6 +10,7 @@ const NON_PORTABLE_PATTERNS = [
   /C:\\Users\\/i,                     // Windows user paths
   /\/\.claude\/skills\//,             // Direct references to global Claude skill store
   /\/\.codex\/skills\//,              // Direct references to global Codex skill store
+  /\/\.gemini\/skills\//,             // Direct references to global Gemini skill store
 ];
 
 /**

@@ -5,7 +5,7 @@ import type { SkillPackage, ValidationDiagnostic } from "./types.js";
 // ---------------------------------------------------------------------------
 
 /** Known agent targets and their directory conventions. */
-export type AgentTarget = "claude" | "codex" | "generic-mcp";
+export type AgentTarget = "claude" | "codex" | "gemini" | "generic-mcp";
 
 export interface AgentTargetConfig {
   /** Human-readable name. */
@@ -34,6 +34,13 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
     readsFrontmatter: true,
     supportsAgentsMd: true,
     unsupportedFeatures: ["allowed-tools"],
+  },
+  gemini: {
+    label: "Gemini CLI",
+    defaultSkillDir: ".gemini/skills",
+    readsFrontmatter: true,
+    supportsAgentsMd: false,
+    unsupportedFeatures: [],
   },
   "generic-mcp": {
     label: "Generic MCP Client",
