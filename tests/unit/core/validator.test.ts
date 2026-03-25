@@ -1,7 +1,7 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { validateSkillPackage, validateManifest } from "../../../src/core/validator.js";
 import { writeFile, mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
 const tmpBase = join(tmpdir(), "skill-sync-validator-test");
@@ -35,6 +35,12 @@ describe("validateSkillPackage", () => {
     const result = await validateSkillPackage(skillDir);
     expect(result.valid).toBe(false);
     expect(result.diagnostics.some((d) => d.rule === "non-portable-path")).toBe(true);
+  });
+
+  it("passes for the bundled skill-sync wrapper", async () => {
+    const result = await validateSkillPackage(resolve("skills/skill-sync"));
+    expect(result.valid).toBe(true);
+    expect(result.diagnostics.some((d) => d.rule === "non-portable-path")).toBe(false);
   });
 
   it("fails when SKILL.md is missing", async () => {

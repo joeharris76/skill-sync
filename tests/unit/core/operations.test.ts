@@ -1,9 +1,21 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { stringify as stringifyYaml } from "yaml";
+
+const mockedOs = vi.hoisted(() => ({ homeDir: "" }));
+
+vi.mock("node:os", async () => {
+  const actual = await vi.importActual<typeof import("node:os")>("node:os");
+  return {
+    ...actual,
+    homedir: () => mockedOs.homeDir,
+  };
+});
+
 import {
+  doctorOperation,
   pinOperation,
   unpinOperation,
   pruneOperation,
@@ -17,12 +29,13 @@ const tmpBase = join(tmpdir(), "skill-sync-operations-test-" + Date.now());
 async function writeManifest(
   projectRoot: string,
   overrides?: Record<string, Record<string, unknown>>,
+  targets: Record<string, string> = { claude: ".claude/skills" },
 ) {
   const manifest: Record<string, unknown> = {
     version: 1,
     sources: [{ name: "team", type: "git", url: "https://github.com/org/skills.git", ref: "main" }],
     skills: ["code", "test"],
-    targets: { claude: ".claude/skills" },
+    targets,
     install_mode: "mirror",
   };
   if (overrides) manifest.overrides = overrides;
@@ -235,5 +248,43 @@ describe("pruneOperation", () => {
 
     const result = await pruneOperation(projectRoot);
     expect(result.pruned).toEqual([]);
+  });
+});
+
+describe("doctorOperation", () => {
+  it("lists all valid local Codex instruction paths when no project file exists", async () => {
+    const projectRoot = await setupProject("doctor-codex-no-local-" + Date.now());
+    await mkdir(join(projectRoot, ".codex", "skills"), { recursive: true });
+    await writeManifest(projectRoot, undefined, { codex: ".codex/skills" });
+
+    const result = await doctorOperation(projectRoot);
+    const check = result.checks.find((item) => item.check === "instruction:codex");
+
+    expect(check?.status).toBe("warn");
+    expect(check?.message).toContain("AGENTS.md or AGENTS.override.md");
+  });
+
+  it("emits unique mirror warnings for multiple mirrored Codex instruction files", async () => {
+    const projectRoot = await setupProject("doctor-codex-mirrors-" + Date.now());
+    const homeRoot = join(projectRoot, "..", "home");
+    const content = "# Shared\nKeep this guidance.\n";
+    mockedOs.homeDir = homeRoot;
+
+    await mkdir(join(projectRoot, ".codex", "skills"), { recursive: true });
+    await mkdir(join(homeRoot, ".codex"), { recursive: true });
+    await writeManifest(projectRoot, undefined, { codex: ".codex/skills" });
+    await writeFile(join(homeRoot, ".codex", "AGENTS.md"), content, "utf8");
+    await writeFile(join(projectRoot, "AGENTS.md"), content, "utf8");
+    await writeFile(join(projectRoot, "AGENTS.override.md"), content, "utf8");
+
+    const result = await doctorOperation(projectRoot);
+    const mirrorChecks = result.checks.filter((item) =>
+      item.check.startsWith("instruction:mirror-warning:codex:"),
+    );
+
+    expect(mirrorChecks).toHaveLength(2);
+    expect(new Set(mirrorChecks.map((item) => item.check)).size).toBe(2);
+    expect(mirrorChecks.some((item) => item.message.includes("AGENTS.md"))).toBe(true);
+    expect(mirrorChecks.some((item) => item.message.includes("AGENTS.override.md"))).toBe(true);
   });
 });

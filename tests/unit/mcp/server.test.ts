@@ -1,11 +1,16 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer } from "../../../src/mcp/server.js";
-import { writeFile, mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { writeFile, mkdir, rm, readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { stringify as stringifyYaml } from "yaml";
+import * as operations from "../../../src/core/operations.js";
 
 const tmpBase = join(tmpdir(), "skill-sync-mcp-test");
+type TestMcpServer = ReturnType<typeof createServer> & {
+  _registeredPrompts: Record<string, { callback: (args: { name: string }, extra: unknown) => Promise<{ messages: Array<{ content: { type: "text"; text: string } }> }> }>;
+  _registeredTools: Record<string, { description?: string; handler: (...args: never[]) => Promise<{ content: Array<{ text: string }>; structuredContent?: unknown }> }>;
+};
 
 async function setupTestProject() {
   const projectRoot = join(tmpBase, "project");
@@ -59,6 +64,25 @@ async function setupTestProject() {
     "---",
     "# Commit Framework",
   ].join("\n"));
+
+  return projectRoot;
+}
+
+async function setupSkillSyncProject() {
+  const projectRoot = join(tmpBase, "skill-sync-project");
+  const skillsDir = join(projectRoot, ".claude", "skills");
+
+  await mkdir(join(skillsDir, "skill-sync"), { recursive: true });
+  await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml({
+    version: 1,
+    sources: [{ name: "bundled", type: "local", path: "skills" }],
+    skills: ["skill-sync"],
+    targets: { claude: ".claude/skills" },
+    install_mode: "mirror",
+  }));
+
+  const bundledSkill = await readFile(resolve("skills", "skill-sync", "SKILL.md"), "utf8");
+  await writeFile(join(skillsDir, "skill-sync", "SKILL.md"), bundledSkill, "utf8");
 
   return projectRoot;
 }
@@ -220,5 +244,98 @@ describe("MCP server skill discovery", () => {
     const skills = await mod.listInstalledSkills(multiRoot);
     expect(skills.map((skill) => skill.name)).toContain("code");
     expect(skills.map((skill) => skill.name)).toContain("test");
+  });
+});
+
+describe("MCP instruction audit tool", () => {
+  it("registers audit-instructions and returns a structured report", async () => {
+    const projectRoot = await setupTestProject();
+    const report = {
+      projectRoot: resolve(projectRoot),
+      configuredTargets: ["claude"],
+      agents: [
+        {
+          agent: "claude",
+          label: "Claude Code",
+          configured: true,
+          globalAvailableRemotely: false,
+          expectedGlobalFiles: ["~/.claude/CLAUDE.md"],
+          expectedProjectFiles: ["CLAUDE.md"],
+          expectedOverrideFiles: [],
+          globalFiles: [],
+          projectFiles: [{ agent: "claude", scope: "project", path: "CLAUDE.md", resolvedPath: join(projectRoot, "CLAUDE.md"), state: "present" }],
+          overrideFiles: [],
+        },
+      ],
+      diagnostics: [],
+    };
+
+    const instructionSpy = vi
+      .spyOn(operations, "instructionAuditOperation")
+      .mockResolvedValue(report);
+
+    const server = createServer(projectRoot) as TestMcpServer;
+    const tool = server._registeredTools["audit-instructions"];
+
+    expect(tool).toBeDefined();
+
+    const result = await tool.handler();
+
+    expect(instructionSpy).toHaveBeenCalledWith({ projectRoot: resolve(projectRoot) });
+    expect(JSON.parse(result.content[0]!.text)).toEqual(report);
+    expect(result.structuredContent).toEqual(report);
+
+    instructionSpy.mockRestore();
+  });
+
+  it("handles missing manifests without throwing", async () => {
+    const projectRoot = join(tmpBase, "instruction-audit-no-manifest");
+    await mkdir(projectRoot, { recursive: true });
+
+    const server = createServer(projectRoot) as TestMcpServer;
+    const tool = server._registeredTools["audit-instructions"];
+    const result = await tool.handler();
+    const parsed = JSON.parse(result.content[0]!.text);
+
+    expect(parsed.projectRoot).toBe(resolve(projectRoot));
+    expect(Array.isArray(parsed.agents)).toBe(true);
+    expect(Array.isArray(parsed.diagnostics)).toBe(true);
+  });
+});
+
+describe("MCP skill-sync guidance", () => {
+  let projectRoot: string;
+
+  beforeAll(async () => {
+    projectRoot = await setupSkillSyncProject();
+  });
+
+  afterAll(async () => {
+    await rm(tmpBase, { recursive: true, force: true });
+  });
+
+  it("documents repo hygiene on the sync-skills tool", () => {
+    const server = createServer(projectRoot) as TestMcpServer;
+    const tool = server._registeredTools["sync-skills"];
+
+    expect(tool).toBeDefined();
+    expect(tool.description).toContain(".gitignore");
+    expect(tool.description).toContain("commit pending skill changes before sync begins");
+    expect(tool.description).toContain("commit resulting tracked changes after sync ends");
+  });
+
+  it("injects repo hygiene guidance into the skill-sync prompt", async () => {
+    const server = createServer(projectRoot) as TestMcpServer;
+    const prompt = server._registeredPrompts["use-skill"];
+
+    expect(prompt).toBeDefined();
+
+    const result = await prompt.callback({ name: "skill-sync" }, {});
+    const text = result.messages[0]?.content.text ?? "";
+
+    expect(text).toContain("Before following these instructions, enforce repo hygiene");
+    expect(text).toContain(".gitignore");
+    expect(text).toContain("Before `skill-sync sync` begins, check `git status --short`.");
+    expect(text).toContain("commit resulting tracked changes after sync ends");
   });
 });

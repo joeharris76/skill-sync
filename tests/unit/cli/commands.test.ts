@@ -554,4 +554,125 @@ describe("runCli", () => {
 
     await rm(projectRoot, { recursive: true, force: true });
   });
+
+  it("status includes instruction audit data in JSON and text output", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-status-instructions-"));
+    await mkdir(join(projectRoot, ".claude/skills"), { recursive: true });
+    await writeFile(join(projectRoot, "CLAUDE.md"), "# Project instructions\n", "utf8");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources: []",
+        "skills: []",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({ version: 1, lockedAt: "2026-03-25T10:00:00Z", skills: {} }, null, 2),
+      "utf8",
+    );
+
+    const jsonResult = await runCli(["status", "--json", "--project", projectRoot]);
+    const textResult = await runCli(["status", "--project", projectRoot]);
+    const parsed = JSON.parse(jsonResult.stdout ?? "{}");
+
+    expect(jsonResult.exitCode).toBe(0);
+    expect(Array.isArray(parsed.instructions)).toBe(true);
+    expect(parsed.instructions.some((item: { agent: string }) => item.agent === "claude")).toBe(true);
+    expect(textResult.stdout).toContain("Instruction Files");
+    expect(textResult.stdout).toContain("CLAUDE.md");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("status reports configured instruction paths even when no lock file exists", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-status-instructions-no-lock-"));
+    await mkdir(join(projectRoot, ".codex/skills"), { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources: []",
+        "skills: []",
+        "targets:",
+        "  codex: .codex/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const jsonResult = await runCli(["status", "--json", "--project", projectRoot]);
+    const textResult = await runCli(["status", "--project", projectRoot]);
+    const parsed = JSON.parse(jsonResult.stdout ?? "{}");
+
+    expect(jsonResult.exitCode).toBe(0);
+    expect(parsed.locked).toBe(false);
+    expect(Array.isArray(parsed.instructions)).toBe(true);
+    expect(parsed.instructions.some((item: { agent: string; configured: boolean }) => item.agent === "codex" && item.configured)).toBe(true);
+    expect(textResult.stdout).toContain("No lock file found. Run `skill-sync sync` first.");
+    expect(textResult.stdout).toContain("Instruction Files");
+    expect(textResult.stdout).toContain("AGENTS.md or AGENTS.override.md");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("validate includes instruction diagnostics", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-validate-instructions-"));
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources: []",
+        "skills: []",
+        "targets:",
+        "  codex: .codex/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["validate", "--json", "--project", projectRoot]);
+    const parsed = JSON.parse(result.stdout ?? "{}");
+
+    expect(result.exitCode).toBe(0);
+    expect(
+      parsed.diagnostics.some(
+        (item: { rule: string; skill?: string }) =>
+          item.rule.startsWith("instruction-") && item.skill === "codex",
+      ),
+    ).toBe(true);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("doctor includes instruction checks for configured targets", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-doctor-instructions-"));
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources: []",
+        "skills: []",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["doctor", "--json", "--project", projectRoot]);
+    const parsed = JSON.parse(result.stdout ?? "{}");
+
+    expect(result.exitCode).toBe(0);
+    expect(
+      parsed.checks.some((item: { check: string }) => item.check === "instruction:claude"),
+    ).toBe(true);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
 });
