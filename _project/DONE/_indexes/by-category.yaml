@@ -1,4 +1,4 @@
-generated_at: '2026-03-08T23:14:40.523134'
+generated_at: '2026-03-25T10:39:02'
 total_categories: 5
 categories:
   Core Functionality:
@@ -51,12 +51,27 @@ categories:
       priority: High
       status: Completed
   Feature:
-    count: 1
+    count: 4
     items:
     - id: flatten-codex-wrappers-and-content-validation
       file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
       title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
       priority: High
+      status: Completed
+    - id: instruction-audit-core
+      file: DONE/main/planning/instruction-audit-core.yaml
+      title: Add instruction file audit capability (report-only)
+      priority: High
+      status: Completed
+    - id: instruction-audit-cli-integration
+      file: DONE/main/planning/instruction-audit-cli-integration.yaml
+      title: Integrate instruction audit into status, doctor, and validate commands
+      priority: High
+      status: Completed
+    - id: instruction-audit-mcp
+      file: DONE/main/planning/instruction-audit-mcp.yaml
+      title: Add audit-instructions MCP tool
+      priority: Medium
       status: Completed
   Testing and Quality Assurance:
     count: 1

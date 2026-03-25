@@ -1,0 +1,179 @@
+id: instruction-audit-cli-integration
+title: "Integrate instruction audit into status, doctor, and validate commands"
+worktree: main
+priority: High
+status: "Completed"
+completed_date: "2026-03-25"
+description: |
+  Wire the instruction audit engine (from instruction-audit-core) into the existing
+  CLI commands so users see instruction file state as part of their normal workflow.
+  No new commands -- instruction data appears alongside existing skill data in
+  status, doctor, and validate output.
+
+  Also includes a contract test for end-to-end validation with real files on disk.
+
+category: Feature
+
+work:
+  - id: w1
+    summary: "Extend doctorOperation() in operations.ts with instruction health checks"
+    status: done
+    notes: |
+      Append DoctorCheck items after existing checks. New checks:
+        instruction:claude -- "Project CLAUDE.md found" / "No project CLAUDE.md (global-only, invisible on web/iOS)"
+        instruction:codex -- same pattern for AGENTS.md
+        instruction:mirror-warning -- "Project CLAUDE.md is identical to global -- personal content may leak into repo"
+      Only fire for agents whose target is configured in skill-sync.yaml.
+      If no manifest exists, skip instruction checks (doctor already handles manifest-missing).
+      Call auditInstructions() from instruction-audit.ts, map results to DoctorCheck[].
+    files:
+      - src/core/operations.ts
+
+  - id: w2
+    summary: "Add instruction file section to status command (text + JSON output)"
+    needs: [w1]
+    status: done
+    notes: |
+      In src/cli/commands/status.ts, add "Instruction Files" section after skill table.
+      Text output format:
+        Instruction Files:
+          Agent     Global              Project             State
+          claude    ~/.claude/CLAUDE.md  CLAUDE.md           present
+          codex     ~/.codex/AGENTS.md   (none)              missing
+      JSON output: add instructions field to status data with per-agent entries.
+      Call instructionAuditOperation() from operations.ts.
+      Section only appears if instruction files exist or a target is configured.
+    files:
+      - src/cli/commands/status.ts
+
+  - id: w3
+    summary: "Add instruction diagnostics to validate command"
+    needs: [w1]
+    status: done
+    notes: |
+      In src/cli/commands/validate.ts, run instruction audit and map
+      InstructionAuditDiagnostic[] to ValidationDiagnostic[] (same shape).
+      Append to existing diagnostics array.
+      Follows same pattern as portability/compatibility diagnostics.
+      New diagnostic rules in output:
+        instruction-mirror-of-global (warning)
+        instruction-overlaps-global (warning)
+        instruction-missing-project-file (warning)
+        instruction-global-only (warning)
+    files:
+      - src/cli/commands/validate.ts
+
+  - id: w4
+    summary: "Unit tests for CLI integration (status, doctor, validate)"
+    needs: [w2, w3]
+    status: done
+    notes: |
+      Extend tests/unit/cli/commands.test.ts with:
+        - status --json output includes instructions field
+        - doctor --json output includes instruction:* checks
+        - validate --json output includes instruction-* diagnostics
+      May need to mock auditInstructions() or set up fixture directories
+      with instruction files to test the full flow.
+    files:
+      - tests/unit/cli/commands.test.ts
+
+  - id: w5
+    summary: "Contract test: end-to-end instruction audit with real files"
+    needs: [w1]
+    status: done
+    notes: |
+      New file: tests/contract/core/instruction-audit.contract.test.ts
+      Set up temp project with:
+        - skill-sync.yaml manifest with claude + codex targets
+        - CLAUDE.md at project root (present state)
+        - No AGENTS.md (missing state)
+        - Mock home dir with global CLAUDE.md (for mirror/overlap testing)
+      Verify:
+        - Report structure matches InstructionAuditReport shape
+        - State classifications are correct
+        - Diagnostic rule names match expected values
+        - JSON output is parseable
+    files:
+      - tests/contract/core/instruction-audit.contract.test.ts
+
+deps:
+  needs:
+    - instruction-audit-core
+
+metadata:
+  tags:
+    - instruction-audit
+    - cli
+    - feature
+    - integration
+  estimated_effort: Medium
+  created_date: "2026-03-25"
+
+impact:
+  business_value: |
+    Users see instruction file state in their normal workflow (status, doctor, validate)
+    without learning new commands. Proactive warnings surface platform portability
+    gaps before they cause confusion.
+  user_impact: |
+    Running skill-sync status shows instruction file gaps alongside skill state.
+    Running skill-sync doctor flags missing project files and mirror-of-global risks.
+    Running skill-sync validate warns about personal content leakage.
+
+files_affected:
+  added:
+    - tests/contract/core/instruction-audit.contract.test.ts
+  modified:
+    - src/core/operations.ts
+    - src/cli/commands/status.ts
+    - src/cli/commands/validate.ts
+    - tests/unit/cli/commands.test.ts
+
+must_preserve:
+  - "Existing status command output format (instruction section is additive, not replacing)"
+  - "Existing doctor check names and output format"
+  - "Existing validate diagnostic rules and output format"
+  - "All existing CLI tests continue to pass"
+  - "--json flag behavior unchanged for existing fields"
+
+approach: |
+  Doctor checks follow the existing DoctorCheck pattern in operations.ts --
+  append new checks at the end of the checks array. Validate diagnostics follow
+  the ValidationDiagnostic pattern -- map InstructionAuditDiagnostic to
+  ValidationDiagnostic and push to existing array. Status adds a new section
+  after the skill table, gated on whether instruction data is non-empty.
+
+anti_patterns:
+  - "DO NOT create a new CLI command -- because instruction state belongs in existing commands -- add sections to status/doctor/validate"
+  - "DO NOT modify the existing DoctorCheck or ValidationDiagnostic types -- because instruction diagnostics already fit the existing shape -- map to existing types"
+
+verification:
+  - description: "CLI unit tests pass with new assertions"
+    command: "npx vitest run tests/unit/cli/commands.test.ts"
+    expected_output: "all tests pass, 0 failures"
+  - description: "Contract tests pass"
+    command: "npx vitest run tests/contract/"
+    expected_output: "all tests pass, 0 failures"
+  - description: "Full test suite passes"
+    command: "npx vitest run"
+    expected_output: "all tests pass, 0 failures"
+  - description: "Status JSON output includes instructions field"
+    command: "npx skill-sync status --json"
+    expected_output: "JSON output contains 'instructions' key"
+  - description: "Doctor JSON output includes instruction checks"
+    command: "npx skill-sync doctor --json"
+    expected_output: "JSON output contains checks with 'instruction:' prefix"
+
+scope_limit:
+  only_modify:
+    - src/core/operations.ts
+    - src/cli/commands/status.ts
+    - src/cli/commands/validate.ts
+    - tests/unit/cli/commands.test.ts
+    - tests/contract/core/instruction-audit.contract.test.ts
+  do_not_modify:
+    - src/core/instruction-audit.ts
+    - src/core/instruction-types.ts
+    - src/core/instruction-targets.ts
+    - src/core/syncer.ts
+    - src/core/drift.ts
+    - src/mcp/

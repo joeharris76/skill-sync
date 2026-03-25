@@ -1,0 +1,208 @@
+id: instruction-audit-core
+title: "Add instruction file audit capability (report-only)"
+worktree: main
+priority: High
+status: "Completed"
+completed_date: "2026-03-25"
+description: |
+  Add a standalone audit subsystem that discovers, classifies, and reports on
+  agent instruction files (CLAUDE.md, AGENTS.md, .cursor/rules, copilot-instructions.md)
+  across platforms. This is read-only -- no file writes, no lock file changes, no
+  integration into the skill sync pipeline.
+
+  The primary motivation is platform portability: when using Claude Code via
+  web (claude.ai/code) or iOS, ~/.claude/CLAUDE.md is not available because the
+  session runs in an Anthropic-managed VM. Only project-level files from the
+  cloned repo are visible. The same applies to ~/.codex/AGENTS.md in CI, cloud
+  dev environments, or other machines. Users need visibility into these gaps.
+
+  This TODO covers the core audit engine only. CLI/MCP integration is a
+  separate TODO (instruction-audit-cli-integration).
+
+category: Feature
+
+work:
+  - id: w1
+    summary: "Define instruction audit types in src/core/instruction-types.ts"
+    status: done
+    notes: |
+      New file. Types: InstructionAgent ("claude"|"codex"|"cursor"|"copilot"),
+      InstructionFileState ("missing"|"present"|"mirror-of-global"|"overlaps-global"),
+      InstructionAuditEntry (per-file result with agent, scope, path, state, sha256, overlapDetail),
+      InstructionAgentAudit (per-agent with global + project entries),
+      InstructionAuditReport (complete audit with projectRoot, agents, diagnostics),
+      InstructionTargetConfig (per-agent file semantics: globalFiles, projectFiles, overrideFiles, globalAvailableRemotely),
+      OverlapDetail (totalLines, overlappingLines, overlapPercent, overlappingSections),
+      InstructionAuditDiagnostic (rule, severity, message, agent, file).
+    files:
+      - src/core/instruction-types.ts
+
+  - id: w2
+    summary: "Create instruction target registry in src/core/instruction-targets.ts"
+    needs: [w1]
+    status: done
+    notes: |
+      New file. Follows AGENT_TARGETS pattern from compatibility.ts.
+      Registry maps agents to file conventions:
+        claude: global=~/.claude/CLAUDE.md, project=[CLAUDE.md, .claude/CLAUDE.md], no overrides, NOT available remotely
+        codex: global=~/.codex/AGENTS.md, project=[AGENTS.md], override=[AGENTS.override.md], NOT available remotely
+        cursor: no global file (settings GUI), project=[.cursor/rules/*.mdc], available remotely (synced via account)
+        copilot: no global file, project=[.github/copilot-instructions.md], available remotely (in repo)
+      Includes agentTargetKey mapping to compatibility.ts targets where applicable.
+    files:
+      - src/core/instruction-targets.ts
+
+  - id: w3
+    summary: "Implement audit engine with discovery, classification, overlap detection, and diagnostics"
+    needs: [w1, w2]
+    status: done
+    notes: |
+      New file: src/core/instruction-audit.ts. Public API:
+        auditInstructions(projectRoot, configuredTargets?) -> InstructionAuditReport
+        auditAgentInstructions(agent, projectRoot, isConfiguredTarget) -> InstructionAgentAudit
+      Internal functions:
+        discoverFile(agent, scope, absolutePath, projectRoot?) -> InstructionAuditEntry
+        classifyState(projectEntry, globalEntry, projectContent, globalContent) -> InstructionFileState
+        detectOverlap(projectContent, globalContent) -> OverlapDetail
+        parseMarkdownSections(content) -> Map<string, string>
+        generateDiagnostics(agents, configuredTargets) -> InstructionAuditDiagnostic[]
+        discoverCursorRules(projectRoot) -> InstructionAuditEntry[]
+      Overlap detection: line-set intersection (zero deps, O(n)). Threshold: >=20% = overlaps-global.
+      100% + identical SHA256 = mirror-of-global.
+      Reuse sha256() from src/core/hasher.ts for content hashing.
+      Diagnostic rules: instruction-global-only, instruction-missing-project-file,
+        instruction-mirror-of-global, instruction-overlaps-global.
+    files:
+      - src/core/instruction-audit.ts
+
+  - id: w4
+    summary: "Add instructionAuditOperation() to operations.ts"
+    needs: [w3]
+    status: done
+    notes: |
+      Add to existing file. New operation follows doctorOperation() pattern:
+        instructionAuditOperation({projectRoot}) -> InstructionAuditReport
+      Reads manifest (best-effort) to determine configured targets,
+      then delegates to auditInstructions(). No manifest = audit all agents.
+    files:
+      - src/core/operations.ts
+
+  - id: w5
+    summary: "Export new types and functions from core barrel (index.ts)"
+    needs: [w1, w2, w3, w4]
+    status: done
+    notes: |
+      Add to existing src/core/index.ts:
+        Export auditInstructions, auditAgentInstructions from instruction-audit
+        Export INSTRUCTION_TARGETS from instruction-targets
+        Export all types from instruction-types
+        Export instructionAuditOperation and InstructionAuditOptions from operations
+    files:
+      - src/core/index.ts
+
+  - id: w6
+    summary: "Unit tests for audit engine"
+    needs: [w3]
+    status: done
+    notes: |
+      New file: tests/unit/core/instruction-audit.test.ts
+      Test scenarios (9+):
+        1. All missing: empty project, mocked empty home dir
+        2. Global only (Claude): global exists, no project file -> missing project, diagnostic instruction-global-only
+        3. Mirror of global: identical project + global files -> mirror-of-global state, diagnostic instruction-mirror-of-global
+        4. Overlaps global: project shares 50% lines with global -> overlaps-global with correct OverlapDetail
+        5. Present, no global: project CLAUDE.md exists, no global -> present state, no diagnostics
+        6. Cursor multi-file: multiple .mdc files in .cursor/rules/
+        7. Copilot single file: .github/copilot-instructions.md exists
+        8. Configured vs unconfigured targets: only configured targets generate instruction-missing-project-file
+        9. Edge cases: empty files, whitespace-only, markdown frontmatter
+      Mock strategy: vi.mock os.homedir() to temp dir for controlled global file paths.
+      Use mkdtemp + writeFile for isolated test dirs (same pattern as drift.test.ts).
+    files:
+      - tests/unit/core/instruction-audit.test.ts
+
+deferred:
+  - summary: "Instruction scaffold generation (write starter project files from templates)"
+    reason: "Phase 2 -- audit must prove useful before adding write capability"
+  - summary: "Deep content analysis (personal vs shareable classifier, cross-agent detection)"
+    reason: "Phase 3 -- needs user feedback on what analysis is actually valuable"
+  - summary: "Rules directory auditing (.claude/rules/, .cursor/rules/ with glob-scoped frontmatter)"
+    reason: "Complexity of parsing rule frontmatter and glob patterns justifies separate work"
+
+metadata:
+  tags:
+    - instruction-audit
+    - feature
+    - platform-portability
+    - architecture
+  estimated_effort: Medium
+  created_date: "2026-03-25"
+
+impact:
+  business_value: |
+    Enables users to understand instruction file gaps across platforms before they
+    cause problems. Users on web/iOS lose all global instructions silently -- this
+    feature surfaces that gap proactively.
+  user_impact: |
+    Users get clear visibility into which instruction files exist, where, and whether
+    they're duplicated or missing. Reduces "why didn't Claude follow my instructions"
+    confusion when switching between CLI and web/iOS.
+
+files_affected:
+  added:
+    - src/core/instruction-types.ts
+    - src/core/instruction-targets.ts
+    - src/core/instruction-audit.ts
+    - tests/unit/core/instruction-audit.test.ts
+  modified:
+    - src/core/operations.ts
+    - src/core/index.ts
+
+must_preserve:
+  - "All existing types in src/core/types.ts remain unchanged"
+  - "All existing exports in src/core/index.ts remain unchanged"
+  - "syncOperation() in operations.ts is not modified"
+  - "doctorOperation() in operations.ts is not modified (CLI integration is separate TODO)"
+  - "All 166+ existing tests continue to pass"
+
+approach: |
+  Follow the AGENT_TARGETS pattern from src/core/compatibility.ts for the registry
+  design (const record keyed by string union type). Follow the detectDrift() pattern
+  from src/core/drift.ts for file discovery and state classification (takes root path,
+  returns structured report). Reuse sha256() from src/core/hasher.ts for content
+  hashing. Types go in a separate file (instruction-types.ts) to avoid bloating
+  types.ts, matching how compatibility.ts has its own AgentTarget type.
+
+anti_patterns:
+  - "DO NOT import from cli/ or mcp/ -- because core layer rule -- keep instruction-audit.ts in core only"
+  - "DO NOT add instruction state to skill-sync.lock -- because global files are machine-local and personal -- instruction audit is always a fresh scan"
+  - "DO NOT add external dependencies -- because zero-dep constraint -- use line-set intersection for overlap, not a diff library"
+  - "DO NOT modify syncOperation() -- because instruction audit is standalone -- it does not participate in skill materialization"
+
+verification:
+  - description: "New unit tests all pass"
+    command: "npx vitest run tests/unit/core/instruction-audit.test.ts"
+    expected_output: "all tests pass, 0 failures"
+  - description: "All existing tests still pass (zero regression)"
+    command: "npx vitest run"
+    expected_output: "166+ tests pass, 0 failures"
+  - description: "TypeScript compilation succeeds"
+    command: "npx tsc --noEmit"
+    expected_output: "no errors"
+
+scope_limit:
+  only_modify:
+    - src/core/instruction-types.ts
+    - src/core/instruction-targets.ts
+    - src/core/instruction-audit.ts
+    - src/core/operations.ts
+    - src/core/index.ts
+    - tests/unit/core/instruction-audit.test.ts
+  do_not_modify:
+    - src/core/types.ts
+    - src/core/syncer.ts
+    - src/core/drift.ts
+    - src/core/lock.ts
+    - src/core/materializer.ts
+    - src/cli/
+    - src/mcp/

@@ -1,5 +1,5 @@
-generated_at: '2026-03-08T23:14:40.523143'
-total_items: 10
+generated_at: '2026-03-25T10:39:02'
+total_items: 13
 priorities:
   Critical:
     count: 2
@@ -15,7 +15,7 @@ priorities:
       category: Core Functionality
       status: Completed
   High:
-    count: 8
+    count: 10
     items:
     - id: mcp-mutation-tools-parity
       file: DONE/main/planning/mcp-mutation-tools-parity.yaml
@@ -55,5 +55,23 @@ priorities:
     - id: flatten-codex-wrappers-and-content-validation
       file: DONE/main/active/flatten-codex-wrappers-and-content-validation.yaml
       title: Flatten Codex dual-layer wrappers and add content validation to prevent overwrite of upstream changes
+      category: Feature
+      status: Completed
+    - id: instruction-audit-core
+      file: DONE/main/planning/instruction-audit-core.yaml
+      title: Add instruction file audit capability (report-only)
+      category: Feature
+      status: Completed
+    - id: instruction-audit-cli-integration
+      file: DONE/main/planning/instruction-audit-cli-integration.yaml
+      title: Integrate instruction audit into status, doctor, and validate commands
+      category: Feature
+      status: Completed
+  Medium:
+    count: 1
+    items:
+    - id: instruction-audit-mcp
+      file: DONE/main/planning/instruction-audit-mcp.yaml
+      title: Add audit-instructions MCP tool
       category: Feature
       status: Completed

@@ -1,5 +1,5 @@
-generated_at: '2026-03-08T23:14:40.523123'
-total_items: 10
+generated_at: '2026-03-25T10:39:02'
+total_items: 13
 items:
 - id: sync-engine-lockfile-and-source-management
   file: DONE/main/planning/sync-engine-lockfile-and-source-management.yaml
@@ -183,3 +183,58 @@ items:
   work_done: 11
   work_ready: 0
   deferred_count: 3
+- id: instruction-audit-core
+  file: DONE/main/planning/instruction-audit-core.yaml
+  title: Add instruction file audit capability (report-only)
+  worktree: main
+  category: Feature
+  priority: High
+  status: Completed
+  tags:
+  - instruction-audit
+  - feature
+  - platform-portability
+  - architecture
+  estimated_effort: Medium
+  completed_date: '2026-03-25'
+  work_total: 6
+  work_done: 6
+  work_ready: 0
+  deferred_count: 3
+- id: instruction-audit-cli-integration
+  file: DONE/main/planning/instruction-audit-cli-integration.yaml
+  title: Integrate instruction audit into status, doctor, and validate commands
+  worktree: main
+  category: Feature
+  priority: High
+  status: Completed
+  tags:
+  - instruction-audit
+  - cli
+  - feature
+  - integration
+  estimated_effort: Medium
+  completed_date: '2026-03-25'
+  work_total: 5
+  work_done: 5
+  work_ready: 0
+  needs:
+  - instruction-audit-core
+- id: instruction-audit-mcp
+  file: DONE/main/planning/instruction-audit-mcp.yaml
+  title: Add audit-instructions MCP tool
+  worktree: main
+  category: Feature
+  priority: Medium
+  status: Completed
+  tags:
+  - instruction-audit
+  - mcp
+  - feature
+  estimated_effort: Small
+  completed_date: '2026-03-25'
+  work_total: 3
+  work_done: 3
+  work_ready: 0
+  needs:
+  - instruction-audit-core

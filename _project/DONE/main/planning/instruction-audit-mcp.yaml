@@ -1,0 +1,130 @@
+id: instruction-audit-mcp
+title: "Add audit-instructions MCP tool"
+worktree: main
+priority: Medium
+status: "Completed"
+completed_date: "2026-03-25"
+description: |
+  Add an audit-instructions tool to the MCP server that exposes the instruction
+  audit report as structured JSON. This allows AI agents using skill-sync's MCP
+  surface to understand instruction file state programmatically.
+
+  The MCP server already exposes the full CLI-parity tool surface, including
+  read-oriented inspection tools and mutating lifecycle tools. This item adds
+  instruction audit as another inspection/diagnostic tool alongside
+  search-skills, skill-status, validate-skills, and doctor-skills. It must stay
+  a thin MCP adapter over the core instructionAuditOperation() logic rather than
+  introducing MCP-specific audit behavior.
+
+category: Feature
+
+work:
+  - id: w1
+    summary: "Add audit-instructions tool to MCP server"
+    status: done
+    notes: |
+      In src/mcp/server.ts, add:
+        server.tool("audit-instructions",
+          "Audit agent instruction files (CLAUDE.md, AGENTS.md, etc.) across platforms",
+          {},
+          async () => {
+            const report = await instructionAuditOperation({ projectRoot: root });
+            return { content: [{ type: "text", text: JSON.stringify(report, null, 2) }] };
+          }
+        );
+      Import instructionAuditOperation from core operations.
+      No input parameters needed -- it audits the project root.
+    files:
+      - src/mcp/server.ts
+
+  - id: w2
+    summary: "Unit test for MCP audit-instructions tool registration and JSON report shape"
+    needs: [w1]
+    status: done
+    notes: |
+      Extend tests/unit/mcp/server.test.ts only. Do not create a second MCP test
+      lane in tests/contract/mcp/ for this item.
+      Test strategy:
+        - create a temp project and server instance with createServer(projectRoot)
+        - stub or spy on instructionAuditOperation() to return a deterministic report
+        - assert the MCP server registers an audit-instructions tool
+        - invoke the registered handler through the same SDK-facing registration
+          path used by the server object in tests
+        - assert response content is parseable JSON with projectRoot, agents,
+          and diagnostics fields
+    files:
+      - tests/unit/mcp/server.test.ts
+
+  - id: w3
+    summary: "Unit test missing-manifest behavior and thin-adapter wiring"
+    needs: [w1]
+    status: done
+    notes: |
+      In tests/unit/mcp/server.test.ts, cover the no-manifest case explicitly.
+      Verify the tool still returns a structured InstructionAuditReport for the
+      project root instead of throwing, and confirm the MCP layer delegates to
+      instructionAuditOperation() without re-implementing audit logic locally.
+    files:
+      - tests/unit/mcp/server.test.ts
+
+deps:
+  needs:
+    - instruction-audit-core
+
+metadata:
+  tags:
+    - instruction-audit
+    - mcp
+    - feature
+  estimated_effort: Small
+  created_date: "2026-03-25"
+
+impact:
+  business_value: |
+    AI agents using skill-sync's MCP interface can proactively check instruction
+    file state and advise users about platform portability gaps.
+  user_impact: |
+    When an MCP-connected agent detects missing project instruction files, it can
+    warn the user or offer to help create them.
+
+files_affected:
+  modified:
+    - src/mcp/server.ts
+    - tests/unit/mcp/server.test.ts
+
+must_preserve:
+  - "All existing MCP tools, resources, and prompts unchanged"
+  - "MCP server startup and transport behavior unchanged"
+  - "Existing MCP tests continue to pass"
+
+approach: |
+  Follow the existing tool registration pattern in src/mcp/server.ts.
+  The audit-instructions tool belongs with the current diagnostic/inspection
+  tools in the MCP surface and should be implemented as the same kind of thin
+  adapter used by validate-skills and doctor-skills: call an operation
+  function, serialize the result as JSON text content, and avoid MCP-specific
+  business logic. Import instructionAuditOperation from core operations.
+
+anti_patterns:
+  - "DO NOT re-implement instruction discovery, classification, or diagnostics in src/mcp/server.ts -- because MCP and CLI must share the same core behavior -- call instructionAuditOperation() only"
+  - "DO NOT add input parameters for agent selection, path overrides, or output modes -- because this TODO is project-root audit parity only -- keep the tool schema empty"
+  - "DO NOT return free-form prose summaries -- because MCP clients need machine-readable output -- return the InstructionAuditReport JSON structure unchanged"
+
+verification:
+  - description: "MCP unit tests pass with audit-instructions coverage"
+    command: "npx vitest run tests/unit/mcp/server.test.ts"
+    expected_output: "all tests pass, 0 failures"
+  - description: "TypeScript compilation succeeds"
+    command: "npx tsc --noEmit"
+    expected_output: "no errors"
+  - description: "Full test suite passes"
+    command: "npx vitest run"
+    expected_output: "all tests pass, 0 failures"
+
+scope_limit:
+  only_modify:
+    - src/mcp/server.ts
+    - tests/unit/mcp/server.test.ts
+  do_not_modify:
+    - src/core/
+    - src/cli/
