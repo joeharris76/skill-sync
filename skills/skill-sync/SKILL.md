@@ -19,6 +19,15 @@ Key files:
 - `skill.yaml` — per-skill package descriptor (inside each skill directory)
 - `skill-sync.config.yaml` — merged runtime config (auto-generated in each target directory)
 
+## Repo Hygiene
+
+Treat synced skill directories and generated sync artifacts as repository content unless they are explicitly ignored by `.gitignore`.
+
+- Before `skill-sync sync` begins, check `git status --short`.
+- If skill directories, `skill-sync.yaml`, `skill-sync.lock`, or generated `skill-sync.config.yaml` files have uncommitted changes and those paths are not ignored by `.gitignore`, stop and get them committed before syncing.
+- After `skill-sync sync` ends, review the tracked changes it produced and commit them before moving on to unrelated work.
+- If a skill path should stay local-only, add it to `.gitignore` before syncing rather than leaving it dirty.
+
 ## Actions
 
 | Action | Trigger | Description |
@@ -55,10 +64,10 @@ Bootstraps skill-sync in a project that already has skills but no `skill-sync.ya
    find .codex/skills -name "SKILL.md" -maxdepth 3 2>/dev/null
    ```
 
-3. Detect sources — check if skills were copied from a global store:
-   ```bash
-   ls ~/.claude/skills/ 2>/dev/null
-   ```
+3. Detect sources without assuming a machine-global path:
+   - inspect the discovered project-local skill directories first
+   - if an existing `skill-sync.yaml` or other project config is present, reuse its declared sources
+   - if the upstream source cannot be inferred from the repo itself, ask the user which shared directory or repository should back the generated manifest
 
 4. Generate `skill-sync.yaml` manifest with discovered skills, sources, and targets.
    Use `mirror` as the default install mode. Include all target directories found
@@ -97,6 +106,7 @@ Behavior:
 - Detects drift and reports conflicts before overwrite
 - Materializes to all configured targets
 - Updates `skill-sync.lock` and generates `skill-sync.config.yaml`
+- Requires commit hygiene: unless managed skill paths are ignored by `.gitignore`, commit pending skill changes before sync and commit resulting tracked changes after sync
 
 If conflicts are reported, explain the options:
 1. `skill-sync promote` — push local changes upstream first

@@ -127,14 +127,34 @@ export {
 // Runtime exports — operations (shared CLI/MCP orchestration)
 export {
   syncOperation,
+  instructionAuditOperation,
   pinOperation,
   unpinOperation,
   pruneOperation,
 } from "./operations.js";
 export type {
+  InstructionAuditOptions,
   SyncOptions,
   SyncResult,
   PinResult,
   UnpinResult,
   PruneResult,
 } from "./operations.js";
+
+// Runtime exports — instruction audit
+export {
+  auditInstructions,
+  auditAgentInstructions,
+} from "./instruction-audit.js";
+export { INSTRUCTION_TARGETS } from "./instruction-targets.js";
+export type {
+  InstructionAgent,
+  InstructionFileScope,
+  InstructionFileState,
+  InstructionAuditEntry,
+  InstructionAgentAudit,
+  InstructionAuditDiagnostic,
+  InstructionAuditReport,
+  InstructionTargetConfig,
+  OverlapDetail,
+} from "./instruction-types.js";

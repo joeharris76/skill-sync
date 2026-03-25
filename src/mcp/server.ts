@@ -10,13 +10,16 @@ import { loadSkillPackage } from "../core/parser.js";
 import { validatePortability } from "../core/portability.js";
 import { checkAllTargetCompatibility } from "../core/compatibility.js";
 import { validateConfigOverrides } from "../core/config-generator.js";
-import { syncOperation, pinOperation, unpinOperation, pruneOperation, doctorOperation } from "../core/operations.js";
+import { syncOperation, pinOperation, unpinOperation, pruneOperation, doctorOperation, instructionAuditOperation } from "../core/operations.js";
 import type { SkillPackage, ValidationDiagnostic } from "../core/types.js";
 
 interface TargetRoot {
   name: string;
   root: string;
 }
+
+const SYNC_REPO_HYGIENE_GUIDANCE =
+  "Unless managed skill paths are ignored by .gitignore, commit pending skill changes before sync begins and commit resulting tracked changes after sync ends.";
 
 /**
  * Create a skill-sync MCP server backed by a project directory.
@@ -220,8 +223,25 @@ export function createServer(projectRoot: string): McpServer {
   );
 
   server.tool(
+    "audit-instructions",
+    "Audit agent instruction files (CLAUDE.md, AGENTS.md, etc.) across platforms",
+    {},
+    async () => {
+      const report = await instructionAuditOperation({ projectRoot: root });
+      const structuredContent = report as unknown as Record<string, unknown>;
+      return {
+        structuredContent,
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(report, null, 2),
+        }],
+      };
+    },
+  );
+
+  server.tool(
     "sync-skills",
-    "Resolve skills from configured sources and apply them to all targets. Supports dry-run and force modes.",
+    `Resolve skills from configured sources and apply them to all targets. Supports dry-run and force modes. ${SYNC_REPO_HYGIENE_GUIDANCE}`,
     {
       dry_run: z.boolean().optional().default(false).describe("Preview changes without applying them"),
       force: z.boolean().optional().default(false).describe("Overwrite local modifications without conflict check"),
@@ -359,13 +379,16 @@ export function createServer(projectRoot: string): McpServer {
 
       // Strip frontmatter for the prompt body
       const body = content.replace(/^---[\s\S]*?---\n?/, "").trim();
+      const repoHygienePreamble = name === "skill-sync"
+        ? `Before following these instructions, enforce repo hygiene: ${SYNC_REPO_HYGIENE_GUIDANCE}\n\n`
+        : "";
 
       return {
         messages: [{
           role: "user" as const,
           content: {
             type: "text" as const,
-            text: `Use the following skill instructions:\n\n${body}`,
+            text: `Use the following skill instructions:\n\n${repoHygienePreamble}${body}`,
           },
         }],
       };
@@ -392,6 +415,17 @@ async function getTargetRoots(projectRoot: string): Promise<TargetRoot[]> {
   } catch {
     // Fall through to default target.
   }
+  const defaults: TargetRoot[] = [];
+  try {
+    await access(resolve(projectRoot, ".claude/skills"), constants.R_OK);
+    defaults.push({ name: "claude", root: resolve(projectRoot, ".claude/skills") });
+  } catch { /* ignore */ }
+  try {
+    await access(resolve(projectRoot, ".gemini/skills"), constants.R_OK);
+    defaults.push({ name: "gemini", root: resolve(projectRoot, ".gemini/skills") });
+  } catch { /* ignore */ }
+
+  if (defaults.length > 0) return defaults;
   return [{ name: "claude", root: resolve(projectRoot, ".claude/skills") }];
 }
 

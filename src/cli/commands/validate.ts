@@ -10,6 +10,7 @@ import { validateConfigOverrides } from "../../core/config-generator.js";
 import type { ValidationDiagnostic } from "../../core/types.js";
 import { checkSourceTrust, checkProvenanceRequired, DEFAULT_TRUST_POLICY } from "../../core/trust.js";
 import { checkScriptSafety } from "../../core/security.js";
+import { instructionAuditOperation } from "../../core/operations.js";
 import { isImplementedSourceType } from "../source-factory.js";
 
 export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
@@ -99,6 +100,17 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
           message: warning,
         });
       }
+    }
+
+    const instructionReport = await instructionAuditOperation({ projectRoot });
+    for (const diagnostic of instructionReport.diagnostics) {
+      diagnostics.push({
+        rule: diagnostic.rule,
+        severity: diagnostic.severity,
+        message: diagnostic.message,
+        skill: diagnostic.agent,
+        file: diagnostic.file,
+      });
     }
 
     const hasErrors = diagnostics.some((d) => d.severity === "error");

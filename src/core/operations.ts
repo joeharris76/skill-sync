@@ -21,6 +21,8 @@ import { detectDrift } from "./drift.js";
 import { materialize, dematerialize } from "./materializer.js";
 import { loadSkillPackage } from "./parser.js";
 import { generateConfig, writeProjectConfig } from "./config-generator.js";
+import { auditInstructions } from "./instruction-audit.js";
+import { isInstructionAgent } from "./instruction-targets.js";
 import { isPortableMode } from "./portability.js";
 import { createSourcesFromConfigForSkill, isImplementedSourceType } from "../sources/factory.js";
 import type {
@@ -30,6 +32,7 @@ import type {
   SkillSource,
   ResolvedSkill,
 } from "./types.js";
+import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
 
 // ---------------------------------------------------------------------------
 // Sync
@@ -450,6 +453,30 @@ export async function pruneOperation(
 }
 
 // ---------------------------------------------------------------------------
+// Instruction Audit
+// ---------------------------------------------------------------------------
+
+export interface InstructionAuditOptions {
+  projectRoot: string;
+}
+
+export async function instructionAuditOperation(
+  opts: InstructionAuditOptions,
+): Promise<InstructionAuditReport> {
+  const { projectRoot } = opts;
+  let configuredTargets: InstructionAgent[] = [];
+
+  try {
+    const manifest = await readManifest(projectRoot);
+    configuredTargets = Object.keys(manifest.targets).filter(isInstructionAgent);
+  } catch {
+    configuredTargets = [];
+  }
+
+  return auditInstructions(projectRoot, configuredTargets);
+}
+
+// ---------------------------------------------------------------------------
 // Doctor
 // ---------------------------------------------------------------------------
 
@@ -537,8 +564,71 @@ export async function doctorOperation(
     } else {
       checks.push({ check: "portability", status: "warn", message: `Install mode "${manifest.installMode}" is not portable (CI/web won't work)` });
     }
+
+    const instructionReport = await instructionAuditOperation({ projectRoot });
+    checks.push(...buildInstructionChecks(instructionReport));
   }
 
   const healthy = !checks.some((c) => c.status === "error");
   return { healthy, checks };
+}
+
+function buildInstructionChecks(report: InstructionAuditReport): DoctorCheck[] {
+  const checks: DoctorCheck[] = [];
+
+  for (const agent of report.agents) {
+    if (!agent.configured) {
+      continue;
+    }
+
+    const localEntries = [...agent.projectFiles, ...agent.overrideFiles];
+    const presentLocalEntries = localEntries.filter((entry) => entry.state !== "missing");
+    const globalEntry = agent.globalFiles.find((entry) => entry.state !== "missing");
+    const expectedLocalPath = formatExpectedInstructionPaths([
+      ...agent.expectedProjectFiles,
+      ...agent.expectedOverrideFiles,
+    ]);
+
+    if (presentLocalEntries.length > 0) {
+      checks.push({
+        check: `instruction:${agent.agent}`,
+        status: "ok",
+        message: `Project ${presentLocalEntries.map((entry) => entry.path).join(", ")} found`,
+      });
+    } else if (globalEntry && !agent.globalAvailableRemotely) {
+      checks.push({
+        check: `instruction:${agent.agent}`,
+        status: "warn",
+        message: `No project ${expectedLocalPath} (global-only, invisible on web/iOS)`,
+      });
+    } else {
+      checks.push({
+        check: `instruction:${agent.agent}`,
+        status: "warn",
+        message: `No project ${expectedLocalPath}`,
+      });
+    }
+
+    for (const entry of presentLocalEntries) {
+      if (entry.state === "mirror-of-global" && globalEntry) {
+        checks.push({
+          check: `instruction:mirror-warning:${agent.agent}:${entry.path}`,
+          status: "warn",
+          message: `Project ${entry.path} is identical to global ${globalEntry.path} -- personal content may leak into repo`,
+        });
+      }
+    }
+  }
+
+  return checks;
+}
+
+function formatExpectedInstructionPaths(expectedPaths: string[]): string {
+  if (expectedPaths.length === 0) {
+    return "project instruction file";
+  }
+  if (expectedPaths.length === 1) {
+    return expectedPaths[0]!;
+  }
+  return expectedPaths.join(" or ");
 }
