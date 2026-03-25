@@ -14,6 +14,7 @@ from a single project manifest.
 |--------|-------|-------------------|-------------------|-----------|
 | `claude` | Claude Code | `.claude/skills` | Yes | No |
 | `codex` | OpenAI Codex | `.codex/skills` | Yes | Yes |
+| `gemini` | Gemini CLI | `.gemini/skills` | Yes | No |
 | `generic-mcp` | Generic MCP | `.agent/skills` | No | No |
 
 ### Compatibility Checking
@@ -21,13 +22,14 @@ from a single project manifest.
 When a skill is materialized to a target, skill-sync checks for features the
 target cannot support:
 
-| Feature | Claude | Codex | Generic MCP |
-|---------|--------|-------|-------------|
-| SKILL.md frontmatter | Full | Full | Not read directly |
-| `allowed-tools` | Supported | Ignored | Ignored |
-| `scripts/` | Supported | Supported | Resources only |
-| `references/` | Supported | Supported | Supported |
-| `AGENTS.md` discovery | No | Yes | No |
+| Feature | Claude | Codex | Gemini | Generic MCP |
+|---------|--------|-------|--------|-------------|
+| SKILL.md frontmatter | Full | Full | Full | Not read directly |
+| `allowed-tools` | Supported | Ignored | Ignored | Ignored |
+| `scripts/` | Supported | Supported | Supported | Resources only |
+| `references/` | Supported | Supported | Supported | Supported |
+| `AGENTS.md` discovery | No | Yes | No | No |
+| Instruction file | `CLAUDE.md` | `AGENTS.md` | `GEMINI.md` | — |
 
 ### Fallback Behavior
 
@@ -75,7 +77,7 @@ non-portable patterns:
 
 - `~/` home directory references in SKILL.md body or references
 - Absolute paths (`/Users/`, `/home/`, `C:\Users\`)
-- References to `.claude/skills/` or `.codex/skills/` global stores
+- References to `.claude/skills/`, `.codex/skills/`, or `.gemini/skills/` global stores
 
 Each match produces a `non-portable-path` diagnostic with the file, line
 number, and offending pattern.

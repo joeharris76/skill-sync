@@ -271,6 +271,106 @@ but still materializes the skill.
 
 ---
 
+## Gemini CLI
+
+### Setting Up a Project
+
+Gemini CLI reads skills from `.gemini/skills/`. Configure skill-sync to target
+that directory:
+
+```yaml
+version: 1
+
+sources:
+  - name: team
+    type: git
+    url: git@github.com:myorg/team-skills.git
+    ref: main
+
+skills:
+  - code
+  - test
+  - SHARED/commit-framework
+
+targets:
+  gemini: .gemini/skills
+
+install_mode: mirror
+
+config:
+  test:
+    runner: "pytest"
+    test_dir: tests/
+  code:
+    lint: "ruff check ."
+    format: "ruff format ."
+```
+
+**CLI:**
+```bash
+skill-sync sync
+```
+
+**Via agent** (with the MCP server configured):
+
+> "Sync my skills."
+
+> "What skills do I have installed?"
+
+Gemini CLI reads skills from `.gemini/skills/` and uses a `GEMINI.md` file
+at the project root (or `.gemini/GEMINI.md`) for project-level instructions.
+Use `skill-sync status` to check whether your `GEMINI.md` is present and
+whether it duplicates your global `~/.gemini/GEMINI.md`.
+
+### Multi-Agent Setup (Claude Code + Codex + Gemini)
+
+To support all three agents from a single manifest:
+
+```yaml
+version: 1
+
+sources:
+  - name: team
+    type: git
+    url: git@github.com:myorg/team-skills.git
+    ref: main
+
+skills:
+  - code
+  - test
+  - todo
+  - SHARED/commit-framework
+  - SHARED/verify-framework
+
+targets:
+  claude: .claude/skills
+  codex: .codex/skills
+  gemini: .gemini/skills
+
+install_mode: mirror
+
+config:
+  test:
+    runner: "uv run pytest"
+    test_dir: tests/
+  code:
+    lint: "uv run ruff check ."
+    format: "uv run ruff format ."
+    typecheck: "uv run ty check"
+```
+
+Running `skill-sync sync` materializes the same skill content into all three
+target directories. Validate across all targets:
+
+```bash
+skill-sync validate
+```
+
+Skills that use `allowed-tools` (a Claude Code feature) will produce a
+diagnostic warning for the Gemini and Codex targets but still be materialized.
+
+---
+
 ## Shared Team Skills via Git
 
 ### Repository Layout
