@@ -38,9 +38,9 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
   gemini: {
     label: "Gemini CLI",
     defaultSkillDir: ".gemini/skills",
-    readsFrontmatter: true,
+    readsFrontmatter: true, // assumed parity with Claude/Codex; verify against Gemini CLI docs
     supportsAgentsMd: false,
-    unsupportedFeatures: [],
+    unsupportedFeatures: ["allowed-tools"],
   },
   "generic-mcp": {
     label: "Generic MCP Client",

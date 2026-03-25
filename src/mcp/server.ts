@@ -416,14 +416,12 @@ async function getTargetRoots(projectRoot: string): Promise<TargetRoot[]> {
     // Fall through to default target.
   }
   const defaults: TargetRoot[] = [];
-  try {
-    await access(resolve(projectRoot, ".claude/skills"), constants.R_OK);
-    defaults.push({ name: "claude", root: resolve(projectRoot, ".claude/skills") });
-  } catch { /* ignore */ }
-  try {
-    await access(resolve(projectRoot, ".gemini/skills"), constants.R_OK);
-    defaults.push({ name: "gemini", root: resolve(projectRoot, ".gemini/skills") });
-  } catch { /* ignore */ }
+  for (const [name, dir] of [["claude", ".claude/skills"], ["codex", ".codex/skills"], ["gemini", ".gemini/skills"]] as const) {
+    try {
+      await access(resolve(projectRoot, dir), constants.R_OK);
+      defaults.push({ name, root: resolve(projectRoot, dir) });
+    } catch { /* ignore */ }
+  }
 
   if (defaults.length > 0) return defaults;
   return [{ name: "claude", root: resolve(projectRoot, ".claude/skills") }];

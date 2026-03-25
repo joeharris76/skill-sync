@@ -36,6 +36,14 @@ describe("Gemini Support", () => {
       expect(result.some((d) => d.rule === "target-declared-incompatible")).toBe(true);
     });
 
+    it("warns when skill uses allowed-tools (unsupported by Gemini)", () => {
+      const pkg = makePackage({
+        skillMd: { name: "test-skill", description: "A test skill", allowedTools: ["Bash"] },
+      });
+      const result = checkCompatibility(pkg, "gemini");
+      expect(result.some((d) => d.rule === "unsupported-feature")).toBe(true);
+    });
+
     it("warns about missing frontmatter for Gemini target", () => {
       const pkg = makePackage({
         skillMd: { name: "", description: "" },
