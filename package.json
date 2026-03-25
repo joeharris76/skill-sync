@@ -4,8 +4,13 @@
   "description": "Local-first skill distribution system for AI agents",
   "type": "module",
   "bin": {
-    "skill-sync": "./dist/cli/index.js"
+    "skill-sync": "dist/cli/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "exports": {
     ".": "./dist/index.js",
     "./core": "./dist/core/index.js"
@@ -29,10 +34,12 @@
     "mcp",
     "sync",
     "claude",
-    "codex"
+    "codex",
+    "gemini"
   ],
   "devDependencies": {
     "@types/node": "^25.3.5",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
