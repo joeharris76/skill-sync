@@ -7,6 +7,7 @@
 
 import { resolve, join } from "node:path";
 import { writeFile, access, constants } from "node:fs/promises";
+import { homedir } from "node:os";
 import { readManifest, serializeManifest } from "./manifest.js";
 import {
   readLockFile,
@@ -279,6 +280,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     }
 
     await writeLockFile(projectRoot, updatedLock);
+    await registerProjectInSources(projectRoot, manifest.sources);
 
     const summary = {
       ...emptySummary,
@@ -571,6 +573,40 @@ export async function doctorOperation(
 
   const healthy = !checks.some((c) => c.status === "error");
   return { healthy, checks };
+}
+
+/**
+ * After a successful sync, register this project in the `projects` list of
+ * each local source that has its own skill-sync.yaml. This lets the global
+ * store track which downstream projects consume it.
+ */
+async function registerProjectInSources(
+  projectRoot: string,
+  sources: import("./types.js").SourceConfig[],
+): Promise<void> {
+  const expandHome = (p: string) => p.replace(/^~/, homedir());
+  for (const source of sources) {
+    if (source.type !== "local" || !source.path) continue;
+    const sourcePath = expandHome(source.path);
+    // The source path points to the skills directory; the manifest lives one level up
+    const sourceRoot = resolve(sourcePath, "..");
+    const sourceManifestPath = join(sourceRoot, "skill-sync.yaml");
+    try {
+      const sourceManifest = await readManifest(sourceRoot);
+      const existing = sourceManifest.projects ?? [];
+      // Normalize projectRoot to use ~ when it's under the home directory
+      const homeDir = homedir();
+      const normalized = projectRoot.startsWith(homeDir)
+        ? `~${projectRoot.slice(homeDir.length)}`
+        : projectRoot;
+      if (!existing.includes(normalized)) {
+        sourceManifest.projects = [...existing, normalized];
+        await writeFile(sourceManifestPath, serializeManifest(sourceManifest), "utf-8");
+      }
+    } catch {
+      // Source has no manifest or isn't writable — silently skip
+    }
+  }
 }
 
 function buildInstructionChecks(report: InstructionAuditReport): DoctorCheck[] {

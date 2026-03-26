@@ -37,6 +37,7 @@ export function parseManifest(content: string): Manifest {
   const overrides = parseOverrides(raw.overrides);
   const profile =
     typeof raw.profile === "string" ? raw.profile : undefined;
+  const projects = parseProjects(raw.projects);
 
   return {
     version: SUPPORTED_VERSION,
@@ -47,6 +48,7 @@ export function parseManifest(content: string): Manifest {
     installMode,
     config,
     overrides,
+    ...(projects.length > 0 ? { projects } : {}),
   };
 }
 
@@ -100,6 +102,11 @@ function parseTargets(raw: unknown): Record<string, string> {
     }
   }
   return result;
+}
+
+function parseProjects(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((s): s is string => typeof s === "string");
 }
 
 function parseInstallMode(raw: unknown): InstallMode {
@@ -164,6 +171,7 @@ export function serializeManifest(manifest: Manifest): string {
   if (manifest.profile) raw.profile = manifest.profile;
   raw.targets = manifest.targets;
   raw.install_mode = manifest.installMode;
+  if (manifest.projects && manifest.projects.length > 0) raw.projects = manifest.projects;
   if (Object.keys(manifest.config).length > 0) raw.config = manifest.config;
   if (Object.keys(manifest.overrides).length > 0) {
     const overrides: Record<string, Record<string, unknown>> = {};

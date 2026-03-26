@@ -104,6 +104,8 @@ export interface Manifest {
   config: Record<string, Record<string, unknown>>;
   /** Per-skill install mode overrides. */
   overrides: Record<string, SkillOverride>;
+  /** Downstream projects that consume this manifest as a skill source. */
+  projects?: string[];
 }
 
 export interface SourceConfig {
