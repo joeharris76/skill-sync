@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdtemp, mkdir, writeFile, readlink, stat, rm } from "node:fs/promises";
-import { join, tmpdir } from "node:path";
+import { join, tmpdir, resolve } from "node:path";
 import { tmpdir as osTmpdir } from "node:os";
 import { materialize } from "../../../src/core/materializer.js";
 import type { SkillFile } from "../../../src/core/types.js";
@@ -47,7 +47,8 @@ describe("materialize — symlink mode", () => {
     expect(result.targetPath).toBe(join(targetRoot, "code"));
 
     const linkTarget = await readlink(join(targetRoot, "code"));
-    expect(linkTarget).toBe(sourcePath);
+    // Verify the symlink is absolute and points exactly to sourcePath
+    expect(linkTarget).toBe(resolve(sourcePath));
   });
 
   it("returns the source files unchanged without re-hashing", async () => {
@@ -89,7 +90,8 @@ describe("materialize — symlink mode", () => {
     await materialize({ skillName: "code", sourcePath, targetRoot, mode: "symlink", sourceFiles });
 
     const linkTarget = await readlink(join(targetRoot, "code"));
-    expect(linkTarget).toBe(sourcePath);
+    // Verify the symlink is absolute and points exactly to sourcePath
+    expect(linkTarget).toBe(resolve(sourcePath));
   });
 
   it("replaces an existing symlink with a new one", async () => {
@@ -108,7 +110,8 @@ describe("materialize — symlink mode", () => {
     await materialize({ skillName: "code", sourcePath, targetRoot, mode: "symlink", sourceFiles });
 
     const linkTarget = await readlink(join(targetRoot, "code"));
-    expect(linkTarget).toBe(sourcePath);
+    // Verify the symlink is absolute and points exactly to sourcePath
+    expect(linkTarget).toBe(resolve(sourcePath));
   });
 });
 

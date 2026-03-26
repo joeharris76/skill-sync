@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -95,6 +95,10 @@ async function setupProject(name: string): Promise<string> {
 
   return projectRoot;
 }
+
+afterEach(() => {
+  mockedOs.homeDir = "";
+});
 
 afterAll(async () => {
   await rm(tmpBase, { recursive: true, force: true });
@@ -397,14 +401,19 @@ describe("syncOperation — registerProjectInSources", () => {
     await writeFile(join(sourceRoot, "..", "skill-sync.yaml"), stringifyYaml(sourceManifest));
 
     const projectRoot = await makeConsumerProject("dedup-consumer-" + Date.now(), sourceRoot, ["code"]);
-
-    await syncOperation({ projectRoot });
-    await syncOperation({ projectRoot });
-
     const sourceParent = join(sourceRoot, "..");
-    const updatedSource = await readManifest(sourceParent);
-    const matchingEntries = (updatedSource.projects ?? []).filter((p) => p.includes("dedup-consumer"));
-    expect(matchingEntries).toHaveLength(1);
+
+    // First sync should add the entry
+    await syncOperation({ projectRoot });
+    const afterFirst = await readManifest(sourceParent);
+    const entriesAfterFirst = (afterFirst.projects ?? []).filter((p) => p.includes("dedup-consumer"));
+    expect(entriesAfterFirst).toHaveLength(1);
+
+    // Second sync should not add a duplicate
+    await syncOperation({ projectRoot });
+    const afterSecond = await readManifest(sourceParent);
+    const entriesAfterSecond = (afterSecond.projects ?? []).filter((p) => p.includes("dedup-consumer"));
+    expect(entriesAfterSecond).toHaveLength(1);
   });
 
   it("succeeds when local source has no manifest", async () => {

@@ -51,11 +51,15 @@ describe("createSourcesFromConfigForSkill", () => {
     ).toThrow(/unknown source/);
   });
 
-  it("uses override revision for git source with pinned source", () => {
+  it("uses override revision as ref for git source when pinned", () => {
     const sources = createSourcesFromConfigForSkill(
       [{ name: "repo", type: "git" as const, url: "https://example.com/skills.git", ref: "main" }],
       { sourceName: "repo", revision: "abc123" },
     );
     expect(sources[0]).toBeInstanceOf(GitSource);
+    // Verify revision is used as ref by checking provenance returns it as the ref
+    const prov = sources[0]!.provenance({ name: "skill", sourceName: "repo", sourceType: "git", location: "/tmp" });
+    // Before cloning, the ref is the revision override, not "main"
+    expect(prov.ref).toBe("abc123");
   });
 });

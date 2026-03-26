@@ -596,9 +596,10 @@ async function registerProjectInSources(
       const existing = sourceManifest.projects ?? [];
       // Normalize projectRoot to use ~ when it's under the home directory
       const homeDir = homedir();
-      const normalized = projectRoot.startsWith(homeDir)
-        ? `~${projectRoot.slice(homeDir.length)}`
-        : projectRoot;
+      const normalized =
+        projectRoot === homeDir || projectRoot.startsWith(homeDir + "/")
+          ? `~${projectRoot.slice(homeDir.length)}`
+          : projectRoot;
       if (!existing.includes(normalized)) {
         sourceManifest.projects = [...existing, normalized];
         await writeFile(sourceManifestPath, serializeManifest(sourceManifest), "utf-8");
