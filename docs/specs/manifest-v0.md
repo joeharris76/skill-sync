@@ -200,6 +200,13 @@ overrides:
   # Symlink for active development of a skill:
   # code:
   #   install_mode: symlink
+
+# Downstream projects that consume this manifest as a skill source.
+# Auto-populated by skill-sync sync when a consumer project syncs from
+# a local source that has its own skill-sync.yaml.
+# projects:
+#   - ~/Developer/my-project
+#   - ~/Developer/another-project
 ```
 
 ### 3.1 Source Resolution
@@ -221,6 +228,24 @@ The `config` section provides values for `config_inputs` declared in each skill'
 `skill.yaml`. These values are written to a generated
 `skill-sync.config.yaml` in each target directory, making them available to skills
 at runtime without modifying the skill body.
+
+### 3.4 Downstream Project Registry (`projects`)
+
+The optional `projects` field lists downstream projects that consume this manifest
+as a skill source. It is **automatically maintained** by `skill-sync sync`: when a
+consumer project syncs from a local source that has its own `skill-sync.yaml`, the
+consumer's path is appended to the source manifest's `projects` list (if not already
+present). This allows a shared skill store (e.g. `~/.skill-sync/`) to know which
+projects depend on it — useful for audit and bulk propagation workflows.
+
+```yaml
+projects:
+  - ~/Developer/my-project
+  - ~/Developer/another-project
+```
+
+Projects are recorded with `~`-prefixed paths when they live under the home directory.
+The list is append-only; entries are never removed automatically.
 
 ---
 

@@ -78,6 +78,7 @@ Checks:
 3. Target directory existence
 4. Drift detection across all targets
 5. Portability validation
+6. Instruction file audit (CLAUDE.md, AGENTS.md, GEMINI.md presence per configured target)
 
 ### `skill-sync pin <skill>`
 

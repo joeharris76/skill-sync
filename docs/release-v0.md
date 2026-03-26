@@ -33,7 +33,14 @@ npx tsc --noEmit
 # Full test suite
 npx vitest run
 
-# Expected: 137+ pass, 0 fail
+# Expected: 271+ pass, 0 fail
+```
+
+Coverage gate (vitest --coverage):
+
+```bash
+# Statements ≥ 90%, Branches ≥ 86%, Functions ≥ 98%
+npx vitest run --coverage
 ```
 
 ### Test Coverage Areas
@@ -41,17 +48,19 @@ npx vitest run
 | Area | Tests | Status |
 |------|-------|--------|
 | Core types & parsing | Parser, manifest, lock | Pass |
-| Sync engine | Plan, drift, materializer | Pass |
+| Sync engine | Plan, drift, materializer, symlink mode | Pass |
 | Resolver | Multi-source, transitive deps | Pass |
 | Compatibility | Agent targets, feature matrix | Pass |
 | Config generator | Layered merge, validation | Pass |
 | Portability | Non-portable path detection | Pass |
-| Validator | Skill packages, manifests | Pass |
+| Validator | Skill packages, manifests, error paths | Pass |
 | Trust | Allowlist, blocklist, provenance | Pass |
 | Security | Script safety, unsafe patterns | Pass |
-| CLI | All commands, help, JSON output | Pass |
-| MCP | Server creation, skill discovery | Pass |
+| CLI | All commands, help, JSON output, text output | Pass |
+| MCP | Server creation, all tool handlers, prompts | Pass |
+| Sources | Local and git source adapters, factory | Pass |
 | Contract tests | CLI, MCP, syncer, validator | Pass |
+| Instruction audit | Gemini, Claude, Codex file detection | Pass |
 
 ## Known Limitations
 

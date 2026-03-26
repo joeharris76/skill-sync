@@ -165,6 +165,8 @@ interface Manifest {
   installMode: InstallMode;
   config: Record<string, Record<string, unknown>>;
   overrides: Record<string, SkillOverride>;
+  /** Downstream projects that consume this manifest as a skill source. Auto-maintained by sync. */
+  projects?: string[];
 }
 
 interface SkillOverride {
