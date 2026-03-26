@@ -1,3 +1,4 @@
+/* v8 ignore file */
 /** Structured result from any CLI command. */
 export interface CliResult {
   exitCode: number;

@@ -1,3 +1,4 @@
+/* v8 ignore file */
 // Core type definitions for skill-sync.
 // These are vendor-neutral canonical representations used by all layers.
 

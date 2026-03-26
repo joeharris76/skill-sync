@@ -650,6 +650,433 @@ describe("runCli", () => {
     await rm(projectRoot, { recursive: true, force: true });
   });
 
+  it("diff shows planned installs for an unsynced skill", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-diff-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    await mkdir(join(sourceRoot, "code"), { recursive: true });
+    await writeFile(
+      join(sourceRoot, "code", "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "", "# Code"].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["diff", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("code");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("diff --json returns structured plan with install/update/remove arrays", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-diff-json-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    await mkdir(join(sourceRoot, "code"), { recursive: true });
+    await writeFile(
+      join(sourceRoot, "code", "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "", "# Code"].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["diff", "--json", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed).toHaveProperty("install");
+    expect(parsed).toHaveProperty("update");
+    expect(parsed).toHaveProperty("remove");
+    expect(parsed.install).toContainEqual(expect.objectContaining({ name: "code" }));
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("diff shows nothing to change when already up to date", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-diff-clean-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    await mkdir(join(sourceRoot, "code"), { recursive: true });
+    const skillContent = ["---", "name: code", "description: Code skill", "---", "", "# Code"].join("\n");
+    await writeFile(join(sourceRoot, "code", "SKILL.md"), skillContent, "utf8");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "install_mode: mirror",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    // First sync to install
+    await runCli(["sync", "--project", projectRoot]);
+
+    // Diff should show nothing
+    const result = await runCli(["diff", "--json", "--project", projectRoot]);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed.install).toHaveLength(0);
+    expect(parsed.update).toHaveLength(0);
+    expect(parsed.remove).toHaveLength(0);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("prune --dry-run reports skills to remove without deleting them", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-prune-dry-"));
+    const skillsDir = join(projectRoot, ".claude", "skills", "obsolete");
+    await mkdir(skillsDir, { recursive: true });
+    await writeFile(join(skillsDir, "SKILL.md"), "---\nname: obsolete\ndescription: old\n---\n", "utf8");
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources: []",
+        "skills: []",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({
+        version: 1,
+        lockedAt: "2026-03-26T10:00:00Z",
+        skills: {
+          obsolete: {
+            source: { type: "local", name: "local", fetchedAt: "2026-03-26T10:00:00Z" },
+            installMode: "mirror",
+            files: { "SKILL.md": { sha256: "abc", size: 10 } },
+          },
+        },
+      }, null, 2),
+      "utf8",
+    );
+
+    const result = await runCli(["prune", "--dry-run", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("obsolete");
+    // Files still present (dry run)
+    const { existsSync } = await import("node:fs");
+    expect(existsSync(skillsDir)).toBe(true);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("prune removes undeclared skills from disk and lock", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-prune-"));
+    const skillsDir = join(projectRoot, ".claude", "skills", "obsolete");
+    await mkdir(skillsDir, { recursive: true });
+    await writeFile(join(skillsDir, "SKILL.md"), "---\nname: obsolete\ndescription: old\n---\n", "utf8");
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources: []",
+        "skills: []",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({
+        version: 1,
+        lockedAt: "2026-03-26T10:00:00Z",
+        skills: {
+          obsolete: {
+            source: { type: "local", name: "local", fetchedAt: "2026-03-26T10:00:00Z" },
+            installMode: "mirror",
+            files: { "SKILL.md": { sha256: "abc", size: 10 } },
+          },
+        },
+      }, null, 2),
+      "utf8",
+    );
+
+    const result = await runCli(["prune", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("obsolete");
+    const { existsSync } = await import("node:fs");
+    expect(existsSync(skillsDir)).toBe(false);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("prune --json outputs structured result", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-prune-json-"));
+    await mkdir(join(projectRoot, ".claude", "skills"), { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources: []\nskills: []\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+
+    const result = await runCli(["prune", "--json", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed).toHaveProperty("pruned");
+    expect(Array.isArray(parsed.pruned)).toBe(true);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("prune reports nothing to prune when everything is clean", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-prune-clean-"));
+    await mkdir(join(projectRoot, ".claude", "skills"), { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources: []\nskills: []\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+
+    const result = await runCli(["prune", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Nothing to prune");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("pin returns error text when skill is not installed", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-pin-error-"));
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources:\n  - name: team\n    type: git\n    url: https://example.com/skills.git\n    ref: main\nskills:\n  - code\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({ version: 1, lockedAt: new Date().toISOString(), skills: {} }, null, 2),
+      "utf8",
+    );
+
+    const result = await runCli(["pin", "code", "--project", projectRoot]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("not installed");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("unpin removes revision pin and reports success", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-unpin-"));
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: team",
+        "    type: git",
+        "    url: https://example.com/skills.git",
+        "    ref: main",
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "overrides:",
+        "  code:",
+        "    source_name: team",
+        "    revision: abc123def456",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["unpin", "code", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("code");
+
+    const manifest = await readFile(join(projectRoot, "skill-sync.yaml"), "utf8");
+    expect(manifest).not.toContain("revision");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("unpin --json reports not-pinned for unpinned skill", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-unpin-json-"));
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources: []\nskills: []\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+
+    const result = await runCli(["unpin", "code", "--json", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed.unpinned).toBe(false);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("unpin text mode reports not-pinned for unpinned skill", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-unpin-text-"));
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources: []\nskills: []\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+
+    const result = await runCli(["unpin", "code", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("not pinned");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("doctor text mode formats checks with icons", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-doctor-text-"));
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources:\n  - name: local\n    type: local\n    path: /tmp\nskills: []\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+
+    const result = await runCli(["doctor", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+    // Text mode should include status icons
+    expect(result.stdout).toMatch(/\[(OK|!!|XX)\]/);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("status text mode renders skill table when skills are installed", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-status-text-"));
+    const skillDir = join(projectRoot, ".claude", "skills", "code");
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(join(skillDir, "SKILL.md"), "---\nname: code\ndescription: Code skill\n---\n# Code\n", "utf8");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources: []\nskills:\n  - code\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({
+        version: 1,
+        lockedAt: new Date().toISOString(),
+        skills: {
+          code: {
+            source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
+            installMode: "mirror",
+            files: { "SKILL.md": { sha256: sha256(Buffer.from("---\nname: code\ndescription: Code skill\n---\n# Code\n")), size: 10 } },
+          },
+        },
+      }, null, 2),
+      "utf8",
+    );
+
+    const result = await runCli(["status", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Target:");
+    expect(result.stdout).toContain("code");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("status text mode renders expected instruction path when no file exists for claude target", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-status-no-inst-"));
+    await mkdir(join(projectRoot, ".claude", "skills"), { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources: []\nskills: []\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({ version: 1, lockedAt: new Date().toISOString(), skills: {} }, null, 2),
+      "utf8",
+    );
+    // No CLAUDE.md present — should show expected path
+
+    const result = await runCli(["status", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("CLAUDE.md");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("validate text mode returns 'Validation passed' when no issues found", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-validate-text-"));
+    await mkdir(join(projectRoot, ".claude", "skills"), { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources:\n  - name: local\n    type: local\n    path: /tmp\nskills: []\ntargets:\n  claude: .claude/skills\n",
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({ version: 1, lockedAt: new Date().toISOString(), skills: {} }, null, 2),
+      "utf8",
+    );
+
+    const result = await runCli(["validate", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Validation passed");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("validate text mode renders diagnostics when warnings exist", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-validate-warn-"));
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      "version: 1\nsources:\n  - name: local\n    type: local\n    path: /tmp\nskills: []\ntargets:\n  claude: .claude/skills\ninstall_mode: symlink\n",
+      "utf8",
+    );
+
+    const result = await runCli(["validate", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/warn|WARN/i);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
   it("doctor includes instruction checks for configured targets", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-doctor-instructions-"));
     await writeFile(

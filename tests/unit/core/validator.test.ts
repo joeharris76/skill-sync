@@ -27,6 +27,16 @@ describe("validateSkillPackage", () => {
     expect(result.diagnostics.some((d) => d.rule === "missing-frontmatter-name")).toBe(true);
   });
 
+  it("fails on missing frontmatter description", async () => {
+    const skillDir = join(tmpBase, "no-desc");
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(join(skillDir, "SKILL.md"), "---\nname: no-desc\n---\n# Test\n");
+
+    const result = await validateSkillPackage(skillDir);
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics.some((d) => d.rule === "missing-frontmatter-description")).toBe(true);
+  });
+
   it("fails on non-portable paths", async () => {
     const skillDir = join(tmpBase, "nonportable");
     await mkdir(skillDir, { recursive: true });
@@ -100,6 +110,25 @@ describe("validateManifest", () => {
 
     const result = await validateManifest(path);
     expect(result.diagnostics.some((d) => d.rule === "non-portable-install-mode")).toBe(true);
+  });
+
+  it("fails with manifest-read-error when manifest file does not exist", async () => {
+    const path = join(tmpBase, "nonexistent-dir", "skill-sync.yaml");
+
+    const result = await validateManifest(path);
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics[0]!.rule).toBe("manifest-read-error");
+    expect(result.diagnostics[0]!.message).toContain("Cannot read manifest");
+  });
+
+  it("fails with manifest-parse-error when YAML is syntactically invalid", async () => {
+    const path = join(tmpBase, "invalid-yaml.yaml");
+    await mkdir(tmpBase, { recursive: true });
+    await writeFile(path, "version: 1\nbroken: [unclosed\n");
+
+    const result = await validateManifest(path);
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics[0]!.rule).toBe("manifest-parse-error");
   });
 
   afterAll(async () => {

@@ -19,10 +19,12 @@ import {
   pinOperation,
   unpinOperation,
   pruneOperation,
+  syncOperation,
 } from "../../../src/core/operations.js";
 import { readManifest } from "../../../src/core/manifest.js";
-import { writeLockFile } from "../../../src/core/lock.js";
+import { readLockFile, writeLockFile } from "../../../src/core/lock.js";
 import type { LockFile } from "../../../src/core/types.js";
+import { existsSync } from "node:fs";
 
 const tmpBase = join(tmpdir(), "skill-sync-operations-test-" + Date.now());
 
@@ -248,6 +250,173 @@ describe("pruneOperation", () => {
 
     const result = await pruneOperation(projectRoot);
     expect(result.pruned).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SyncOperation — local source scenarios
+// ---------------------------------------------------------------------------
+
+async function makeLocalSkillSource(root: string, skillName: string, content = `---\nname: ${skillName}\ndescription: ${skillName} skill\n---\n# ${skillName}\n`): Promise<string> {
+  const skillDir = join(root, skillName);
+  await mkdir(skillDir, { recursive: true });
+  await writeFile(join(skillDir, "SKILL.md"), content);
+  return root;
+}
+
+async function makeConsumerProject(name: string, sourceRoot: string, skills: string[]): Promise<string> {
+  const projectRoot = join(tmpBase, name);
+  await mkdir(projectRoot, { recursive: true });
+  const manifest: Record<string, unknown> = {
+    version: 1,
+    sources: [{ name: "local", type: "local", path: sourceRoot }],
+    skills,
+    targets: { claude: ".claude/skills" },
+    install_mode: "mirror",
+  };
+  await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml(manifest));
+  return projectRoot;
+}
+
+describe("syncOperation — skill removal", () => {
+  it("removes skills from all targets when removed from manifest", async () => {
+    const sourceRoot = join(tmpBase, "removal-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    await makeLocalSkillSource(sourceRoot, "test");
+
+    const projectRoot = join(tmpBase, "removal-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+
+    // Manifest declares both skills
+    const manifestBoth: Record<string, unknown> = {
+      version: 1,
+      sources: [{ name: "local", type: "local", path: sourceRoot }],
+      skills: ["code", "test"],
+      targets: { claude: ".claude/skills", codex: ".codex/skills" },
+      install_mode: "mirror",
+    };
+    await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml(manifestBoth));
+
+    // First sync installs both
+    await syncOperation({ projectRoot });
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
+    expect(existsSync(join(projectRoot, ".codex", "skills", "test"))).toBe(true);
+
+    // Now update manifest to only declare "code"
+    const manifestOne: Record<string, unknown> = {
+      ...manifestBoth,
+      skills: ["code"],
+    };
+    await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml(manifestOne));
+
+    const result = await syncOperation({ projectRoot });
+
+    expect(result.summary.removed).toContain("test");
+    // Removed from both targets
+    expect(existsSync(join(projectRoot, ".claude", "skills", "test"))).toBe(false);
+    expect(existsSync(join(projectRoot, ".codex", "skills", "test"))).toBe(false);
+    // Remaining skill still present
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
+    // Lock no longer has "test"
+    const lock = await readLockFile(projectRoot);
+    expect(lock!.skills["test"]).toBeUndefined();
+    expect(lock!.skills["code"]).toBeDefined();
+  });
+});
+
+describe("syncOperation — skipped skills", () => {
+  it("reports skipped when disk already matches source but lock has stale hashes", async () => {
+    const sourceRoot = join(tmpBase, "skipped-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+
+    // Initial source content (version A)
+    const versionA = "---\nname: code\ndescription: code skill\n---\n# Version A\n";
+    await makeLocalSkillSource(sourceRoot, "code", versionA);
+
+    const projectRoot = await makeConsumerProject("skipped-project-" + Date.now(), sourceRoot, ["code"]);
+
+    // First sync installs version A; lock records version A hashes
+    await syncOperation({ projectRoot });
+
+    // Update source to version B
+    const versionB = "---\nname: code\ndescription: code skill\n---\n# Version B\n";
+    await writeFile(join(sourceRoot, "code", "SKILL.md"), versionB);
+
+    // Manually put version B on disk (as if already applied out-of-band)
+    const targetSkillMd = join(projectRoot, ".claude", "skills", "code", "SKILL.md");
+    await writeFile(targetSkillMd, versionB);
+
+    // Sync: lock says version A, source is version B, disk is version B → skip
+    const result = await syncOperation({ projectRoot });
+
+    expect(result.summary.skipped.length).toBeGreaterThan(0);
+    expect(result.summary.skipped[0]!.name).toBe("code");
+    expect(result.summary.installed).toHaveLength(0);
+    expect(result.summary.updated).toHaveLength(0);
+  });
+});
+
+describe("syncOperation — registerProjectInSources", () => {
+  it("registers the consumer project path in the local source manifest", async () => {
+    const sourceRoot = join(tmpBase, "reg-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    // Give the source its own manifest
+    const sourceManifest: Record<string, unknown> = {
+      version: 1,
+      sources: [],
+      skills: ["code"],
+      targets: { default: "." },
+      install_mode: "mirror",
+    };
+    await writeFile(join(sourceRoot, "..", "skill-sync.yaml"), stringifyYaml(sourceManifest));
+
+    const projectRoot = await makeConsumerProject("reg-consumer-" + Date.now(), sourceRoot, ["code"]);
+
+    await syncOperation({ projectRoot });
+
+    // Source manifest should now list the consumer project
+    const sourceParent = join(sourceRoot, "..");
+    const updatedSource = await readManifest(sourceParent);
+    expect(updatedSource.projects).toBeDefined();
+    expect(updatedSource.projects!.some((p) => p.includes("reg-consumer"))).toBe(true);
+  });
+
+  it("does not duplicate project entry on repeated syncs", async () => {
+    const sourceRoot = join(tmpBase, "dedup-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    const sourceManifest: Record<string, unknown> = {
+      version: 1,
+      sources: [],
+      skills: ["code"],
+      targets: { default: "." },
+      install_mode: "mirror",
+    };
+    await writeFile(join(sourceRoot, "..", "skill-sync.yaml"), stringifyYaml(sourceManifest));
+
+    const projectRoot = await makeConsumerProject("dedup-consumer-" + Date.now(), sourceRoot, ["code"]);
+
+    await syncOperation({ projectRoot });
+    await syncOperation({ projectRoot });
+
+    const sourceParent = join(sourceRoot, "..");
+    const updatedSource = await readManifest(sourceParent);
+    const matchingEntries = (updatedSource.projects ?? []).filter((p) => p.includes("dedup-consumer"));
+    expect(matchingEntries).toHaveLength(1);
+  });
+
+  it("succeeds when local source has no manifest", async () => {
+    const sourceRoot = join(tmpBase, "no-manifest-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    // Deliberately no skill-sync.yaml in parent
+
+    const projectRoot = await makeConsumerProject("no-manifest-consumer-" + Date.now(), sourceRoot, ["code"]);
+
+    const result = await syncOperation({ projectRoot });
+    expect(result.applied).toBe(true);
   });
 });
 

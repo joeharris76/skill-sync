@@ -1,3 +1,4 @@
+/* v8 ignore file */
 import type { ValidationSeverity } from "./types.js";
 
 export type InstructionAgent = "claude" | "codex" | "gemini" | "cursor" | "copilot";
