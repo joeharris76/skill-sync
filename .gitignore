@@ -4,3 +4,4 @@ coverage/
 .DS_Store
 tests/.tmp/
 *.tsbuildinfo
+.claude/settings.local.json

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(gh:*)",
+      "Bash(curl:*)",
+      "Bash(echo:*)",
+      "Bash(ls:*)",
+      "Bash(which:*)",
+      "Bash(/usr/bin/grep:*)",
+      "Bash(skill-sync:*)",
+      "Skill(commit-commands:commit)",
+      "mcp__textcharts__textcharts_bar",
+      "mcp__textcharts__textcharts_histogram"
+    ]
+  }
+}
