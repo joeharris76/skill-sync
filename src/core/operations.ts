@@ -6,7 +6,7 @@
  */
 
 import { resolve, join } from "node:path";
-import { writeFile, access, constants } from "node:fs/promises";
+import { writeFile, readFile, access, constants } from "node:fs/promises";
 import { homedir } from "node:os";
 import { readManifest, serializeManifest } from "./manifest.js";
 import {
@@ -25,6 +25,13 @@ import { generateConfig, writeProjectConfig } from "./config-generator.js";
 import { auditInstructions } from "./instruction-audit.js";
 import { isInstructionAgent } from "./instruction-targets.js";
 import { isPortableMode } from "./portability.js";
+import {
+  checkSettingsRequirements,
+  collectRequiredAllows,
+  buildSuggestedPermissions,
+  type AgentSettingsFile,
+  type SettingsGap,
+} from "./settings-checker.js";
 import { createSourcesFromConfigForSkill, isImplementedSourceType } from "../sources/factory.js";
 import type {
   SyncPlan,
@@ -571,8 +578,120 @@ export async function doctorOperation(
     checks.push(...buildInstructionChecks(instructionReport));
   }
 
+  // Check 6: Settings requirements (claude only in v0)
+  if (manifest && lockFile) {
+    const claudeTarget = manifest.targets["claude"];
+    if (claudeTarget) {
+      const targetRoot = resolve(projectRoot, claudeTarget);
+      const settingsPath = join(projectRoot, ".claude", "settings.json");
+      const settingsFile = await readAgentSettingsFile(settingsPath);
+      const installedPkgs: Array<{ name: string; meta: import("./types.js").SkillSyncMeta | null }> = [];
+      for (const skillName of Object.keys(lockFile.skills)) {
+        try {
+          const pkg = await loadSkillPackage(resolve(targetRoot, skillName));
+          installedPkgs.push({ name: skillName, meta: pkg.meta });
+        } catch {
+          // Skip; drift check already handles missing installs
+        }
+      }
+      const gaps = checkSettingsRequirements(installedPkgs, "claude", settingsFile);
+      if (gaps.length > 0) {
+        for (const gap of gaps) {
+          checks.push({
+            check: `settings-requirements:claude:${gap.skillName}`,
+            status: "warn",
+            message: `Skill "${gap.skillName}" requires claude permissions not in settings.json: ${gap.missingAllows.join(", ")}. Run \`skill-sync settings generate\` to see suggested additions.`,
+          });
+        }
+      } else if (installedPkgs.some((p) => p.meta?.settingsRequirements?.["claude"])) {
+        checks.push({
+          check: "settings-requirements:claude",
+          status: "ok",
+          message: "All claude settings requirements are satisfied",
+        });
+      }
+    }
+  }
+
   const healthy = !checks.some((c) => c.status === "error");
   return { healthy, checks };
+}
+
+// ---------------------------------------------------------------------------
+// Settings Generate
+// ---------------------------------------------------------------------------
+
+export interface SettingsGenerateOptions {
+  projectRoot: string;
+  /** Agent to generate for. Defaults to "claude". */
+  agent?: string;
+}
+
+export interface SettingsGenerateResult {
+  agent: string;
+  /** The delta fragment: permissions entries not yet in the settings file. */
+  suggestedFragment: AgentSettingsFile;
+  /** Total required allow entries across all installed skills. */
+  totalRequired: string[];
+  /** Number of entries missing from the current settings file. */
+  missingCount: number;
+  /** Per-skill breakdown of gaps. */
+  gaps: SettingsGap[];
+}
+
+export async function settingsGenerateOperation(
+  opts: SettingsGenerateOptions,
+): Promise<SettingsGenerateResult> {
+  const { projectRoot, agent = "claude" } = opts;
+
+  let lockFile;
+  let manifest;
+  try {
+    manifest = await readManifest(projectRoot);
+    lockFile = await readLockFile(projectRoot);
+  } catch {
+    return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };
+  }
+
+  if (!lockFile || !manifest) {
+    return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };
+  }
+
+  const agentTarget = manifest.targets[agent];
+  if (!agentTarget) {
+    return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };
+  }
+
+  const targetRoot = resolve(projectRoot, agentTarget);
+  const settingsPath = join(projectRoot, `.${agent}`, "settings.json");
+  const settingsFile = await readAgentSettingsFile(settingsPath);
+
+  const installedPkgs: Array<{ name: string; meta: import("./types.js").SkillSyncMeta | null }> = [];
+  for (const skillName of Object.keys(lockFile.skills)) {
+    try {
+      const pkg = await loadSkillPackage(resolve(targetRoot, skillName));
+      installedPkgs.push({ name: skillName, meta: pkg.meta });
+    } catch {
+      // Skip missing installs
+    }
+  }
+
+  const totalRequired = collectRequiredAllows(installedPkgs, agent);
+  const gaps = checkSettingsRequirements(installedPkgs, agent, settingsFile);
+  const suggestedFragment = buildSuggestedPermissions(installedPkgs, agent, settingsFile);
+  const missingCount = suggestedFragment.permissions?.allow?.length ?? 0;
+
+  return { agent, suggestedFragment, totalRequired, missingCount, gaps };
+}
+
+/** Read and parse an agent settings JSON file. Returns {} if the file is missing. */
+async function readAgentSettingsFile(filePath: string): Promise<AgentSettingsFile> {
+  try {
+    const content = await readFile(filePath, "utf-8");
+    return JSON.parse(content) as AgentSettingsFile;
+  } catch {
+    return {};
+  }
 }
 
 /**

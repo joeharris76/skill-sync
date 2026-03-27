@@ -120,8 +120,8 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
     );
 
     if (!locked) {
-      // Check if already installed and clean (drift report says so)
-      if (driftReports.some((report) => report.clean.includes(skill.name))) {
+      // Check if already installed and clean in ALL targets (drift report says so)
+      if (driftReports.length > 0 && driftReports.every((report) => report.clean.includes(skill.name))) {
         plan.unchanged.push(skill.name);
         continue;
       }
@@ -139,6 +139,15 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
     const changedFiles = diffFiles(locked.files, skill.files);
 
     if (changedFiles.length === 0) {
+      // No upstream changes — but verify all targets have the skill installed.
+      // If a new target was added, it may be missing even though the source is unchanged.
+      if (targetRoots.length > 0) {
+        const allPresent = await checkAllTargetsMatchSource(targetRoots, skill.name, skill.files);
+        if (!allPresent) {
+          plan.install.push({ name: skill.name, source: skill.source, installMode, files: skill.files });
+          continue;
+        }
+      }
       plan.unchanged.push(skill.name);
       continue;
     }

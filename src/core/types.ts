@@ -40,8 +40,25 @@ export interface SkillSyncMeta {
   configInputs: ConfigInput[];
   /** Agent compatibility declarations. */
   targets: Record<string, boolean>;
+  /** Per-agent runtime settings requirements declared by the skill author. */
+  settingsRequirements?: SettingsRequirements;
   /** Source provenance (set by sync engine, not the skill author). */
   source?: SourceProvenance;
+}
+
+/**
+ * Per-agent settings requirements declared in skill.yaml.
+ * Keys match agent identifiers used in `targets` (e.g. "claude", "codex").
+ */
+export interface SettingsRequirements {
+  [agent: string]: AgentSettingsRequirement;
+}
+
+export interface AgentSettingsRequirement {
+  permissions?: {
+    allow?: string[];
+    deny?: string[];
+  };
 }
 
 export interface ConfigInput {

@@ -7,6 +7,7 @@ const KNOWN_FLAGS: Record<string, { type: "string" | "boolean"; short?: string }
   "dry-run": { type: "boolean", short: "n" },
   force: { type: "boolean", short: "f" },
   "exit-code": { type: "boolean" },
+  agent: { type: "string" },
 };
 
 /**

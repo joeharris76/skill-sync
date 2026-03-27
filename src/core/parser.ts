@@ -6,6 +6,7 @@ import type {
   SkillSyncMeta,
   SkillPackage,
   ConfigInput,
+  SettingsRequirements,
 } from "./types.js";
 import { hashSkillDirectory } from "./hasher.js";
 
@@ -51,8 +52,35 @@ export function parseSkillSyncMeta(content: string): SkillSyncMeta {
       raw.targets && typeof raw.targets === "object"
         ? (raw.targets as Record<string, boolean>)
         : {},
+    settingsRequirements: parseSettingsRequirements(raw.settings_requirements),
     source: undefined, // Populated by sync engine, not parsed from author file
   };
+}
+
+function parseSettingsRequirements(raw: unknown): SettingsRequirements | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const result: SettingsRequirements = {};
+  for (const [agent, agentRaw] of Object.entries(raw as Record<string, unknown>)) {
+    if (!agentRaw || typeof agentRaw !== "object" || Array.isArray(agentRaw)) continue;
+    const agentObj = agentRaw as Record<string, unknown>;
+    const perms = agentObj.permissions;
+    if (!perms || typeof perms !== "object" || Array.isArray(perms)) {
+      result[agent] = {};
+      continue;
+    }
+    const permsObj = perms as Record<string, unknown>;
+    result[agent] = {
+      permissions: {
+        allow: Array.isArray(permsObj.allow)
+          ? (permsObj.allow as unknown[]).filter((v): v is string => typeof v === "string")
+          : undefined,
+        deny: Array.isArray(permsObj.deny)
+          ? (permsObj.deny as unknown[]).filter((v): v is string => typeof v === "string")
+          : undefined,
+      },
+    };
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 /**

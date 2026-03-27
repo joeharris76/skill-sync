@@ -8,6 +8,7 @@ import { doctorCommand } from "./commands/doctor.js";
 import { pinCommand, unpinCommand } from "./commands/pin.js";
 import { pruneCommand } from "./commands/prune.js";
 import { promoteCommand } from "./commands/promote.js";
+import { settingsCommand } from "./commands/settings.js";
 
 const VERSION = "0.0.1";
 
@@ -47,6 +48,10 @@ const COMMANDS: Record<string, { description: string; usage: string }> = {
   promote: {
     description: "Guidance for pushing local changes back to source",
     usage: "skill-sync promote [--json]",
+  },
+  settings: {
+    description: "Show required agent settings from installed skills",
+    usage: "skill-sync settings <subcommand> [--agent <name>] [--json]\n\nSubcommands:\n  generate   Print suggested settings fragment for installed skills",
   },
 };
 
@@ -134,6 +139,8 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       return pruneCommand(parsed);
     case "promote":
       return promoteCommand(parsed);
+    case "settings":
+      return settingsCommand(parsed);
     default:
       return {
         exitCode: 1,
