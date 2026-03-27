@@ -20,6 +20,7 @@ import {
   unpinOperation,
   pruneOperation,
   syncOperation,
+  settingsGenerateOperation,
 } from "../../../src/core/operations.js";
 import { readManifest } from "../../../src/core/manifest.js";
 import { readLockFile, writeLockFile } from "../../../src/core/lock.js";
@@ -442,6 +443,75 @@ describe("doctorOperation", () => {
     expect(check?.message).toContain("AGENTS.md or AGENTS.override.md");
   });
 
+  it("warns when installed skills have unmet settings requirements", async () => {
+    const projectRoot = await setupProject("doctor-settings-gaps-" + Date.now());
+    await writeManifest(projectRoot);
+    const lockFile = createTestLockFile();
+    await writeLockFile(projectRoot, lockFile);
+
+    // Install a skill with settings_requirements
+    const skillsDir = join(projectRoot, ".claude", "skills", "code");
+    await writeFile(
+      join(skillsDir, "skill.yaml"),
+      [
+        "tags: []",
+        "depends: []",
+        "targets:",
+        "  claude: true",
+        "settings_requirements:",
+        "  claude:",
+        "    permissions:",
+        "      allow:",
+        '        - "Bash(git:*)"',
+      ].join("\n"),
+    );
+
+    // No .claude/settings.json — all requirements are unmet
+    const result = await doctorOperation(projectRoot);
+    const settingsCheck = result.checks.find((c) =>
+      c.check.startsWith("settings-requirements:claude:"),
+    );
+    expect(settingsCheck?.status).toBe("warn");
+    expect(settingsCheck?.message).toContain("Bash(git:*)");
+  });
+
+  it("reports ok when installed skills settings requirements are satisfied", async () => {
+    const projectRoot = await setupProject("doctor-settings-ok-" + Date.now());
+    await writeManifest(projectRoot);
+    const lockFile = createTestLockFile();
+    await writeLockFile(projectRoot, lockFile);
+
+    // Install a skill with settings_requirements
+    const skillsDir = join(projectRoot, ".claude", "skills", "code");
+    await writeFile(
+      join(skillsDir, "skill.yaml"),
+      [
+        "tags: []",
+        "depends: []",
+        "targets:",
+        "  claude: true",
+        "settings_requirements:",
+        "  claude:",
+        "    permissions:",
+        "      allow:",
+        '        - "Bash(git:*)"',
+      ].join("\n"),
+    );
+
+    // Create settings.json that satisfies the requirement
+    await mkdir(join(projectRoot, ".claude"), { recursive: true });
+    await writeFile(
+      join(projectRoot, ".claude", "settings.json"),
+      JSON.stringify({ permissions: { allow: ["Bash(git:*)", "Read"] } }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const settingsCheck = result.checks.find(
+      (c) => c.check === "settings-requirements:claude",
+    );
+    expect(settingsCheck?.status).toBe("ok");
+  });
+
   it("emits unique mirror warnings for multiple mirrored Codex instruction files", async () => {
     const projectRoot = await setupProject("doctor-codex-mirrors-" + Date.now());
     const homeRoot = join(projectRoot, "..", "home");
@@ -464,5 +534,121 @@ describe("doctorOperation", () => {
     expect(new Set(mirrorChecks.map((item) => item.check)).size).toBe(2);
     expect(mirrorChecks.some((item) => item.message.includes("AGENTS.md"))).toBe(true);
     expect(mirrorChecks.some((item) => item.message.includes("AGENTS.override.md"))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Settings Generate
+// ---------------------------------------------------------------------------
+
+async function setupSettingsProject(name: string): Promise<string> {
+  const projectRoot = join(tmpBase, name);
+  const skillsDir = join(projectRoot, ".claude", "skills");
+  await mkdir(skillsDir, { recursive: true });
+  return projectRoot;
+}
+
+async function writeSkillWithRequirements(
+  skillsDir: string,
+  skillName: string,
+  allows: string[],
+): Promise<void> {
+  await mkdir(join(skillsDir, skillName), { recursive: true });
+  await writeFile(
+    join(skillsDir, skillName, "SKILL.md"),
+    `---\nname: ${skillName}\ndescription: ${skillName} skill\n---\n# ${skillName}`,
+  );
+  await writeFile(
+    join(skillsDir, skillName, "skill.yaml"),
+    [
+      "tags: []",
+      "depends: []",
+      "targets:",
+      "  claude: true",
+      "settings_requirements:",
+      "  claude:",
+      "    permissions:",
+      "      allow:",
+      ...allows.map((a) => `        - "${a}"`),
+    ].join("\n"),
+  );
+}
+
+describe("settingsGenerateOperation", () => {
+  it("returns empty result when no manifest exists", async () => {
+    const projectRoot = await setupSettingsProject("settings-no-manifest-" + Date.now());
+    const result = await settingsGenerateOperation({ projectRoot });
+    expect(result.agent).toBe("claude");
+    expect(result.suggestedFragment).toEqual({});
+    expect(result.missingCount).toBe(0);
+    expect(result.gaps).toEqual([]);
+  });
+
+  it("returns missing permissions when settings file is absent", async () => {
+    const projectRoot = await setupSettingsProject("settings-missing-" + Date.now());
+    const lockFile = createTestLockFile();
+    await writeLockFile(projectRoot, lockFile);
+    await writeManifest(projectRoot);
+
+    const skillsDir = join(projectRoot, ".claude", "skills");
+    await writeSkillWithRequirements(skillsDir, "code", ["Bash(git:*)", "Bash(npm:*)"]);
+
+    const result = await settingsGenerateOperation({ projectRoot });
+    expect(result.missingCount).toBe(2);
+    expect(result.suggestedFragment.permissions?.allow).toContain("Bash(git:*)");
+    expect(result.suggestedFragment.permissions?.allow).toContain("Bash(npm:*)");
+    expect(result.totalRequired).toHaveLength(2);
+  });
+
+  it("returns only the delta when settings file partially satisfies requirements", async () => {
+    const projectRoot = await setupSettingsProject("settings-partial-" + Date.now());
+    const lockFile = createTestLockFile();
+    await writeLockFile(projectRoot, lockFile);
+    await writeManifest(projectRoot);
+
+    const skillsDir = join(projectRoot, ".claude", "skills");
+    await writeSkillWithRequirements(skillsDir, "code", ["Bash(git:*)", "Bash(npm:*)"]);
+
+    await mkdir(join(projectRoot, ".claude"), { recursive: true });
+    await writeFile(
+      join(projectRoot, ".claude", "settings.json"),
+      JSON.stringify({ permissions: { allow: ["Bash(git:*)", "Read"] } }),
+    );
+
+    const result = await settingsGenerateOperation({ projectRoot });
+    expect(result.missingCount).toBe(1);
+    expect(result.suggestedFragment.permissions?.allow).toEqual(["Bash(npm:*)"]);
+  });
+
+  it("returns empty fragment when all requirements are already satisfied", async () => {
+    const projectRoot = await setupSettingsProject("settings-satisfied-" + Date.now());
+    const lockFile = createTestLockFile();
+    await writeLockFile(projectRoot, lockFile);
+    await writeManifest(projectRoot);
+
+    const skillsDir = join(projectRoot, ".claude", "skills");
+    await writeSkillWithRequirements(skillsDir, "code", ["Bash(git:*)"]);
+
+    await mkdir(join(projectRoot, ".claude"), { recursive: true });
+    await writeFile(
+      join(projectRoot, ".claude", "settings.json"),
+      JSON.stringify({ permissions: { allow: ["Bash(git:*)", "Read"] } }),
+    );
+
+    const result = await settingsGenerateOperation({ projectRoot });
+    expect(result.missingCount).toBe(0);
+    expect(result.suggestedFragment).toEqual({});
+  });
+
+  it("respects the --agent option", async () => {
+    const projectRoot = await setupSettingsProject("settings-agent-" + Date.now());
+    // No "codex" target in manifest — should return empty result
+    await writeManifest(projectRoot);
+    const lockFile = createTestLockFile();
+    await writeLockFile(projectRoot, lockFile);
+
+    const result = await settingsGenerateOperation({ projectRoot, agent: "codex" });
+    expect(result.agent).toBe("codex");
+    expect(result.suggestedFragment).toEqual({});
   });
 });

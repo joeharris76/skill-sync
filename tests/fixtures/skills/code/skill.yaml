@@ -13,6 +13,12 @@ targets:
   claude: true
   codex: true
   generic-mcp: true
+settings_requirements:
+  claude:
+    permissions:
+      allow:
+        - "Bash(git:*)"
+        - "Bash(npm:*)"
 source:
   type: local
   name: personal

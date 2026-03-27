@@ -18,6 +18,7 @@ describe("runCli", () => {
     expect(result.stdout).toContain("unpin");
     expect(result.stdout).toContain("prune");
     expect(result.stdout).toContain("promote");
+    expect(result.stdout).toContain("settings");
   });
 
   it("returns help text for 'help' command", async () => {
@@ -1101,5 +1102,63 @@ describe("runCli", () => {
     ).toBe(true);
 
     await rm(projectRoot, { recursive: true, force: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// settings command
+// ---------------------------------------------------------------------------
+
+describe("skill-sync settings", () => {
+  it("returns usage and exit 1 when no subcommand given", async () => {
+    const result = await runCli(["settings"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("generate");
+  });
+
+  it("returns usage and exit 1 for unknown subcommand", async () => {
+    const result = await runCli(["settings", "unknown"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("generate");
+  });
+
+  it("settings generate returns satisfied message when no manifest exists", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-settings-test-"));
+    try {
+      const result = await runCli(["settings", "generate", "--project", projectRoot]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("satisfied");
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("settings generate --json returns structured result", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-settings-json-"));
+    try {
+      const result = await runCli(["settings", "generate", "--json", "--project", projectRoot]);
+      expect(result.exitCode).toBe(0);
+      const parsed = JSON.parse(result.stdout ?? "{}");
+      expect(parsed).toHaveProperty("agent", "claude");
+      expect(parsed).toHaveProperty("missingCount");
+      expect(parsed).toHaveProperty("suggestedFragment");
+      expect(parsed).toHaveProperty("gaps");
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("settings generate --agent sets the agent field in JSON output", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-settings-agent-"));
+    try {
+      const result = await runCli([
+        "settings", "generate", "--agent", "codex", "--json", "--project", projectRoot,
+      ]);
+      expect(result.exitCode).toBe(0);
+      const parsed = JSON.parse(result.stdout ?? "{}");
+      expect(parsed.agent).toBe("codex");
+    } finally {
+      await rm(projectRoot, { recursive: true, force: true });
+    }
   });
 });

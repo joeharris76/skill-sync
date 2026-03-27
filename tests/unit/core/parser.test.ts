@@ -81,5 +81,51 @@ targets:
     expect(meta.depends).toEqual([]);
     expect(meta.configInputs).toEqual([]);
     expect(meta.targets).toEqual({});
+    expect(meta.settingsRequirements).toBeUndefined();
+  });
+
+  it("parses settings_requirements with permissions.allow", () => {
+    const content = `
+tags: []
+settings_requirements:
+  claude:
+    permissions:
+      allow:
+        - "Bash(git:*)"
+        - "Bash(npm:*)"
+`;
+    const meta = parseSkillSyncMeta(content);
+    expect(meta.settingsRequirements?.["claude"]?.permissions?.allow).toEqual([
+      "Bash(git:*)",
+      "Bash(npm:*)",
+    ]);
+  });
+
+  it("parses settings_requirements for multiple agents", () => {
+    const content = `
+tags: []
+settings_requirements:
+  claude:
+    permissions:
+      allow:
+        - "Bash(git:*)"
+  codex:
+    permissions:
+      allow:
+        - "terminal"
+`;
+    const meta = parseSkillSyncMeta(content);
+    expect(meta.settingsRequirements?.["claude"]?.permissions?.allow).toEqual(["Bash(git:*)"]);
+    expect(meta.settingsRequirements?.["codex"]?.permissions?.allow).toEqual(["terminal"]);
+  });
+
+  it("returns undefined settingsRequirements when field is absent", () => {
+    const meta = parseSkillSyncMeta("tags: [code]");
+    expect(meta.settingsRequirements).toBeUndefined();
+  });
+
+  it("returns undefined settingsRequirements for malformed value", () => {
+    const meta = parseSkillSyncMeta("settings_requirements: not-an-object");
+    expect(meta.settingsRequirements).toBeUndefined();
   });
 });
