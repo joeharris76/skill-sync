@@ -13,6 +13,8 @@ skills:
   - tidy-perms
 targets:
   claude: .claude/skills
+  codex: .codex/skills
+  gemini: .gemini/skills
 install_mode: mirror
 projects:
   - ~/Developer/letterops-mcp

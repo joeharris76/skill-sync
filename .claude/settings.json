@@ -12,6 +12,10 @@
       "Bash(which:*)",
       "Bash(/usr/bin/grep:*)",
       "Bash(skill-sync:*)",
+      "Bash(cp:*)",
+      "Bash(diff:*)",
+      "Bash(find:*)",
+      "Bash(python3:*)",
       "Skill(commit-commands:commit)",
       "mcp__textcharts__textcharts_bar",
       "mcp__textcharts__textcharts_histogram"
