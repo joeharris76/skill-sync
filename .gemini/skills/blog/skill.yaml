@@ -1,0 +1,9 @@
+depends:
+  - SHARED/commit-framework
+tags:
+  - writing
+  - blog
+category: content
+targets:
+  claude: true
+  codex: true

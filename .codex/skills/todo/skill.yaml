@@ -1,0 +1,15 @@
+depends:
+  - SHARED/commit-framework
+  - SHARED/verify-framework
+  - SHARED/research-framework
+config_inputs:
+  - key: todo.cli
+    type: string
+    description: TODO CLI command path
+tags:
+  - workflow
+  - todo
+category: workflow
+targets:
+  claude: true
+  codex: true
