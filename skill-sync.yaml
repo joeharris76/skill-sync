@@ -11,6 +11,14 @@ skills:
   - test
   - todo
   - tidy-perms
+  - SHARED/commit-framework
+  - SHARED/verify-framework
+  - SHARED/research-framework
+  - SHARED/compare-framework
+  - SHARED/shrink-framework
+  - SHARED/context-guide
+  - SHARED/debug-framework
+  - SHARED/slicing-framework
 targets:
   claude: .claude/skills
   codex: .codex/skills
