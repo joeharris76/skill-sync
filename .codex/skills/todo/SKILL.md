@@ -1,7 +1,7 @@
 ---
 name: todo
-description: This skill should be used when the user asks to "create a TODO", "manage TODOs", "show TODO items", "prioritize TODOs", "implement a TODO", "review TODOs", "complete a TODO", "cleanup TODOs", "create TODOs from spec", or "initialize TODO system".
-version: 0.2.0
+description: This skill should be used when the user asks to "create a TODO", "manage TODOs", "show TODO items", "prioritize TODOs", "implement a TODO", "review TODOs", "complete a TODO", "cleanup TODOs", "create TODOs from spec", "initialize TODO system", "ideate on an idea", "refine an idea", "write a spec", or "create a specification".
+version: 0.3.0
 tools: Bash, Read, Edit, Write, Task
 ---
 
@@ -15,9 +15,9 @@ Distributed YAML-based TODO management with auto-generated indexes, dependency g
 2. Convention: `_project/TODO` and `_project/DONE` relative to git root
 
 ```bash
-TODO_CLI="{todo.cli}"
-TODO_VALIDATE="{todo.validate}"
-TODO_INDEX="{todo.index}"
+TODO_CLI="uv run --project ~/.claude/tools/todo todo-cli"
+TODO_VALIDATE="uv run --project ~/.claude/tools/todo todo-validate"
+TODO_INDEX="uv run --project ~/.claude/tools/todo todo-index"
 ```
 
 ## Actions
@@ -33,12 +33,14 @@ TODO_INDEX="{todo.index}"
 | `complete` | "mark complete", "finish TODO" | Move item to DONE |
 | `cleanup` | "cleanup TODOs", "commit TODO changes" | Validate and commit changes |
 | `from-spec` | "TODOs from spec", "parse requirements" | Create TODOs from spec file |
+| `ideate` | "ideate", "refine idea", "brainstorm" | Structured divergent/convergent ideation |
+| `spec` | "write spec", "create specification" | Spec-before-code with assumptions surfacing |
 
 See `references/structure.md` for system layout and item format.
 
-> **Commit rule**: After any write action completes successfully, always run the
-> Cleanup step before returning to the user. Do not wait for the user to request
-> a commit.
+**IMPORTANT — Auto-commit rule:** After any write action (create, prioritize, implement, complete,
+from-spec) completes and passes verification, ALWAYS run the Cleanup step, commit, and push before
+returning to the user. Do not wait for the user to request a commit. This is mandatory, not optional.
 
 ---
 
@@ -48,7 +50,7 @@ See `references/structure.md` for system layout and item format.
 
 1. Create `todo.config.yaml` with configured paths (default: `todo_dir: _project/TODO`, `done_dir: _project/DONE`)
 2. Create directory structure: `{todo_dir}/_indexes/`, `{done_dir}/_indexes/`
-3. Copy schema/template from the packaged `defaults/` directory for this skill
+3. Copy schema/template from `~/.claude/skills/todo/defaults/`
 4. Generate empty indexes: `$TODO_INDEX`
 
 ---
@@ -113,13 +115,14 @@ $TODO_CLI ready   # What to work on next (deps-aware)
 3. Read TODO file, extract guardrails (must_preserve, approach, anti_patterns, verification, scope_limit)
 4. Check scope_limit boundaries
 5. **Research gate** (SHARED/research-framework.md): Read target files and callers. State understanding before editing.
+   - Apply SHARED/slicing-framework.md: build changes in vertical slices (implement → test → verify → commit per slice). Respect scope discipline — touch only what the task requires.
 6. Update status to "In Progress", move planning/ -> active/
 7. For each ready work unit:
    a. Implement (follow approach, respect anti_patterns)
    b. **Post-edit verification** (SHARED/verify-framework.md): spot-check edits, run lint
    c. Test
    d. Mark done: `$TODO_CLI done <slug> <work-id>`
-   e. **Commit** (SHARED/commit-framework.md): files modified in this work unit only, prefix by change type, run project lint+test
+   e. **Commit and push** (SHARED/commit-framework.md): files modified in this work unit only, prefix by change type, run project lint+test
 8. Run each verification command, confirm must_preserve items still work
 9. On completion: add `completed_date`, move to DONE, `$TODO_INDEX`
 
@@ -195,6 +198,35 @@ Uses SHARED/commit-framework.md with:
 
 ---
 
+## Ideate
+
+**Input**: Idea description, problem statement, "help me think about X", or empty (interactive)
+
+Structured divergent/convergent ideation. Be honest, not supportive — push back on weak ideas.
+
+1. **Expand** — restate as "How Might We", ask 3-5 sharpening questions (who/success/constraints/prior art/why now), generate 5-8 variations via lenses (inversion, constraint removal, audience shift, simplification, 10x). If in a codebase, ground in existing architecture.
+2. **Converge** — cluster into 2-3 directions, stress-test each (user value, feasibility, differentiation), surface hidden assumptions (what you're betting, what could kill it, what you're ignoring)
+3. **Output** — markdown one-pager: Problem Statement (HMW), Recommended Direction, Key Assumptions to Validate, MVP Scope, Not Doing (and Why), Open Questions
+
+Save to `docs/ideas/{name}.md` (after user confirmation).
+
+---
+
+## Spec
+
+**Input**: Feature name, project name, "spec for X", or empty (interactive)
+
+Spec-before-code. Surface misunderstandings before code gets written.
+
+1. **Surface assumptions** — list numbered assumptions explicitly ("I'm assuming X, Y, Z — correct me now"). Don't silently fill in ambiguous requirements.
+2. **Write spec** covering six areas: Objective (what/why/who/success), Commands (full executable), Project Structure (source/test locations), Code Style (one real snippet), Testing Strategy (framework/location/levels), Boundaries (always do / ask first / never do)
+3. **Reframe vague requirements** as testable success criteria (e.g., "make it faster" becomes "< 500ms at scale 0.1, no regression")
+4. **Human review gate** — present for approval. Do NOT proceed to implementation until approved.
+
+Save to `SPEC.md` or `docs/specs/{feature}.md` (after user confirmation).
+
+---
+
 ## Common Commands
 
 ```bash
@@ -209,26 +241,3 @@ $TODO_VALIDATE {path}             # Validate schema
 $TODO_INDEX                       # Regenerate indexes
 ```
 
----
-
-## Output Format
-
-```markdown
-## TODO {Action}
-
-### Item(s)
-- **Title**: {title}
-- **Path**: `{path}`
-- **Status**: {status}
-
-### Result
-{action taken}
-
-### Validation
-- Schema: PASSED
-- Graph: PASSED
-- Indexes: Regenerated
-
-### Next Steps
-- {suggested action}
-```

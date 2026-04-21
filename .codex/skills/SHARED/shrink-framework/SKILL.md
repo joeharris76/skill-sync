@@ -9,11 +9,11 @@ Every compression MUST be validated via compare framework. No manual checks.
 
 ## Workflow
 
-1. **Validate Type** - Check artifact is allowed
-2. **Save Baseline** - Store original (once, reuse across iterations)
-3. **Compress** - Invoke compression agent
-4. **Validate** - Compare compressed vs baseline
-5. **Decision** - Score meets threshold? Approve. Otherwise iterate.
+1. **Validate Type** — Check artifact is allowed (see per-skill reference for allowed/forbidden types)
+2. **Save Baseline** — Store original (once, reuse across iterations)
+3. **Compress** — Invoke compression agent via Task tool
+4. **Validate** — Compare compressed vs baseline using compare framework
+5. **Decision** — Score meets threshold? Approve. Otherwise iterate.
 
 ## Type Validation
 
@@ -55,20 +55,18 @@ CRITICAL: Actually write the file.
 ## Validation Loop
 
 ```
-1. Save baseline (if not exists)
-2. Compress -> save as v{N}
+1. Save baseline (if not exists): /tmp/original-{filename}
+2. Compress -> /tmp/compressed-{filename}-v{N}.{ext}
 3. Compare: baseline vs v{N}
-4. Score >= threshold:
-   - Run tests (if applicable) -> pass: APPROVE, overwrite original, clean up
-5. Score < threshold:
-   - Generate iteration prompt with feedback -> step 2 (max 3 iterations)
+4. Score >= threshold: run tests -> pass: APPROVE, overwrite, clean up
+5. Score < threshold: iterate with feedback (max 3)
 ```
 
 ## Decision Logic
 
 | Condition | Action |
 |-----------|--------|
-| Score >= threshold AND tests pass | APPROVE - overwrite original |
+| Score >= threshold AND tests pass | APPROVE — overwrite original |
 | Score >= threshold AND tests fail | FIX tests or revert |
 | Score < threshold AND iterations < 3 | ITERATE with feedback |
 | Score < threshold AND iterations >= 3 | Report best version, ask guidance |
@@ -102,8 +100,8 @@ COMPRESSED="/tmp/compressed-{filename}-v${VERSION}.{ext}"
 ## Compression Results
 | Version | Size | Reduction | Score | Status |
 |---------|------|-----------|-------|--------|
-| Original | {lines} | - | N/A | Baseline |
-| V1 | {lines} | {%} | {score} | {status} |
+| Original | {lines} | — | N/A | Baseline |
+| v{N} | {lines} | {%} | {score} | {status} |
 
 ### Removed/Simplified
 - {item}
@@ -127,3 +125,9 @@ COMPRESSED="/tmp/compressed-{filename}-v${VERSION}.{ext}"
 | Score plateau | After 3 attempts, report best |
 | Large files | Consider section-by-section |
 | Already minimal | Report "minimal opportunities" |
+
+## Rules
+
+- Use Task tool with `subagent_type: "general-purpose"` for compression
+- CRITICAL: Agent must USE WRITE TOOL to save compressed version
+- See per-skill `references/shrink.md` for type-specific allowed/forbidden lists, preserve/remove rules, compression techniques, and edge cases

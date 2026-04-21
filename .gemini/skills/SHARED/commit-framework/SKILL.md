@@ -1,6 +1,6 @@
 ---
 name: commit-framework
-description: Unified identify-verify-stage-commit logic reused by other skills.
+description: Unified identify-verify-stage-commit workflow for skill-driven commits.
 ---
 
 # Commit Framework
@@ -28,14 +28,15 @@ Unified identify-verify-stage-commit logic for all skills.
    git add {files} && git commit -m "$(cat <<'EOF'
    prefix(scope): message
 
-   Co-Authored-By: Claude <noreply@anthropic.com>
    EOF
    )"
    ```
+8. **Push**: `git push` immediately after commit succeeds. If no upstream is set, use `git push -u origin {branch}`.
 
 ## Rules
 
 - **NEVER** `git add -A` — only commit discovered files
 - **ALWAYS** `git add` and `git commit` in single shell command (prevents parallel agent conflicts)
+- **ALWAYS** `git push` after a successful commit — local-only commits risk data loss
 - Conventional Commits format
 - If verification fails and can't auto-fix, report and do NOT commit

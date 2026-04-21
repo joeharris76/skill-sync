@@ -1,6 +1,6 @@
 ---
 name: compare-framework
-description: Semantic comparison workflow for validating equivalence between artifacts.
+description: Compare two artifacts for semantic and behavioral equivalence.
 ---
 
 # Semantic Comparison Framework
@@ -17,24 +17,6 @@ Compare two artifacts (code, documents, configs) for behavioral/execution equiva
 
 **CRITICAL**: Steps 1-2 MUST run in parallel (single message, two Task calls). Extract independently — NEVER pre-populate with "items to verify" or prime with change knowledge. Targeted validation inflates scores.
 
-## Extraction Agent Template
-
-Use Task tool with `subagent_type: "general-purpose"`, `model: "sonnet"`:
-
-```
-**SEMANTIC EXTRACTION**
-**Artifact**: {{path}} | **Type**: {{code|document|config}}
-
-Extract ALL {{type-specific items}} from this artifact.
-
-Rules: Extract ALL items (not just obvious), normalize to standard forms, include line numbers, note confidence level.
-
-Output Format (JSON):
-{ "items": [...], "relationships": [...], "metadata": {...} }
-```
-
-**Execute**: Single message with TWO Task calls.
-
 ## Comparison Rules
 
 1. **Exact Match**: Identical normalized form -> shared
@@ -42,18 +24,7 @@ Output Format (JSON):
 3. **Type Mismatch**: Same concept, different structure -> flag
 4. **Unique**: In only one artifact
 
-## Equivalence Scoring
-
-```python
-def calculate_equivalence(primary_comp, relationship_comp, structure_comp):
-    weights = {"primary": 0.4, "relationship": 0.4, "structure": 0.2}
-    base_score = sum(weights[k] * scores[k] for k in weights)
-    if breaking_changes > 0:
-        base_score *= 0.5
-    if critical_relationships_broken > 0:
-        base_score *= 0.7
-    return base_score
-```
+## Scoring Thresholds
 
 | Score | Interpretation |
 |-------|----------------|
@@ -62,7 +33,9 @@ def calculate_equivalence(primary_comp, relationship_comp, structure_comp):
 | 0.70-0.84 | Significant differences |
 | <0.70 | BREAKING - not equivalent |
 
-## Warning Types
+Scoring formula: `primary 40% + relationship 40% + structure 20%`. Breaking changes apply 0.5x penalty; critical relationship loss applies 0.7x penalty.
+
+## Warning Severities
 
 | Type | Severity | Trigger |
 |------|----------|---------|
@@ -71,36 +44,27 @@ def calculate_equivalence(primary_comp, relationship_comp, structure_comp):
 | Structural change | MEDIUM | Organization differs |
 | Minor difference | LOW | Cosmetic changes |
 
-## Report Template
+## Extraction Agent Template
 
-```markdown
-## Comparison: {{A}} vs {{B}}
+Use Task tool with `subagent_type: "general-purpose"`:
 
-### Equivalence Summary
-- **Score**: {score}/1.0 ({interpretation})
-- **Primary Preservation**: {score}/1.0
-- **Relationship Preservation**: {score}/1.0
-- **Structure**: {score}/1.0
+```
+**SEMANTIC EXTRACTION**
+**Artifact**: {{path}} | **Type**: {{code|document|config}}
 
-### Warnings ({count})
-**{severity}**: {description}
-
-### Shared ({count})
-- {item} - Match: {type}
-
-### Unique to A ({count})
-- {item}
-
-### Unique to B ({count})
-- {item}
-
-### Recommendation
-{SAFE|REVIEW|BREAKING}
+Extract ALL {{type-specific items}} from this artifact.
+Rules: Extract ALL items (not just obvious), normalize to standard forms, include line numbers, note confidence level.
+Output (JSON): { "items": [...], "relationships": [...], "metadata": {...} }
 ```
 
 ## Limitations
 
-1. Cannot execute to verify runtime behavior
-2. Dynamic/implicit behavior may be missed
-3. External references not followed
-4. Structural analysis only
+- Cannot execute to verify runtime behavior — structural analysis only
+- Dynamic/implicit behavior (reflection, monkey-patching, runtime registration) may be missed
+- External references (URLs, file paths, env vars) not followed
+- Confidence decreases with indirection depth
+
+## Rules
+
+- Execute both extractions in a single message with TWO Task calls
+- See per-skill `references/compare.md` for report templates, scoring formulas, and domain-specific extraction categories

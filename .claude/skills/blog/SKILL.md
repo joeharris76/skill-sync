@@ -12,7 +12,7 @@ tools: Bash, Read, Write, Edit, Agent, Glob, Grep
 Fallback chain for style and voice guides:
 
 1. **Project-level** (preferred): `_blog/STYLE_GUIDE.md` and `_blog/VOICE_REFERENCE.md`
-2. **Global fallback**: a user-managed global blog guide directory (for example, `$CODEX_HOME/blog/STYLE_GUIDE.md` and `$CODEX_HOME/blog/VOICE_REFERENCE.md`)
+2. **Global fallback**: `~/.claude/blog/STYLE_GUIDE.md` and `~/.claude/blog/VOICE_REFERENCE.md`
 
 Check project-level first; if missing, use global fallback. If neither exists, proceed without and note absence.
 
@@ -31,9 +31,10 @@ Check project-level first; if missing, use global fallback. If neither exists, p
 | `editorial-review` | "editorial review", "voice check", "style check" | Parallel voice/style compliance check |
 | `audit`       | "audit blog", "content audit", "audit series" | Batch analysis across posts          |
 
-> **Commit rule**: After any write action completes successfully, always run the
-> Cleanup step before returning to the user. Do not wait for the user to request
-> a commit.
+**IMPORTANT — Auto-commit rule:** After any write action (plan, research, draft, critique `--chain`,
+deformulize, editorial-review `--fix`) completes and passes verification, ALWAYS run the Cleanup
+step, commit, and push before returning to the user. Do not wait for the user to request a commit.
+This is mandatory, not optional.
 
 ---
 
@@ -125,7 +126,7 @@ Save to `{series}/drafts/{slug}.md`.
 **Chaining** (`--chain`): After critique, auto-apply non-structural fixes:
 1. Fix factual errors, broken links, formatting issues
 2. Apply suggested rewrites for issues scored < 7
-3. Commit via SHARED/commit-framework.md (prefix: `docs(blog)`)
+3. Commit and push via SHARED/commit-framework.md (prefix: `docs(blog)`)
 4. Output: what was fixed vs what needs human judgment
 
 Default (no flag): output critique only. See `references/critique.md` for detailed rubric.
@@ -205,22 +206,9 @@ Uses SHARED/commit-framework.md with:
 - **prefix**: `docs(blog)`
 - **verify_cmd**: Check markdown links resolve, YAML frontmatter valid, no unintentional `TODO`/`TBD`/`XXX` markers
 
-See `references/cleanup.md` for details.
+**Categories** for commit scope: Outlines (plans, structures), Drafts (first drafts, revisions), Research (notes, sources), Style (guide updates, templates), Series (new series plans).
 
----
+**Examples**: `docs(blog): add draft for bitmap index deep-dive`, `docs(blog): update series plan with new post schedule`
 
-## Output Format
-
-```markdown
-## Blog {Action}: {title}
-
-### Details
-- **File**: `_blog/{series}/{type}/{slug}.md`
-- **Status**: {status}
-
-### {Action-specific content}
-
-### Next Steps
-- {recommendation}
-```
+**Output**: List files committed with series/type, commit hash, and message.
 

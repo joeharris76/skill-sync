@@ -9,7 +9,7 @@ tools: Bash, Read, Write, Edit, Task
 
 ## Project Configuration
 
-Read `.claude/project-config.yaml` → `docs` section at project root. Provides:
+Read `.claude/skills/skill-sync.config.yaml` → `docs` section at project root. Provides:
 - `builder` — doc system (sphinx, mkdocs, docusaurus, etc.)
 - `source_dir` — docs root directory
 - `commands` — build, clean, serve, linkcheck, validate
@@ -31,9 +31,9 @@ If missing, discover from `Makefile`, `docs/conf.py`, `mkdocs.yml`, or `docusaur
 | `adversarial` | "adversarial review", "user perspective" | Review from user's POV |
 | `commit` | "commit docs", "commit documentation" | Commit modified doc files |
 
-> **Commit rule**: After any write action completes successfully, always run the
-> Commit step before returning to the user. Do not wait for the user to request
-> a commit.
+**IMPORTANT — Auto-commit rule:** After any write action (create, shrink, adversarial `--fix`)
+completes and passes verification, ALWAYS run the Commit step, commit, and push before returning
+to the user. Do not wait for the user to request a commit. This is mandatory, not optional.
 
 ---
 
@@ -136,24 +136,3 @@ See `references/adversarial.md` for detailed questions.
 
 Uses SHARED/commit-framework.md with: **file_scope**: `git status --porcelain` config `source_dir`, **prefix**: `docs`, **verify_cmd**: config `commands.build`
 
----
-
-## Output Format
-
-```markdown
-## Docs {Action}: {scope}
-
-### Summary
-{what was done}
-
-### Details
-{action-specific content}
-
-### Build/Validation Status
-- Status: PASS/FAIL
-- Warnings: X
-- Errors: Y
-
-### Next Steps
-- {recommendation}
-```

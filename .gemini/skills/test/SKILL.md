@@ -11,7 +11,7 @@ Unified workflow for test development, execution, and maintenance.
 
 ## Project Configuration
 
-Read `.claude/project-config.yaml` → `test` section at project root. Provides:
+Read `.claude/skills/skill-sync.config.yaml` → `test` section at project root. Provides:
 - `runner` — test framework (pytest, jest, vitest, go, cargo)
 - `test_dir` — test root directory
 - `coverage_package` — package name for coverage reporting
@@ -34,9 +34,9 @@ If missing, discover from `pyproject.toml`, `jest.config.*`, `Makefile`, `packag
 | `perf` | "slow tests", "optimize tests" | Fix slow tests |
 | `cleanup` | "commit test changes" | Commit modified test files |
 
-> **Commit rule**: After any write action completes successfully, always run the
-> Cleanup step before returning to the user. Do not wait for the user to request
-> a commit.
+**IMPORTANT — Auto-commit rule:** After any write action (create, fix, coverage, perf) completes
+and passes verification, ALWAYS run the Cleanup step, commit, and push before returning to the user.
+Do not wait for the user to request a commit. This is mandatory, not optional.
 
 ---
 
@@ -72,7 +72,7 @@ Resolve input to a runner command via config `commands`:
 8. Verify: config `commands.single` with new test path
 9. Check coverage: config `commands.coverage`
 
-**Research Gate** (SHARED/research-framework.md): Read the code under test and at least one existing test in the same area before writing.
+**Research Gate** (SHARED/research-framework.md): Read the code under test and at least one existing test in the same area before writing. See `references/testing-patterns.md` for test pyramid, mocking boundaries, and naming conventions.
 
 ---
 
@@ -80,20 +80,15 @@ Resolve input to a runner command via config `commands`:
 
 **Input**: Test path, "last", marker, or empty
 
+Uses SHARED/debug-framework.md for systematic triage and SHARED/context-guide.md (trust levels for error output, confusion protocol). See `references/testing-patterns.md` for common patterns.
+
 **Steps**:
 1. Reproduce with verbose/long-trace output
-2. Analyze: trace failure, determine if test or code is wrong
-3. Categorize and fix:
-   | Category | Fix |
-   |----------|-----|
-   | Test bug | Update test |
-   | Code bug | Fix source |
-   | Environment | Fix setup/fixtures |
-   | Flaky | Fix race condition, timing, shared state |
-4. **Post-edit verification** (SHARED/verify-framework.md)
-5. Verify: run original test + related tests
-
-See `references/perf.md` for slow test optimization.
+2. Localize: determine if test or code is wrong
+3. Categorize: test bug (update test), code bug (fix source), environment (fix setup/fixtures), flaky (fix race/timing/shared state)
+4. Fix root cause, guard with regression test
+5. **Post-edit verification** (SHARED/verify-framework.md)
+6. Verify: run original test + related tests
 
 ---
 
@@ -139,27 +134,7 @@ Uses SHARED/commit-framework.md with:
 - **prefix**: `test`
 - **verify_cmd**: config `commands.fast`
 
-See `references/cleanup.md` for details.
+**Examples**: `test: add coverage for cloud storage integration`, `test: fix failing platform adapter tests`, `test: add performance baseline tests`, `test: update snapshot for new API response format`
 
----
+**Output**: List files committed, commit hash, and message. Note coverage impact if applicable.
 
-## Output Format
-
-```markdown
-## Test {Action}: {scope}
-
-### Summary
-- **Scope**: {marker/path}
-- **Status**: PASSED/FAILED
-
-### Results
-| Status | Count |
-|--------|-------|
-| Passed | X |
-| Failed | Y |
-
-### {Action-specific details}
-
-### Next Steps
-- {recommendation}
-```

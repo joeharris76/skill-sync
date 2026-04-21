@@ -4,6 +4,9 @@ depends:
   - SHARED/research-framework
   - SHARED/compare-framework
   - SHARED/shrink-framework
+  - SHARED/context-guide
+  - SHARED/debug-framework
+  - SHARED/slicing-framework
 config_inputs:
   - key: code.lint
     type: string
