@@ -362,6 +362,61 @@ describe("syncOperation — skipped skills", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// syncOperation — silent-overwrite regression
+// Source unchanged + local target modifications must conflict, not overwrite
+// ---------------------------------------------------------------------------
+
+describe("syncOperation — local drift conflict (silent-overwrite regression)", () => {
+  it("blocks sync when target has local modifications and source is unchanged", async () => {
+    const sourceRoot = join(tmpBase, "lo-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+
+    const originalContent = "---\nname: code\ndescription: code skill\n---\n# Original\n";
+    await makeLocalSkillSource(sourceRoot, "code", originalContent);
+
+    const projectRoot = await makeConsumerProject("lo-blocked-" + Date.now(), sourceRoot, ["code"]);
+
+    // First sync installs and locks the skill
+    await syncOperation({ projectRoot });
+
+    // User locally modifies the target skill (e.g. adds a new action)
+    const targetSkillMd = join(projectRoot, ".claude", "skills", "code", "SKILL.md");
+    await writeFile(targetSkillMd, originalContent + "\n## Local Action\nUser-added content.\n");
+
+    // Source is unchanged — second sync should detect the conflict, not overwrite
+    const result = await syncOperation({ projectRoot });
+
+    expect(result.applied).toBe(false);
+    expect(result.conflicts).toBeDefined();
+    expect(result.conflicts!.length).toBeGreaterThan(0);
+    expect(result.conflicts![0]!.name).toBe("code");
+    expect(result.summary.installed).toHaveLength(0);
+    expect(result.summary.updated).toHaveLength(0);
+  });
+
+  it("overwrites local modifications when --force is passed", async () => {
+    const sourceRoot = join(tmpBase, "lo-force-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+
+    const originalContent = "---\nname: code\ndescription: code skill\n---\n# Original\n";
+    await makeLocalSkillSource(sourceRoot, "code", originalContent);
+
+    const projectRoot = await makeConsumerProject("lo-force-" + Date.now(), sourceRoot, ["code"]);
+
+    await syncOperation({ projectRoot });
+
+    const targetSkillMd = join(projectRoot, ".claude", "skills", "code", "SKILL.md");
+    await writeFile(targetSkillMd, originalContent + "\n## Local Action\nUser-added content.\n");
+
+    const result = await syncOperation({ projectRoot, force: true });
+
+    expect(result.applied).toBe(true);
+    expect(result.summary.forced).toContain("code");
+    expect(result.conflicts).toBeUndefined();
+  });
+});
+
 describe("syncOperation — registerProjectInSources", () => {
   it("registers the consumer project path in the local source manifest", async () => {
     const sourceRoot = join(tmpBase, "reg-source-" + Date.now());

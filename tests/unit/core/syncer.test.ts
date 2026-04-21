@@ -241,6 +241,159 @@ describe("planSync", () => {
     await rm(targetA, { recursive: true, force: true });
     await rm(targetB, { recursive: true, force: true });
   });
+
+  // -------------------------------------------------------------------------
+  // Silent-overwrite bug regression: source unchanged + local drift → conflict
+  // -------------------------------------------------------------------------
+
+  it("surfaces conflict when source is unchanged but target has local modifications", async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-syncer-local-drift-"));
+    const skillDir = join(tmpDir, "code");
+    await mkdir(skillDir, { recursive: true });
+
+    // Source content (what's in the personal library)
+    const sourceContent = "# Code Skill\nOriginal version.\n";
+    const sourceHash = sha256(sourceContent);
+
+    // On-disk content — user locally modified the target (e.g. added /code iterate)
+    const diskContent = "# Code Skill\nOriginal version.\n\n## Iterate\nLocal addition.\n";
+    await writeFile(join(skillDir, "SKILL.md"), diskContent, "utf8");
+    const diskHash = sha256(diskContent);
+
+    // Lock was written after the previous sync (source was at sourceHash then, still is now)
+    const plan = await planSync({
+      manifest: { skills: ["code"], installMode: "mirror" },
+      lockFile: {
+        version: 1,
+        lockedAt: "2026-04-01T10:00:00Z",
+        skills: {
+          code: {
+            source: { type: "local", name: "personal", fetchedAt: "2026-04-01T10:00:00Z" },
+            installMode: "mirror",
+            files: { "SKILL.md": { sha256: sourceHash, size: Buffer.byteLength(sourceContent) } },
+          },
+        },
+      },
+      resolvedSkills: [
+        {
+          name: "code",
+          source: { type: "local", name: "personal", fetchedAt: "2026-04-21T10:00:00Z" },
+          // Source is unchanged — still the same hash as the lock
+          files: [{ relativePath: "SKILL.md", sha256: sourceHash, size: Buffer.byteLength(sourceContent) }],
+        },
+      ],
+      driftReport: {
+        clean: [],
+        modified: [{ skill: "code", file: "SKILL.md", expected: sourceHash, actual: diskHash }],
+        missing: [],
+        extra: [],
+      },
+      targetRoot: tmpDir,
+    });
+
+    expect(plan.conflicts).toHaveLength(1);
+    expect(plan.conflicts[0]!.name).toBe("code");
+    expect(plan.install).toHaveLength(0);
+    expect(plan.unchanged).toHaveLength(0);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it("installs when source is unchanged and target is genuinely missing (no drift)", async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-syncer-new-target-"));
+    // Skill directory does NOT exist (new target directory scenario)
+
+    const sourceContent = "# Code Skill\nOriginal version.\n";
+    const sourceHash = sha256(sourceContent);
+
+    const plan = await planSync({
+      manifest: { skills: ["code"], installMode: "mirror" },
+      lockFile: {
+        version: 1,
+        lockedAt: "2026-04-01T10:00:00Z",
+        skills: {
+          code: {
+            source: { type: "local", name: "personal", fetchedAt: "2026-04-01T10:00:00Z" },
+            installMode: "mirror",
+            files: { "SKILL.md": { sha256: sourceHash, size: Buffer.byteLength(sourceContent) } },
+          },
+        },
+      },
+      resolvedSkills: [
+        {
+          name: "code",
+          source: { type: "local", name: "personal", fetchedAt: "2026-04-21T10:00:00Z" },
+          files: [{ relativePath: "SKILL.md", sha256: sourceHash, size: Buffer.byteLength(sourceContent) }],
+        },
+      ],
+      driftReport: {
+        // clean drift report — no local modifications, skill just absent from this new target
+        clean: [],
+        modified: [],
+        missing: ["code"],
+        extra: [],
+      },
+      targetRoot: tmpDir,
+    });
+
+    expect(plan.install).toHaveLength(1);
+    expect(plan.install[0]!.name).toBe("code");
+    expect(plan.conflicts).toHaveLength(0);
+
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it("surfaces conflict when source unchanged and one of multiple targets has local drift", async () => {
+    const targetA = await mkdtemp(join(tmpdir(), "skill-sync-syncer-multi-a-"));
+    const targetB = await mkdtemp(join(tmpdir(), "skill-sync-syncer-multi-b-"));
+
+    const sourceContent = "# Code Skill\nOriginal.\n";
+    const sourceHash = sha256(sourceContent);
+    const diskContentB = "# Code Skill\nOriginal.\n\n## Local edit\n";
+    const diskHashB = sha256(diskContentB);
+
+    // targetA: matches source (clean)
+    await mkdir(join(targetA, "code"), { recursive: true });
+    await writeFile(join(targetA, "code", "SKILL.md"), sourceContent, "utf8");
+
+    // targetB: locally modified
+    await mkdir(join(targetB, "code"), { recursive: true });
+    await writeFile(join(targetB, "code", "SKILL.md"), diskContentB, "utf8");
+
+    const plan = await planSync({
+      manifest: { skills: ["code"], installMode: "mirror" },
+      lockFile: {
+        version: 1,
+        lockedAt: "2026-04-01T10:00:00Z",
+        skills: {
+          code: {
+            source: { type: "local", name: "personal", fetchedAt: "2026-04-01T10:00:00Z" },
+            installMode: "mirror",
+            files: { "SKILL.md": { sha256: sourceHash, size: Buffer.byteLength(sourceContent) } },
+          },
+        },
+      },
+      resolvedSkills: [
+        {
+          name: "code",
+          source: { type: "local", name: "personal", fetchedAt: "2026-04-21T10:00:00Z" },
+          files: [{ relativePath: "SKILL.md", sha256: sourceHash, size: Buffer.byteLength(sourceContent) }],
+        },
+      ],
+      driftReports: [
+        { clean: ["code"], modified: [], missing: [], extra: [] },
+        { clean: [], modified: [{ skill: "code", file: "SKILL.md", expected: sourceHash, actual: diskHashB }], missing: [], extra: [] },
+      ],
+      targetRoots: [targetA, targetB],
+    });
+
+    expect(plan.conflicts).toHaveLength(1);
+    expect(plan.conflicts[0]!.name).toBe("code");
+    expect(plan.install).toHaveLength(0);
+
+    await rm(targetA, { recursive: true, force: true });
+    await rm(targetB, { recursive: true, force: true });
+  });
 });
 
 describe("applySync", () => {

@@ -144,7 +144,19 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
       if (targetRoots.length > 0) {
         const allPresent = await checkAllTargetsMatchSource(targetRoots, skill.name, skill.files);
         if (!allPresent) {
-          plan.install.push({ name: skill.name, source: skill.source, installMode, files: skill.files });
+          // Distinguish local modification (drift) from a genuinely missing install.
+          // Without this check, locally-modified target files get silently overwritten
+          // when the source is stable — bypassing the conflict/promote workflow.
+          const localDrift = driftBySkill.get(skill.name);
+          if (localDrift && localDrift.length > 0) {
+            plan.conflicts.push({
+              name: skill.name,
+              localChanges: localDrift,
+              upstreamChanges: skill.files,
+            });
+          } else {
+            plan.install.push({ name: skill.name, source: skill.source, installMode, files: skill.files });
+          }
           continue;
         }
       }
