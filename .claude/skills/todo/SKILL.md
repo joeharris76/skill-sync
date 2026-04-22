@@ -240,4 +240,3 @@ $TODO_CLI check-graph             # Validate graphs
 $TODO_VALIDATE {path}             # Validate schema
 $TODO_INDEX                       # Regenerate indexes
 ```
-

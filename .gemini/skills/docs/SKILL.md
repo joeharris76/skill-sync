@@ -135,4 +135,3 @@ See `references/adversarial.md` for detailed questions.
 **Input**: Optional scope hint, or empty
 
 Uses SHARED/commit-framework.md with: **file_scope**: `git status --porcelain` config `source_dir`, **prefix**: `docs`, **verify_cmd**: config `commands.build`
-

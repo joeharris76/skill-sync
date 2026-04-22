@@ -211,4 +211,3 @@ Uses SHARED/commit-framework.md with:
 **Examples**: `docs(blog): add draft for bitmap index deep-dive`, `docs(blog): update series plan with new post schedule`
 
 **Output**: List files committed with series/type, commit hash, and message.
-

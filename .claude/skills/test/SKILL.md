@@ -137,4 +137,3 @@ Uses SHARED/commit-framework.md with:
 **Examples**: `test: add coverage for cloud storage integration`, `test: fix failing platform adapter tests`, `test: add performance baseline tests`, `test: update snapshot for new API response format`
 
 **Output**: List files committed, commit hash, and message. Note coverage impact if applicable.
-
