@@ -17,6 +17,7 @@ Strip `settings.local.json` to personal-only entries. Delete garbage.
 |--------|---------|-------------|
 | `consolidate` | (default) | Full triage, rewrite both files, commit |
 | `audit` | "audit permissions", "review permissions" | Report categories without making changes |
+| `help` | "help", "list actions" | Print available actions |
 
 ---
 
@@ -129,6 +130,14 @@ Removed ~N entries from settings.local.json (garbage + now-covered rules).
 
 Read both files. Categorize every entry (PROJECT-SAFE / PERSONAL / GARBAGE).
 Output a table — do not write any files.
+
+---
+
+## Help
+
+**Input**: Empty
+
+Print the Actions table from this skill — action names, triggers, and descriptions.
 
 ```markdown
 ## Permissions Audit

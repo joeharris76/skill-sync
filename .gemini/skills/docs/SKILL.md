@@ -30,6 +30,7 @@ If missing, discover from `Makefile`, `docs/conf.py`, `mkdocs.yml`, or `docusaur
 | `shrink` | "compress docs", "shrink doc" | Validation-driven compression |
 | `adversarial` | "adversarial review", "user perspective" | Review from user's POV |
 | `commit` | "commit docs", "commit documentation" | Commit modified doc files |
+| `help` | "help", "list actions" | Print available actions |
 
 **IMPORTANT — Auto-commit rule:** After any write action (create, shrink, adversarial `--fix`)
 completes and passes verification, ALWAYS run the Commit step, commit, and push before returning
@@ -135,3 +136,11 @@ See `references/adversarial.md` for detailed questions.
 **Input**: Optional scope hint, or empty
 
 Uses SHARED/commit-framework.md with: **file_scope**: `git status --porcelain` config `source_dir`, **prefix**: `docs`, **verify_cmd**: config `commands.build`
+
+---
+
+## Help
+
+**Input**: Empty
+
+Print the Actions table from this skill — action names, triggers, and descriptions.

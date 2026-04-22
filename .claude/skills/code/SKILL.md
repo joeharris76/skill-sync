@@ -34,6 +34,7 @@ If missing, discover from `Makefile`, `package.json`, CLAUDE.md, or common conve
 | `shrink` | "compress code", "shrink file" | Validation-driven compression |
 | `to-spec` | "generate spec", "document API" | Generate spec from code |
 | `handoff` | "create handoff", "session summary" | Generate continuation prompt |
+| `help` | "help", "list actions" | Print available actions |
 
 **IMPORTANT — Auto-commit rule:** After any write action (fix, debug, perf, review `--chain`, shrink)
 completes and passes verification, ALWAYS run the Commit step, commit, and push before returning
@@ -182,3 +183,11 @@ Steps: Review session (files modified, decisions, problems, tests) → Identify 
 **Flags**: `--task` creates a Task with handoff content. `--compact` gives single-paragraph summary (<300 words).
 
 See `references/handoff.md` for templates.
+
+---
+
+## Help
+
+**Input**: Empty
+
+Print the Actions table from this skill — action names, triggers, and descriptions.

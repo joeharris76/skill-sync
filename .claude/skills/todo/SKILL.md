@@ -35,6 +35,7 @@ TODO_INDEX="uv run --project ~/.claude/tools/todo todo-index"
 | `from-spec` | "TODOs from spec", "parse requirements" | Create TODOs from spec file |
 | `ideate` | "ideate", "refine idea", "brainstorm" | Structured divergent/convergent ideation |
 | `spec` | "write spec", "create specification" | Spec-before-code with assumptions surfacing |
+| `help` | "help", "list actions" | Print available actions |
 
 See `references/structure.md` for system layout and item format.
 
@@ -240,3 +241,11 @@ $TODO_CLI check-graph             # Validate graphs
 $TODO_VALIDATE {path}             # Validate schema
 $TODO_INDEX                       # Regenerate indexes
 ```
+
+---
+
+## Help
+
+**Input**: Empty
+
+Print the Actions table from this skill — action names, triggers, and descriptions.

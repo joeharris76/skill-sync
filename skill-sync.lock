@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "lockedAt": "2026-04-22T00:49:15.323Z",
+  "lockedAt": "2026-04-22T12:43:29.276Z",
   "skills": {
     "blog": {
       "source": {
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/blog",
-        "fetchedAt": "2026-04-21T19:05:34.144Z"
+        "fetchedAt": "2026-04-22T12:43:29.170Z"
       },
       "installMode": "mirror",
       "files": {
@@ -24,8 +24,8 @@
           "size": 3107
         },
         "SKILL.md": {
-          "sha256": "ba0aedf3341d12c0d94e5da74704eae2b090a7e956dd180de97c57bd2744f314",
-          "size": 9239
+          "sha256": "26f2cbad4becb5de1cb3a3ff3f1857f6fd1a19c27bfc91d342900d8a8249da81",
+          "size": 9463
         },
         "skill.yaml": {
           "sha256": "aa5ae37ee34c1ddfd90617ebd9a87bd5993b89d3a96d90445411d5123d1b2faf",
@@ -38,7 +38,7 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/code",
-        "fetchedAt": "2026-04-21T19:05:34.148Z"
+        "fetchedAt": "2026-04-22T12:43:29.183Z"
       },
       "installMode": "mirror",
       "files": {
@@ -75,8 +75,8 @@
           "size": 2387
         },
         "SKILL.md": {
-          "sha256": "dee96de772c8e2fc962bbce9c0b52c2cff834b74862531312473b0e898ba34f3",
-          "size": 8912
+          "sha256": "d455838cbdeb124369b44d5f791ea4cecb99024be3d4b3615957ef5d0029afd9",
+          "size": 9093
         },
         "skill.yaml": {
           "sha256": "cf977e346e5ab5b39113d482014663ad3a47343c1d44ba75a07ba93f0f4620f4",
@@ -89,7 +89,7 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/docs",
-        "fetchedAt": "2026-04-21T19:05:34.150Z"
+        "fetchedAt": "2026-04-22T12:43:29.185Z"
       },
       "installMode": "mirror",
       "files": {
@@ -106,8 +106,8 @@
           "size": 2455
         },
         "SKILL.md": {
-          "sha256": "fbe83cb2bb0ae2258d454252ecd815936b54ad8d7715b942c459fc39fb280863",
-          "size": 5055
+          "sha256": "5c7987a25509d61d1d5219ed367a1e7f1ffb11234f39040a3704a3a67f3a7d3b",
+          "size": 5236
         },
         "skill.yaml": {
           "sha256": "b348d06c928d986a3714d5337723e59c40a45939e31405a8de2019171de32970",
@@ -120,13 +120,13 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/skill-sync",
-        "fetchedAt": "2026-03-27T20:33:26.307Z"
+        "fetchedAt": "2026-04-22T12:43:29.187Z"
       },
       "installMode": "mirror",
       "files": {
         "SKILL.md": {
-          "sha256": "71ad89800d434a7be10a33809252f4c0c2bd075ed93e614950c549153ba2f25f",
-          "size": 7936
+          "sha256": "df71dacb7015ef40633c8b3680cccbb3f7f8aed4b10cb04f16aa09acf6bf71bd",
+          "size": 8117
         },
         "skill.yaml": {
           "sha256": "a65d60707d5db13f2d80a7ecb375cf42d624e393da19fb72956426c32efe007e",
@@ -139,7 +139,7 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/test",
-        "fetchedAt": "2026-04-21T19:05:34.153Z"
+        "fetchedAt": "2026-04-22T12:43:29.190Z"
       },
       "installMode": "mirror",
       "files": {
@@ -152,8 +152,8 @@
           "size": 1827
         },
         "SKILL.md": {
-          "sha256": "2f9451a21eb877210f0b86c68af52d064abb5aa705ced3191012d0171427d0be",
-          "size": 5479
+          "sha256": "4f36942561aea69f936c86f0a80934bd522281b59b759fbde876e7fd1afb0fb8",
+          "size": 5660
         },
         "skill.yaml": {
           "sha256": "58a892c4641cea9cfb10e08f8c91c5d6c728d3cafc43fa8c8d9ed6ede4c23f27",
@@ -166,7 +166,7 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/todo",
-        "fetchedAt": "2026-04-21T19:05:34.156Z"
+        "fetchedAt": "2026-04-22T12:43:29.191Z"
       },
       "installMode": "mirror",
       "files": {
@@ -183,8 +183,8 @@
           "size": 3697
         },
         "SKILL.md": {
-          "sha256": "923c8b9672ffc291b2799fd280ae83864eb5748964199bce71f976f03268826c",
-          "size": 10419
+          "sha256": "9ae1375950331952bb39bdabf49e8156970b4ab31e86534f5738998145518482",
+          "size": 10600
         },
         "skill.yaml": {
           "sha256": "02fb9215abb958fbb853438905ee2fab5eaf49c9cc820033edb23c992313fe20",
@@ -292,13 +292,13 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/tidy-perms",
-        "fetchedAt": "2026-03-27T20:30:56.412Z"
+        "fetchedAt": "2026-04-22T12:43:29.192Z"
       },
       "installMode": "mirror",
       "files": {
         "SKILL.md": {
-          "sha256": "bd3d29035c59d1e8f6c880bc8d1e4e2819b5172ec37e87527b39b258088a9205",
-          "size": 6285
+          "sha256": "38c078729a716637dc64a2d263f21fb2002543c53dd697fa237c60ce096cb0f0",
+          "size": 6466
         }
       }
     },

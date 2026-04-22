@@ -33,6 +33,7 @@ If missing, discover from `pyproject.toml`, `jest.config.*`, `Makefile`, `packag
 | `coverage` | "add coverage", "coverage gaps" | Add test coverage |
 | `perf` | "slow tests", "optimize tests" | Fix slow tests |
 | `cleanup` | "commit test changes" | Commit modified test files |
+| `help` | "help", "list actions" | Print available actions |
 
 **IMPORTANT — Auto-commit rule:** After any write action (create, fix, coverage, perf) completes
 and passes verification, ALWAYS run the Cleanup step, commit, and push before returning to the user.
@@ -137,3 +138,11 @@ Uses SHARED/commit-framework.md with:
 **Examples**: `test: add coverage for cloud storage integration`, `test: fix failing platform adapter tests`, `test: add performance baseline tests`, `test: update snapshot for new API response format`
 
 **Output**: List files committed, commit hash, and message. Note coverage impact if applicable.
+
+---
+
+## Help
+
+**Input**: Empty
+
+Print the Actions table from this skill — action names, triggers, and descriptions.

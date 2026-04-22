@@ -42,6 +42,7 @@ Treat synced skill directories and generated sync artifacts as repository conten
 | `unpin` | "unpin skill", "unlock skill" | Remove a revision pin, allow updates |
 | `prune` | "prune skills", "remove unused skills" | Remove skills not declared in manifest |
 | `promote` | "promote changes", "push skill changes" | Guide pushing local modifications upstream |
+| `help` | "help", "list actions" | Print available actions |
 
 ---
 
@@ -218,6 +219,14 @@ In v0, promotion is a manual workflow:
 2. `skill-sync diff` — review changes
 3. Copy modified files from target directory back to source
 4. `skill-sync sync` — confirm source and target are in sync
+
+---
+
+## Help
+
+**Input**: Empty
+
+Print the Actions table from this skill — action names, triggers, and descriptions.
 
 ---
 

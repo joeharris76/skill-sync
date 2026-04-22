@@ -30,6 +30,7 @@ Check project-level first; if missing, use global fallback. If neither exists, p
 | `cleanup`     | "commit blog changes"               | Commit modified blog files           |
 | `editorial-review` | "editorial review", "voice check", "style check" | Parallel voice/style compliance check |
 | `audit`       | "audit blog", "content audit", "audit series" | Batch analysis across posts          |
+| `help`        | "help", "list actions"                        | Print available actions              |
 
 **IMPORTANT — Auto-commit rule:** After any write action (plan, research, draft, critique `--chain`,
 deformulize, editorial-review `--fix`) completes and passes verification, ALWAYS run the Cleanup
@@ -211,3 +212,11 @@ Uses SHARED/commit-framework.md with:
 **Examples**: `docs(blog): add draft for bitmap index deep-dive`, `docs(blog): update series plan with new post schedule`
 
 **Output**: List files committed with series/type, commit hash, and message.
+
+---
+
+## Help
+
+**Input**: Empty
+
+Print the Actions table from this skill — action names, triggers, and descriptions.
