@@ -1,107 +1,93 @@
 ---
 name: tidy-perms
-description: Consolidate accumulated Claude Code permission grants — move trusted commands from settings.local.json into wildcard rules in settings.json, clean up garbage entries, commit project-level settings.
-version: 1.0.0
+description: Consolidate accumulated permission grants across Claude Code, Codex, and Gemini — move trusted commands into project settings, clean up garbage entries, verify cross-agent consistency, commit project-level configs.
+version: 2.0.0
 tools: Bash, Read, Write, Edit
 ---
 
 # Permissions Consolidation Skill
 
-Triage the allow lists in `.claude/settings.json` and `.claude/settings.local.json`.
-Move trusted, team-relevant commands into `settings.json` as clean wildcard rules.
-Strip `settings.local.json` to personal-only entries. Delete garbage.
+Triage Claude Code allow lists: move project-safe commands from `settings.local.json` → `settings.json` as wildcards, delete garbage, keep personal entries. Check trust and MCP parity across Claude, Codex, and Gemini.
 
 ## Actions
 
 | Action | Trigger | Description |
 |--------|---------|-------------|
-| `consolidate` | (default) | Full triage, rewrite both files, commit |
-| `audit` | "audit permissions", "review permissions" | Report categories without making changes |
+| `consolidate` | (default) | Full triage, rewrite files, cross-agent check, commit |
+| `audit` | "audit permissions", "review permissions" | Report categories and cross-agent state, no changes |
 | `help` | "help", "list actions" | Print available actions |
+
+---
+
+## Agent Permission Models
+
+| Agent | Config | Permission model | Consolidation |
+|-------|--------|-----------------|---------------|
+| **Claude Code** | `.claude/settings.json` (project) + `.claude/settings.local.json` (personal, gitignored) | Per-command allowlist: `Bash(cmd:*)`, `mcp__server__tool`, `WebFetch(domain:...)`, `Skill(...)`, `Read(path)` | Full — categorize, wildcard-merge, rewrite |
+| **Codex CLI** | `~/.codex/config.toml` (global only) | Sandbox (`read-only`, `workspace-write`, `danger-full-access`) + per-project `trust_level` via `[projects."/path"]` + approval policies (`untrusted`, `on-request`, `never`). **No per-command allowlist.** MCP in `[mcp_servers.*]` | Trust + MCP parity check only |
+| **Gemini CLI** | `~/.gemini/settings.json` + `trustedFolders.json` (global only) | Folder trust + approval modes (`default`, `auto_edit`, `yolo`, `plan`) + policy engine (`--policy`). `--allowed-tools` deprecated in favor of policy engine; neither provides persistent per-command allowlist. MCP via `gemini mcp` or project config. | Trust + MCP parity check only |
 
 ---
 
 ## Consolidate
 
-### Step 1 — Read both files in full
+### Step 1 — Read Claude Code configs
 
-```
-.claude/settings.json
-.claude/settings.local.json
-```
-
-If `settings.local.json` does not exist, report "nothing to consolidate" and exit.
+Read `.claude/settings.json` and `.claude/settings.local.json`. If local doesn't exist, note "nothing to consolidate" but continue to cross-agent checks.
 
 ### Step 2 — Discover project context
 
-To know which project CLIs belong in settings.json:
-- Read `Makefile` (if present) — note make targets used as commands
-- Read `.mcp.json` (if present) — extract all server names as `mcp__<name>__*` candidates
-- Read `package.json` (if present) — note scripts and detect npm/npx/node usage
-- Read `pyproject.toml` or `requirements.txt` (if present) — detect uv/python usage
-- Read `CLAUDE.md` — note any CLI tools mentioned
+Check these files (if present) to identify project CLIs for settings.json:
+- `Makefile` → make targets | `.mcp.json` → `mcp__<name>__*` candidates | `package.json` → npm/npx/node | `pyproject.toml` / `requirements.txt` → uv/python | `CLAUDE.md` → mentioned CLI tools
 
-### Step 3 — Categorize every entry in `settings.local.json`
+### Step 2b — Read Codex and Gemini state
 
-Assign each entry to exactly one category:
+- **Codex**: `~/.codex/config.toml` → project trust level, sandbox mode and approval policy if set, `[mcp_servers.*]` entries
+- **Gemini**: `~/.gemini/trustedFolders.json` → folder trust, `~/.gemini/settings.json`, project-level `.gemini/settings.json` if present
+
+Record findings for the cross-agent consistency check in Step 8.
+
+### Step 3 — Categorize `settings.local.json` entries
+
+Skip if file doesn't exist. Assign each entry to one category:
 
 **PROJECT-SAFE** → move to `settings.json`
-- Git operations: any `Bash(git ...)` variant
-- Language runtimes and package managers: `uv:*`, `npm:*`, `npx:*`, `node:*`, `python:*`, `python3:*`, `cargo:*`, `go:*`, `make:*`
+- Git: any `Bash(git ...)` variant
+- Runtimes/pkg managers: `uv`, `npm`, `npx`, `node`, `python`, `python3`, `cargo`, `go`, `make` (all `:*`)
 - Shell utilities: `ls`, `cat`, `head`, `tail`, `grep`, `find`, `wc`, `echo`, `tree`, `du`, `env`, `printenv`, `test`, `xargs`, `bash`, `tee`, `sed`, `jq`, `curl`, `xxd`, `awk`, `sort`, `uniq`, `diff`, `file`, `which`, `date`, `printf`, `true`, `false`
-- GitHub CLI: `gh:*`
-- Project-specific CLIs detected in Step 2
-- MCP tools found in `.mcp.json` (`mcp__<server>__<tool>`)
-- `Skill(...)` entries for skills present in `.claude/skills/`
-- `chmod:*`, `zstd:*`, `textutil:*`, `datafusion-cli:*` and other project build tools
+- `gh:*`, project CLIs from Step 2, MCP tools from `.mcp.json`, `Skill(...)` for skills in `.claude/skills/`
+- Build tools: `chmod:*`, `zstd:*`, `textutil:*`, `datafusion-cli:*`
 
 **PERSONAL** → keep in `settings.local.json`
-- `WebFetch(domain:...)` — all of them
-- `WebSearch`
-- `Bash(rm:*)`, `Bash(cp:*)`, `Bash(mv:*)` — filesystem mutations
-- `Bash(pip install:*)`, `Bash(pip3 install:*)`, `Bash(uv pip install:*)` — package installs
-- `Bash(codex:*)`, `Bash(claude:*)` — personal AI tools
-- `Read(//Users/...` or `Read(//home/...` — personal directory read access
-- Any tool the user has kept explicitly personal (ask if unclear)
+- `WebFetch(domain:...)`, `WebSearch`
+- Filesystem mutations: `Bash(rm:*)`, `Bash(cp:*)`, `Bash(mv:*)`
+- Package installs: `Bash(pip install:*)`, `Bash(pip3 install:*)`, `Bash(uv pip install:*)`
+- AI tools: `Bash(codex:*)`, `Bash(claude:*)`
+- Personal paths: `Read(//Users/...`, `Read(//home/...`
+- If unclear, ask the user; default to PERSONAL
 
-**GARBAGE** → delete entirely
-- Shell loop fragments saved as permissions: `Bash(for ...)`, `Bash(do)`, `Bash(done)`, `Bash(do ...:*)`, `Bash(if ...)`, `Bash(fi)`
-- Commit message fragments: entries containing `\nCo-Authored-By:`, `EOF`, or `\\)\"` mid-string
-- Entries that are clearly prose or partial sentences (e.g. `Bash(of slowing\"...)`)
-- Entries that are exact duplicates of another entry in either file
-- One-time-use specific commands now superseded by a wildcard (e.g. a specific `git log --oneline -5` once `git log:*` is present)
+**GARBAGE** → delete
+- Shell fragments: `Bash(for ...)`, `Bash(do)`, `Bash(done)`, `Bash(do ...:*)`, `Bash(if ...)`, `Bash(fi)`
+- Commit fragments: entries with `\nCo-Authored-By:`, `EOF`, `\\)\"` mid-string
+- Prose/partial sentences, exact duplicates, specifics superseded by existing wildcards
 
-### Step 4 — Consolidate PROJECT-SAFE rules
+### Step 4 — Consolidate into wildcards
 
-Group PROJECT-SAFE entries into wildcard rules. Prefer the broadest safe pattern:
-- Many `Bash(git status ...)`, `Bash(git log ...)`, `Bash(git add ...)` → one `Bash(git:*)` if all git operations were granted; otherwise individual `Bash(git status:*)` etc.
-- Many `Bash(git -C /specific/path ...)` → `Bash(git -C:*)`
+Group PROJECT-SAFE entries into broadest safe pattern:
+- Multiple `Bash(git status/log/add ...)` → `Bash(git:*)` if all git ops granted; else individual `Bash(git status:*)` etc.
+- Multiple `Bash(git -C /specific/path ...)` → `Bash(git -C:*)`
 - `Bash(uv run ...)`, `Bash(uv sync)`, `Bash(uv pip show:*)` → `Bash(uv:*)`
-- Multiple specific `.venv/bin/python` paths → `Bash(python:*)` + `Bash(python3:*)`
-- All `mcp__benchbox__*` tools → list each explicitly (MCP tools don't support wildcards)
-
-Do not consolidate into a wildcard if doing so would cover operations that were never granted (e.g. don't use `Bash(git:*)` if `git push` was never in the allow list).
+- Multiple `.venv/bin/python` paths → `Bash(python:*)` + `Bash(python3:*)`
+- MCP tools → list each explicitly (no wildcard support)
+- Don't wildcard beyond what was granted (e.g. no `Bash(git:*)` if `git push` never allowed)
 
 ### Step 5 — Merge into `settings.json`
 
-Add or update the `permissions.allow` array in `settings.json`. **Preserve all existing keys** (hooks, other settings). Never replace the whole file.
-
-```json
-{
-  "permissions": {
-    "allow": [
-      // consolidated PROJECT-SAFE rules
-    ]
-  },
-  "hooks": { ... }  // unchanged
-}
-```
-
-If `permissions.allow` already exists in `settings.json`, merge — deduplicate against existing entries.
+Update `permissions.allow` array. **Preserve all other keys** (hooks, etc.). Deduplicate against existing entries.
 
 ### Step 6 — Rewrite `settings.local.json`
 
-Replace the file with only PERSONAL entries, cleanly formatted. Verify it is valid JSON.
+Replace with PERSONAL entries only. Verify valid JSON.
 
 ### Step 7 — Validate
 
@@ -112,24 +98,83 @@ jq -e '.permissions.allow | length' .claude/settings.local.json
 
 Both must exit 0. Fix any JSON errors before proceeding.
 
-### Step 8 — Commit `settings.json` only
+### Step 8 — Cross-agent consistency check
 
-`settings.local.json` is gitignored — never stage it.
+#### 8a — Project trust parity
 
-Commit message format:
+| Agent | Check | Expected |
+|-------|-------|----------|
+| Claude | `.claude/settings.json` has `permissions.allow` | Present |
+| Codex | `~/.codex/config.toml` → `[projects."{cwd}"]` | `trust_level = "trusted"` |
+| Gemini | `~/.gemini/trustedFolders.json` → `"{cwd}"` | `"TRUST_FOLDER"` |
+
+#### 8b — MCP server parity
+
+Compare MCP servers across agents. Filter to servers relevant to this project (commands referencing project virtualenv or paths):
+- Claude: `.mcp.json` | Codex: `config.toml [mcp_servers.*]` | Gemini: `gemini mcp list` (skip if CLI absent)
+
+Report servers present in one but missing from another.
+
+#### 8c — Output summary
+
+```markdown
+### Cross-Agent Consistency
+| Check | Claude | Codex | Gemini | Status |
+|-------|--------|-------|--------|--------|
+| Project trusted | ✓/✗ | ✓/✗ | ✓/✗ | OK/GAP |
+| MCP: {server} | ✓/✗ | ✓/✗ | ✓/✗ | OK/GAP |
+```
+
+Command-level allowlist parity is not checked — Codex/Gemini use sandbox/approval models instead.
+
+### Step 9 — Commit
+
+Stage `.claude/settings.json` only (if changed). Never commit: `settings.local.json` (gitignored), `~/.codex/config.toml`, `~/.gemini/*.json` (all personal/global).
+
 ```
 chore(claude): consolidate permissions into project settings
 
-Add N trusted rules to settings.json: {brief summary of rule groups}.
-Removed ~N entries from settings.local.json (garbage + now-covered rules).
+Add N trusted rules to settings.json: {brief summary}.
+Removed ~N entries from settings.local.json (garbage + now-covered).
+Cross-agent: {consistency findings}.
 ```
 
 ---
 
 ## Audit
 
-Read both files. Categorize every entry (PROJECT-SAFE / PERSONAL / GARBAGE).
-Output a table — do not write any files.
+Read all config files. Categorize Claude entries. Report cross-agent state. Output tables, no file changes.
+
+```markdown
+## Permissions Audit
+
+### Claude Code — settings.local.json
+#### PROJECT-SAFE (N) — would move to settings.json
+| Entry | Consolidated as |
+|-------|----------------|
+
+#### PERSONAL (N) — stays in settings.local.json
+
+#### GARBAGE (N) — would delete
+| Entry | Reason |
+|-------|--------|
+
+### Claude Code — settings.json
+- N rules, {summary of groups}
+
+### Codex
+- Trust: {trusted/untrusted/not configured} | Sandbox: {mode} | MCP: {list}
+
+### Gemini
+- Trust: {TRUST_FOLDER/not configured} | Approval mode: {mode} | MCP: {list}
+
+### Cross-Agent Consistency
+| Check | Claude | Codex | Gemini | Status |
+|-------|--------|-------|--------|--------|
+
+### Recommendation
+Run `/tidy-perms consolidate` to apply.
+```
 
 ---
 
@@ -139,33 +184,14 @@ Output a table — do not write any files.
 
 Print the Actions table from this skill — action names, triggers, and descriptions.
 
-```markdown
-## Permissions Audit
-
-### PROJECT-SAFE (N) — would move to settings.json
-| Entry | Consolidated as |
-|-------|----------------|
-| ...   | ...             |
-
-### PERSONAL (N) — stays in settings.local.json
-- ...
-
-### GARBAGE (N) — would delete
-| Entry | Reason |
-|-------|--------|
-| ...   | ...    |
-
-### Recommendation
-Run `/permissions consolidate` to apply.
-```
-
 ---
 
 ## Rules
 
-- Never use `git add -A` — stage `settings.json` by explicit path only
+- Never `git add -A` — stage by explicit path only
 - Never commit `settings.local.json`
 - Never remove hooks or non-permission keys from `settings.json`
-- Do not add rules for: `git push --force`, `git reset --hard`, `git clean -f`, `rm -rf` — these should keep prompting
-- If `settings.local.json` does not exist or has no allow list, report and exit cleanly
-- If unsure whether an entry is PERSONAL or PROJECT-SAFE, keep it in PERSONAL
+- Never add: `git push --force`, `git reset --hard`, `git clean -f`, `rm -rf` — must keep prompting
+- No `settings.local.json` → report and exit (still run cross-agent checks)
+- Uncertain category → ask user; default to PERSONAL
+- Never modify `~/.codex/config.toml` or `~/.gemini/*.json` — read-only for audit/consistency

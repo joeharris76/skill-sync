@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lockedAt": "2026-04-22T12:43:29.276Z",
+  "lockedAt": "2026-04-22T12:49:53.580Z",
   "skills": {
     "blog": {
       "source": {
@@ -292,13 +292,13 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/tidy-perms",
-        "fetchedAt": "2026-04-22T12:43:29.192Z"
+        "fetchedAt": "2026-04-22T12:49:53.496Z"
       },
       "installMode": "mirror",
       "files": {
         "SKILL.md": {
-          "sha256": "38c078729a716637dc64a2d263f21fb2002543c53dd697fa237c60ce096cb0f0",
-          "size": 6466
+          "sha256": "c1e97ae40af3aeb84d09a0ccbcc15fad27254e75e5d32655d16d5552827933c9",
+          "size": 8406
         }
       }
     },
