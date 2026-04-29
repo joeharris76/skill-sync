@@ -15,7 +15,7 @@ Errors compound. A bug in step 3 that goes unfixed makes steps 4-10 wrong.
 
 ## Pre-Triage: Problem Reframe (L3)
 
-Before starting the checklist, apply SHARED/plan-deepening-framework.md L3: is the stated bug the actual constraint, or a symptom of something upstream? If the reframe changes the target, document it before proceeding.
+Before starting the checklist, apply SHARED/plan-deepening-framework/SKILL.md L3: is the stated bug the actual constraint, or a symptom of something upstream? If the reframe changes the target, document it before proceeding.
 
 ## Triage Checklist (in order, don't skip)
 

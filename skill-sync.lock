@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lockedAt": "2026-04-29T21:43:00.893Z",
+  "lockedAt": "2026-04-29T21:57:11.015Z",
   "skills": {
     "blog": {
       "source": {
@@ -38,7 +38,7 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/code",
-        "fetchedAt": "2026-04-29T21:43:00.854Z"
+        "fetchedAt": "2026-04-29T21:57:10.960Z"
       },
       "installMode": "mirror",
       "files": {
@@ -75,8 +75,8 @@
           "size": 2387
         },
         "SKILL.md": {
-          "sha256": "af3dfe343034989051104734920a08e54e4c8fe2a3ea2238136a93c3d0200c25",
-          "size": 7010
+          "sha256": "7933be41c179a667df363ea4b4a87f25df3576b57916e4a26033883a51a58148",
+          "size": 7029
         },
         "skill.yaml": {
           "sha256": "cb7a8c724fd0229a119d7c6e68fb2845e50aa69fe0652f8805a595abd161c87c",
@@ -326,13 +326,13 @@
         "type": "local",
         "name": "personal",
         "path": "/Users/joe/.skill-sync/skills/SHARED/debug-framework",
-        "fetchedAt": "2026-04-29T21:43:00.862Z"
+        "fetchedAt": "2026-04-29T21:57:10.973Z"
       },
       "installMode": "mirror",
       "files": {
         "SKILL.md": {
-          "sha256": "d2d572833962021546c998ba7a21c9a43b29415875f467d30709b4af8b75e806",
-          "size": 5428
+          "sha256": "a3f9c2da1d16b06f05b81614e6a9cfabf7212688b6e744c5ecac6c77fb43b5b7",
+          "size": 5434
         },
         "skill.yaml": {
           "sha256": "5a05145cb3c931665ea3b76d47bb4f46d7f33316f525076bdefd0df31cd44afb",

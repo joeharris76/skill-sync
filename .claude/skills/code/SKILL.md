@@ -11,7 +11,7 @@ Unified code development lifecycle operations.
 
 ## Project Configuration
 
-Read `.claude/skills/skill-sync.config.yaml` → `code` section. Provides: `lint`, `lint_fix`, `format`, `typecheck`, `verify` (shell commands), `line_length`, `review_checklist`, `perf_targets`. Fallback: `Makefile`, `package.json`, CLAUDE.md.
+Read `.claude/skills/skill-sync.config.yaml` → `code` section. Provides: `lint`, `lint_fix`, `format`, `typecheck`, `fast_test`, `verify` (shell commands), `line_length`, `review_checklist`, `perf_targets`. Fallback: `Makefile`, `package.json`, CLAUDE.md.
 
 ## Actions
 
@@ -53,7 +53,7 @@ Uses SHARED/commit-framework.md. Input: optional scope hint.
 
 Five-axis evaluation (Correctness, Readability, Architecture, Security, Performance; see `references/five-axis-review.md`). Classify: Critical, Required, Nit, Consider. Use config `review_checklist` or defaults. **Output**: severity table, five-axis scores, "What's Done Well", action items.
 
-**Blind Spot Audit (L2)**: After producing the severity table, apply SHARED/plan-deepening-framework.md L2 — name what class of issue the five-axis framework fails to catch for *this specific type of change* and add any gaps to action items.
+**Blind Spot Audit (L2)**: After producing the severity table, apply SHARED/plan-deepening-framework/SKILL.md L2 — name what class of issue the five-axis framework fails to catch for *this specific type of change* and add any gaps to action items.
 
 **`--chain`**: research → implement → smoke-verify → full verify → commit per issue group (bugs, security, error handling, performance; skip style). Output: changes made vs deferred.
 
