@@ -18,6 +18,7 @@ skills:
   - SHARED/shrink-framework
   - SHARED/context-guide
   - SHARED/debug-framework
+  - SHARED/plan-deepening-framework
   - SHARED/slicing-framework
 targets:
   claude: .claude/skills

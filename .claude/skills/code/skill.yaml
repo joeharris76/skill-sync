@@ -7,6 +7,7 @@ depends:
   - SHARED/context-guide
   - SHARED/debug-framework
   - SHARED/slicing-framework
+  - SHARED/plan-deepening-framework
 config_inputs:
   - key: code.lint
     type: string

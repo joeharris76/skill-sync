@@ -11,13 +11,7 @@ Unified code development lifecycle operations.
 
 ## Project Configuration
 
-Read `.claude/skills/skill-sync.config.yaml` → `code` section at project root. Provides:
-- `lint`, `lint_fix`, `format`, `typecheck`, `fast_test`, `verify` — shell commands
-- `line_length` — max line length for review
-- `review_checklist` — project-specific review items
-- `perf_targets` — scale/target pairs for performance benchmarks
-
-If missing, discover from `Makefile`, `package.json`, CLAUDE.md, or common conventions.
+Read `.claude/skills/skill-sync.config.yaml` → `code` section. Provides: `lint`, `lint_fix`, `format`, `typecheck`, `verify` (shell commands), `line_length`, `review_checklist`, `perf_targets`. Fallback: `Makefile`, `package.json`, CLAUDE.md.
 
 ## Actions
 
@@ -27,7 +21,7 @@ If missing, discover from `Makefile`, `package.json`, CLAUDE.md, or common conve
 | `review` | "review code", "code review" | Five-axis adversarial code review |
 | `fix` | "fix lint", "fix type error" | Fix code errors |
 | `debug` | "debug error", "triage bug", "why is this failing" | Systematic root-cause debugging |
-| `iterate` | "iterate to green", "drive tests to green", "make command pass", "rerun until passing" | Loop command → debug failures → fix → re-run, until green, blocked, or capped |
+| `iterate` | "iterate to green", "drive tests to green", "drive command to green", "rerun until passing" | Loop command → debug failures → fix → re-run, until green, blocked, or capped |
 | `perf` | "improve performance", "profile" | Investigate/improve performance |
 | `research` | "investigate code", "understand this" | Research code path before changes |
 | `compare` | "compare code", "diff modules" | Semantic code comparison |
@@ -55,21 +49,13 @@ Uses SHARED/commit-framework.md. Input: optional scope hint.
 
 ## Review
 
-**Input**: Path, directory, "staged", "recent", "pr", topic, or empty
+**Input**: Path, directory, "staged" (git diff --cached), "recent" (HEAD~5), "pr" (main...HEAD), topic, or empty
 
-| Input | Command |
-|-------|---------|
-| `staged` | `git diff --cached` |
-| `recent` | `git diff HEAD~5` |
-| `pr` | `git diff main...HEAD` |
+Five-axis evaluation (Correctness, Readability, Architecture, Security, Performance; see `references/five-axis-review.md`). Classify: Critical, Required, Nit, Consider. Use config `review_checklist` or defaults. **Output**: severity table, five-axis scores, "What's Done Well", action items.
 
-**Five-Axis Review** (see `references/five-axis-review.md`): Evaluate across Correctness, Readability, Architecture, Security, Performance. Classify findings as Critical (blocks merge), Required (must address), Nit (optional), or Consider (suggestion). See also: `references/security-checklist.md` for the security axis.
+**Blind Spot Audit (L2)**: After producing the severity table, apply SHARED/plan-deepening-framework.md L2 — name what class of issue the five-axis framework fails to catch for *this specific type of change* and add any gaps to action items.
 
-Use config `review_checklist` if present for project-specific items. Defaults: Architecture (inheritance, module structure), Quality (type hints, docstrings, error handling, line length <= config `line_length`), Security (no credentials, parameterized queries, safe file ops), Performance (no O(n²), appropriate data structures, no N+1).
-
-**Output**: Issue table with severity, five-axis scores, "What's Done Well" section, action items.
-
-**`--chain`**: Fix each actionable issue group (bugs, security, error handling, performance — skip style/opinion): research → implement → smoke-verify that group → repeat for the next group → full verify → commit. Output: changes made vs issues deferred.
+**`--chain`**: research → implement → smoke-verify → full verify → commit per issue group (bugs, security, error handling, performance; skip style). Output: changes made vs deferred.
 
 ---
 
@@ -100,17 +86,13 @@ Uses SHARED/debug-framework.md, SHARED/context-guide.md (trust levels, confusion
 
 ## Iterate
 
-**Input**: A command to drive to green, e.g. `"./scripts/local_stress_test.sh --scale 1 --platform doris"`, `"uv run -- python -m pytest tests/integration/"`, `"make test-all"`.
+**Input**: Command to drive to green (e.g., `uv run -- python -m pytest tests/integration/`, `make test-all`).
 
-Loop: run command → parse failures → cluster by signature (same error class + unit type) → per cluster invoke `/code debug` + apply fix + narrow re-verify + `/code review` + `/code commit` → re-run full command. Terminate on green, on all-remaining-failures-are-hard-blocked (per debug-framework), or on `--max-iterations` cap.
+Loop: run → parse failures → cluster by signature (same error class + unit type) → per cluster: `/code debug` + fix + narrow re-verify + `/code review` + `/code commit` → re-run. Terminate: green, all-remaining-failures hard-blocked, or `--max-iterations` cap.
 
-**Flags**: `--max-iterations N` (default 20), `--narrow "<cmd>"` (explicit minimal-repro command), `--dry-run`. Advanced flags are defined in `references/iterate.md`.
+**Flags**: `--max-iterations N` (default 20), `--narrow "<cmd>"` (minimal repro), `--dry-run`. See `references/iterate.md` for advanced flags.
 
-**Artifacts**: `_project/iterate/<slug>/run<N>.log`, `status.md` (overwritten), `blockers.md` (append).
-
-**Commit behavior**: Iterate commits inside the loop, one logical fix per cluster. Do not add an extra final aggregate commit after green unless new uncommitted changes exist after the last per-cluster commit.
-
-See `references/iterate.md` for the full loop spec, failure-clustering rules, blocker-record format, and anti-patterns.
+**Artifacts**: `_project/iterate/<slug>/run<N>.log`, `status.md`, `blockers.md`. **Commit behavior**: one per cluster, no final aggregate unless new changes exist. Push all commits on termination.
 
 ---
 
@@ -118,71 +100,49 @@ See `references/iterate.md` for the full loop spec, failure-clustering rules, bl
 
 **Input**: Path, "profile {cmd}", "benchmark {test}", "hotspots"
 
-Steps: Baseline (`time.perf_counter()`, tracemalloc) → Profile (`uv run -- python -m cProfile -s cumulative {script}`) → Identify bottlenecks (CPU, I/O, memory, database) → Optimize (algorithm, caching, parallelization) → Measure improvement, verify correctness.
-
-Use config `perf_targets` for scale/target thresholds if present.
+Baseline (time.perf_counter, tracemalloc) → Profile (uv run -- python -m cProfile) → Identify bottlenecks (CPU, I/O, memory, DB) → Optimize → Measure. Use config `perf_targets` if present.
 
 ---
 
 ## Research
 
-**Input**: Path, error message, "trace {function}", module name, or empty. Uses SHARED/research-framework.md and SHARED/context-guide.md (trust levels, progressive disclosure).
+**Input**: Path, error message, "trace {func}", module, or empty.
 
-Steps: Scope investigation → Read target files + callers/tests → Trace data/control flow → Output: current behavior, dependencies, test coverage, risk assessment. For removal/replacement investigations, see `references/deprecation-patterns.md`.
-
-Auto-invoked as prerequisite by Fix, Review (`--chain`), and Perf.
+Scope → Read target + callers/tests → Trace data/control flow → Output: behavior, dependencies, test coverage, risk. Auto-invoked by Fix, Review (`--chain`), Perf. See SHARED/research-framework.md, SHARED/context-guide.md.
 
 ---
 
 ## Compare
 
-**Input**: `{file_a} {file_b}`. Uses SHARED/compare-framework.md.
-
-Steps: Extract contracts + dependencies from BOTH files (PARALLEL Task calls) → Compare contract sets AND dependency graphs → Calculate behavioral equivalence (contract 40% + dependency 40% + flow 20%).
+**Input**: `{file_a} {file_b}`. Extract contracts + dependencies (parallel) → Compare → Behavioral equivalence score (contract 40%, dependency 40%, flow 20%).
 
 | Score | Interpretation |
-|-------|----------------|
+|-------|---|
 | ≥0.95 | Safe refactor |
-| 0.85-0.94 | Review carefully |
+| 0.85–0.94 | Review carefully |
 | <0.70 | Breaking change |
-
-See `references/compare.md` for full details.
 
 ---
 
 ## Shrink
 
-**Input**: File path. Uses SHARED/shrink-framework.md.
-
-Steps: Validate file type → Save baseline (once) → Invoke compression agent → Validate via `/code compare original compressed` → If score ≥ 0.95 AND tests pass, approve; if < 0.95, iterate (max 3).
-
-See `references/shrink.md` for allowed/forbidden types and full details.
+**Input**: File path. Validate type → Save baseline → Compress → Compare (≥0.95 & tests pass = approve; <0.95 = iterate max 3). See SHARED/shrink-framework.md.
 
 ---
 
 ## To-Spec
 
-**Input**: File path, module, class, "api", "architecture"
+**Input**: File path, module, class, "api", "architecture".
 
-Steps: Parse structure, extract docstrings → Identify public vs private APIs → Map dependencies.
-
-**Extract**: Classes (hierarchy, attributes, methods), Functions (signature, parameters, return, exceptions), Modules (exports, constants).
-
-**Output**: Markdown spec with interface, behavior, dependencies, config, examples. See `references/to-spec.md` for template.
+Parse structure, extract docstrings → Identify public/private APIs → Map dependencies. Output: Markdown spec (interface, behavior, dependencies, config, examples).
 
 ---
 
 ## Handoff
 
-**Input**: Optional scope, `--task`, `--compact`, or empty
+**Input**: Optional scope, `--task`, `--compact`, or empty.
 
-Steps: Review session (files modified, decisions, problems, tests) → Identify incomplete work, known issues, next steps.
-
-**Output**: Branch + files modified (with change descriptions), key decisions/rationale, current state (works/broken/blocked), next steps (priority order), verification commands, warnings/gotchas.
-
-**Flags**: `--task` creates a Task with handoff content. `--compact` gives single-paragraph summary (<300 words).
-
-See `references/handoff.md` for templates.
+Review session → Identify incomplete work, known issues, next steps. **Output**: files modified, decisions, current state (works/broken/blocked), next steps, verification cmds, gotchas. **Flags**: `--task` creates Task, `--compact` gives <300-word summary.
 
 ---
 

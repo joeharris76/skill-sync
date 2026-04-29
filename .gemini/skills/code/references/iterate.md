@@ -30,7 +30,13 @@ For each distinct failure cluster:
   4. /code review  (diff only)
   5. /code commit  (one logical fix)
     |
-All remaining clusters hard-blocked?
+Any unresolved clusters?
+    | no (all fixed this pass)
+    +---------------------> Re-run full command (expecting green)
+    |
+   yes
+    |
+All unresolved clusters hard-blocked?
     | yes
     +---------------------> exit 1 (blocked)
     |
@@ -89,7 +95,7 @@ Invoke `/code debug` with the error message, log path, and cluster members. It e
 
 ### 5. Narrow Re-verify
 
-Verify the fix against the minimal failing case (single test, single benchmark, smaller scale factor) before re-running the full command. Use `--narrow <cmd>` if supplied, otherwise derive from the failing unit (e.g. `pytest -k <test_name>`). Only proceed when it passes.
+Verify the fix against the minimal failing case (single test, single benchmark, smaller scale factor) before re-running the full command. Use `--narrow <cmd>` if supplied, otherwise derive from the failing unit (e.g. `pytest -k <test_name>`). Only proceed when it passes. If it fails, re-enter step 4 with the updated diagnosis — the fix was wrong or incomplete; do not skip to commit.
 
 ### 6. Review + Commit
 

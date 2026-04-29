@@ -1,3 +1,5 @@
+depends:
+  - SHARED/plan-deepening-framework
 tags:
   - framework
 category: framework
