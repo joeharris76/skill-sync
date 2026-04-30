@@ -178,14 +178,6 @@ Run `/tidy-perms consolidate` to apply.
 
 ---
 
-## Help
-
-**Input**: Empty
-
-Print the Actions table from this skill — action names, triggers, and descriptions.
-
----
-
 ## Rules
 
 - Never `git add -A` — stage by explicit path only

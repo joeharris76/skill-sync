@@ -7,13 +7,13 @@ tools: Bash, Read, Write, Edit
 
 # skill-sync Workflow
 
-Manage AI agent skills across projects — sync, validate, and maintain shared skill libraries.
+Sync, validate, and maintain shared AI-agent skill libraries.
 
 ## Project Configuration
 
-skill-sync uses `skill-sync.yaml` at the project root as the manifest. Run `skill-sync doctor` to check configuration health.
+`skill-sync.yaml` at the project root is the manifest. Run `skill-sync doctor` for health checks.
 
-Key files:
+Files:
 - `skill-sync.yaml` — manifest: sources, skills, targets, install mode, config overrides
 - `skill-sync.lock` — integrity checksums (auto-generated)
 - `skill.yaml` — per-skill package descriptor (inside each skill directory)
@@ -21,11 +21,11 @@ Key files:
 
 ## Repo Hygiene
 
-Treat synced skill directories and generated sync artifacts as repository content unless they are explicitly ignored by `.gitignore`.
+Treat synced skill directories and generated artifacts as repo content unless ignored.
 
 - Before `skill-sync sync` begins, check `git status --short`.
-- If skill directories, `skill-sync.yaml`, `skill-sync.lock`, or generated `skill-sync.config.yaml` files have uncommitted changes and those paths are not ignored by `.gitignore`, stop and get them committed before syncing.
-- After `skill-sync sync` ends, review the tracked changes it produced and commit them before moving on to unrelated work.
+- If managed paths have uncommitted tracked changes, stop and commit them before syncing.
+- After `skill-sync sync`, review and commit produced tracked changes before unrelated work.
 - If a skill path should stay local-only, add it to `.gitignore` before syncing rather than leaving it dirty.
 
 ## Actions
@@ -48,37 +48,32 @@ Treat synced skill directories and generated sync artifacts as repository conten
 
 ## Setup
 
-**Input**: Empty (auto-detect), or project path
+**Input**: Empty (auto-detect) or project path
 
-Bootstraps skill-sync in a project that already has skills but no `skill-sync.yaml`.
+Bootstrap a project that has skills but no `skill-sync.yaml`.
 
 **Steps**:
-1. Check for skill-sync installation:
+1. Check installation:
    ```bash
    skill-sync --version
    ```
-   If not found, instruct the user to install: `npm install -g skill-sync`
+   If missing: `npm install -g skill-sync`
 
-2. Scan for existing skill directories:
+2. Scan existing skills:
    ```bash
    find .claude/skills -name "SKILL.md" -maxdepth 3 2>/dev/null
    find .codex/skills -name "SKILL.md" -maxdepth 3 2>/dev/null
    ```
 
-3. Detect sources without assuming a machine-global path:
-   - inspect the discovered project-local skill directories first
-   - if an existing `skill-sync.yaml` or other project config is present, reuse its declared sources
-   - if the upstream source cannot be inferred from the repo itself, ask the user which shared directory or repository should back the generated manifest
+3. Detect sources from project-local skills/config first. If upstream cannot be inferred, ask which shared directory or repository should back the manifest.
 
-4. Generate `skill-sync.yaml` manifest with discovered skills, sources, and targets.
-   Use `mirror` as the default install mode. Include all target directories found
-   (`.claude/skills`, `.codex/skills`).
+4. Generate `skill-sync.yaml` with discovered skills, sources, and targets. Default to `mirror`; include found target dirs (`.claude/skills`, `.codex/skills`).
 
 5. Run initial sync to establish the lock file:
    ```bash
    skill-sync sync --dry-run --json
    ```
-   Show the plan to the user. If approved:
+   Show the plan. If approved:
    ```bash
    skill-sync sync
    ```
@@ -107,7 +102,7 @@ Behavior:
 - Detects drift and reports conflicts before overwrite
 - Materializes to all configured targets
 - Updates `skill-sync.lock` and generates `skill-sync.config.yaml`
-- Requires commit hygiene: unless managed skill paths are ignored by `.gitignore`, commit pending skill changes before sync and commit resulting tracked changes after sync
+- Requires commit hygiene for tracked managed paths before and after sync
 
 If conflicts are reported, explain the options:
 1. `skill-sync promote` — push local changes upstream first
@@ -222,42 +217,6 @@ In v0, promotion is a manual workflow:
 
 ---
 
-## Help
-
-**Input**: Empty
-
-Print the Actions table from this skill — action names, triggers, and descriptions.
-
----
-
 ## Global Flags
 
-All commands support:
-
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--json` | `-j` | Machine-readable JSON output |
-| `--project <path>` | `-p` | Project root (default: current directory) |
-| `--help` | `-h` | Show help text |
-
----
-
-## Output Format
-
-```markdown
-## skill-sync {Action}
-
-### Summary
-{what was done}
-
-### Details
-{action-specific content — plan, diagnostics, validation results}
-
-### Status
-- Installed: X skills
-- Updated: Y skills
-- Conflicts: Z (if any)
-
-### Next Steps
-- {recommendation}
-```
+All commands support `--json`/`-j`, `--project <path>`/`-p`, and `--help`/`-h`.

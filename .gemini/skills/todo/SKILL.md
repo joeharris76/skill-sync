@@ -39,9 +39,7 @@ TODO_INDEX="uv run --project ~/.claude/tools/todo todo-index"
 
 See `references/structure.md` for system layout and item format.
 
-**IMPORTANT — Auto-commit rule:** After any write action (create, prioritize, implement, complete,
-from-spec) completes and passes verification, ALWAYS run the Cleanup step, commit, and push before
-returning to the user. Do not wait for the user to request a commit. This is mandatory, not optional.
+**Auto-commit:** After write actions pass verification, run Cleanup and push before returning.
 
 ---
 
@@ -241,11 +239,3 @@ $TODO_CLI check-graph             # Validate graphs
 $TODO_VALIDATE {path}             # Validate schema
 $TODO_INDEX                       # Regenerate indexes
 ```
-
----
-
-## Help
-
-**Input**: Empty
-
-Print the Actions table from this skill — action names, triggers, and descriptions.

@@ -5,13 +5,13 @@ description: Unified identify-verify-stage-commit workflow for skill-driven comm
 
 # Commit Framework
 
-Unified identify-verify-stage-commit logic for all skills.
+Identify, verify, stage, commit, and push for skill-driven changes.
 
 ## Parameters (from calling skill)
 
 | Parameter | Description |
 |-----------|-------------|
-| **file_scope** | How to discover files (session-modified, directory, git status filter) |
+| **file_scope** | File discovery rule |
 | **prefix** | Commit type (`feat`/`fix`/`refactor`/`docs`/`test`/`chore`) |
 | **verify_cmd** | Pre-commit verification command(s) |
 
@@ -36,7 +36,7 @@ Unified identify-verify-stage-commit logic for all skills.
 ## Rules
 
 - **NEVER** `git add -A` — only commit discovered files
-- **ALWAYS** `git add` and `git commit` in single shell command (prevents parallel agent conflicts)
+- **ALWAYS** `git add` and `git commit` in one shell command
 - **ALWAYS** `git push` after a successful commit — local-only commits risk data loss
 - Conventional Commits format
 - If verification fails and can't auto-fix, report and do NOT commit

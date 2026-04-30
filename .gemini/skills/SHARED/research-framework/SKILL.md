@@ -5,11 +5,11 @@ description: Pre-edit investigation workflow for understanding code and behavior
 
 # Research Framework
 
-Mandatory investigation before proposing or implementing changes.
+Mandatory pre-edit investigation.
 
 ## When Required
 
-- Before ANY code fix (runtime, lint, type errors)
+- Before any code fix (runtime, lint, type)
 - Before implementing review findings (`--chain`)
 - Before performance changes
 - Standalone via `/code research`
@@ -34,21 +34,9 @@ Mandatory investigation before proposing or implementing changes.
 
 ```markdown
 ## Research: {scope}
-
-### Files Examined
-- {file:line — role}
-
-### Current Behavior
-{2-3 sentences}
-
-### Dependencies
-- {upstream}: {how it feeds in}
-- {downstream}: {what depends on it}
-
-### Test Coverage
-- {test file}: {coverage}
-- **Gaps**: {untested paths}
-
-### Risk Assessment
-- {what could break}
+Files: {file:line — role}
+Behavior: {2-3 sentences}
+Dependencies: {upstream/downstream}
+Coverage: {tests + gaps}
+Risks: {what could break}
 ```

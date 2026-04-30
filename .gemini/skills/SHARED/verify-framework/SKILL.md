@@ -5,7 +5,7 @@ description: Post-edit verification workflow for lint, typecheck, tests, and spo
 
 # Post-Edit Verification Framework
 
-Run BEFORE staging/committing. Hooks handle per-edit lint; this handles full-suite verification.
+Run before staging/committing. Hooks handle per-edit lint; this handles full-suite verification.
 
 ## Checks
 
@@ -17,7 +17,7 @@ Run BEFORE staging/committing. Hooks handle per-edit lint; this handles full-sui
 
 ## Post-Edit Spot Check
 
-After every Edit, read back edited region (+5 lines context) to confirm:
+After every edit, read back edited region (+5 lines) to confirm:
 - No mixed indentation
 - Correct nesting level
 - No orphaned lines from partial edits
@@ -25,9 +25,9 @@ After every Edit, read back edited region (+5 lines context) to confirm:
 
 ## Rules
 
-1. Never skip verification. If no commands exist, note in output.
-2. If ANY check fails, fix before proceeding.
-3. Report results:
+1. Never skip verification; if no commands exist, note it.
+2. If any check fails, fix before proceeding.
+3. Report:
 
 ```markdown
 ### Verification

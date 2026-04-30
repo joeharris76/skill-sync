@@ -5,15 +5,15 @@ description: Validation-driven compression workflow that requires semantic compa
 
 # Validation-Driven Compression Framework
 
-Every compression MUST be validated via compare framework. No manual checks.
+Every compression must be validated by compare framework.
 
 ## Workflow
 
-1. **Validate Type** — Check artifact is allowed (see per-skill reference for allowed/forbidden types)
-2. **Save Baseline** — Store original (once, reuse across iterations)
-3. **Compress** — Invoke compression agent via Task tool
-4. **Validate** — Compare compressed vs baseline using compare framework
-5. **Decision** — Score meets threshold? Approve. Otherwise iterate.
+1. **Validate Type** — allowed/forbidden per skill
+2. **Save Baseline** — once, reuse across iterations
+3. **Compress** — invoke compression agent
+4. **Validate** — compare compressed vs baseline
+5. **Decide** — approve if score meets threshold; otherwise iterate
 
 ## Type Validation
 
@@ -22,7 +22,7 @@ Every compression MUST be validated via compare framework. No manual checks.
 
 ## Compression Agent Template
 
-Use Task tool with `subagent_type: "general-purpose"`:
+Task template:
 
 ```
 **COMPRESSION TASK**
@@ -48,8 +48,7 @@ Same inputs -> same outputs, same side effects, same error handling.
 - Defensive code for impossible conditions
 
 ## Output
-Read file, compress, USE WRITE TOOL to save compressed version.
-CRITICAL: Actually write the file.
+Read file, compress, and save the compressed version.
 ```
 
 ## Validation Loop
@@ -80,8 +79,7 @@ CRITICAL: Actually write the file.
 **Task**: Restore equivalence while maintaining compression.
 **Original**: {baseline_path}
 **Previous**: {version_path}
-Focus: restore contracts, fix dependencies, maintain error handling.
-CRITICAL: USE WRITE TOOL to save revised version.
+Focus: restore contracts/dependencies/error handling and save the revision.
 ```
 
 ## Versioning
@@ -113,8 +111,8 @@ COMPRESSED="/tmp/compressed-{filename}-v${VERSION}.{ext}"
 
 ## Cleanup
 
-**On success**: `rm /tmp/compressed-{filename}-v*.{ext}` (keep baseline for future iterations)
-**On user done**: `rm /tmp/original-{filename} /tmp/shrink-{filename}-version.txt`
+**On success**: remove compressed temp versions; keep baseline for future iterations.
+**On user done**: remove baseline and version temp files.
 
 ## Edge Cases
 
@@ -129,5 +127,4 @@ COMPRESSED="/tmp/compressed-{filename}-v${VERSION}.{ext}"
 ## Rules
 
 - Use Task tool with `subagent_type: "general-purpose"` for compression
-- CRITICAL: Agent must USE WRITE TOOL to save compressed version
 - See per-skill `references/shrink.md` for type-specific allowed/forbidden lists, preserve/remove rules, compression techniques, and edge cases

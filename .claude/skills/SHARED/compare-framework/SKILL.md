@@ -5,7 +5,7 @@ description: Compare two artifacts for semantic and behavioral equivalence.
 
 # Semantic Comparison Framework
 
-Compare two artifacts (code, documents, configs) for behavioral/execution equivalence.
+Compare artifacts for behavioral/execution equivalence.
 
 ## Workflow
 
@@ -15,7 +15,7 @@ Compare two artifacts (code, documents, configs) for behavioral/execution equiva
 4. Calculate equivalence score
 5. Generate report with shared/unique items, warnings
 
-**CRITICAL**: Steps 1-2 MUST run in parallel (single message, two Task calls). Extract independently — NEVER pre-populate with "items to verify" or prime with change knowledge. Targeted validation inflates scores.
+**Critical:** Run steps 1-2 in parallel. Extract independently; never prime with expected changes or "items to verify."
 
 ## Comparison Rules
 
@@ -33,7 +33,7 @@ Compare two artifacts (code, documents, configs) for behavioral/execution equiva
 | 0.70-0.84 | Significant differences |
 | <0.70 | BREAKING - not equivalent |
 
-Scoring formula: `primary 40% + relationship 40% + structure 20%`. Breaking changes apply 0.5x penalty; critical relationship loss applies 0.7x penalty.
+Score = `primary 40% + relationship 40% + structure 20%`; breaking change = 0.5x, critical relationship loss = 0.7x.
 
 ## Warning Severities
 
@@ -46,14 +46,13 @@ Scoring formula: `primary 40% + relationship 40% + structure 20%`. Breaking chan
 
 ## Extraction Agent Template
 
-Use Task tool with `subagent_type: "general-purpose"`:
+Task template:
 
 ```
 **SEMANTIC EXTRACTION**
 **Artifact**: {{path}} | **Type**: {{code|document|config}}
 
-Extract ALL {{type-specific items}} from this artifact.
-Rules: Extract ALL items (not just obvious), normalize to standard forms, include line numbers, note confidence level.
+Extract ALL {{type-specific items}}; normalize forms, include line numbers, note confidence.
 Output (JSON): { "items": [...], "relationships": [...], "metadata": {...} }
 ```
 
@@ -67,4 +66,4 @@ Output (JSON): { "items": [...], "relationships": [...], "metadata": {...} }
 ## Rules
 
 - Execute both extractions in a single message with TWO Task calls
-- See per-skill `references/compare.md` for report templates, scoring formulas, and domain-specific extraction categories
+- See per-skill `references/compare.md` for templates and domain extraction categories

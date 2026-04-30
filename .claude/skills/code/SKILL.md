@@ -30,9 +30,7 @@ Read `.claude/skills/skill-sync.config.yaml` → `code` section. Provides: `lint
 | `handoff` | "create handoff", "session summary" | Generate continuation prompt |
 | `help` | "help", "list actions" | Print available actions |
 
-**IMPORTANT — Auto-commit rule:** After any write action (fix, debug, perf, review `--chain`, shrink)
-completes and passes verification, ALWAYS run the Commit step, commit, and push before returning
-to the user. Do not wait for the user to request a commit. This is mandatory, not optional.
+**Auto-commit:** After write actions pass verification, run Commit and push before returning.
 
 ---
 
@@ -143,11 +141,3 @@ Parse structure, extract docstrings → Identify public/private APIs → Map dep
 **Input**: Optional scope, `--task`, `--compact`, or empty.
 
 Review session → Identify incomplete work, known issues, next steps. **Output**: files modified, decisions, current state (works/broken/blocked), next steps, verification cmds, gotchas. **Flags**: `--task` creates Task, `--compact` gives <300-word summary.
-
----
-
-## Help
-
-**Input**: Empty
-
-Print the Actions table from this skill — action names, triggers, and descriptions.

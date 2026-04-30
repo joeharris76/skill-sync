@@ -5,7 +5,7 @@ description: "Build multi-file changes in thin vertical slices: implement, test,
 
 # Slicing Framework
 
-Build multi-file changes in thin vertical slices: implement, test, verify, commit, repeat.
+Build changes in thin vertical slices: implement, test, verify, commit, repeat.
 
 ## When Required
 
@@ -23,11 +23,11 @@ Ask: "What is the simplest thing that could work?"
 | Abstract factory for two similar components | Two components with shared utilities |
 | Config-driven form builder for three forms | Three form components |
 
-Three similar lines > premature abstraction. Implement naive-correct first, optimize after tests prove correctness.
+Three similar lines beat premature abstraction. Implement naive-correct first; optimize after tests prove correctness.
 
 ## Rule 0.5: Scope Discipline
 
-Touch only what the task requires. Do NOT clean up adjacent code, refactor unmodified files, remove comments you don't understand, or add features not in scope. If you notice improvements, surface them:
+Touch only task-required code. Do not clean adjacent code, refactor unmodified files, remove unclear comments, or add out-of-scope features. Surface extras:
 
 ```
 NOTICED BUT NOT TOUCHING: {issue} -> Want me to create a task?
@@ -49,7 +49,7 @@ Each slice delivers working end-to-end functionality.
 Implement -> Test -> Verify -> Commit -> Next slice
 ```
 
-After each increment: all tests pass, build succeeds, types check, new functionality works, change is committed.
+After each increment: tests pass, build/types succeed, functionality works, change is committed.
 
 ## Rules
 
