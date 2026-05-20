@@ -8,6 +8,8 @@
 import { resolve, join } from "node:path";
 import { writeFile, readFile, access, constants } from "node:fs/promises";
 import { homedir } from "node:os";
+import { exec, execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { readManifest, serializeManifest } from "./manifest.js";
 import {
   readLockFile,
@@ -41,6 +43,9 @@ import type {
   ResolvedSkill,
 } from "./types.js";
 import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
+
+const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // ---------------------------------------------------------------------------
 // Sync
@@ -166,6 +171,8 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
         conflicts: plan.conflicts,
       };
     }
+
+    await runBeforeSyncHooks(projectRoot, manifest.hooks.beforeSync);
 
     // Apply: materialize installs, updates, and forced conflicts
     const updatedLock = { ...lockFile, skills: { ...lockFile.skills } };
@@ -704,6 +711,7 @@ async function registerProjectInSources(
   sources: import("./types.js").SourceConfig[],
 ): Promise<void> {
   const expandHome = (p: string) => p.replace(/^~/, homedir());
+  const isLinkedWorktree = await isLinkedGitWorktree(projectRoot);
   for (const source of sources) {
     if (source.type !== "local" || !source.path) continue;
     const sourcePath = expandHome(source.path);
@@ -712,6 +720,10 @@ async function registerProjectInSources(
     const sourceManifestPath = join(sourceRoot, "skill-sync.yaml");
     try {
       const sourceManifest = await readManifest(sourceRoot);
+      if (!sourceManifest.projectRegistry.autoRegister) continue;
+      if (isLinkedWorktree && !sourceManifest.projectRegistry.includeWorktrees) {
+        continue;
+      }
       const existing = sourceManifest.projects ?? [];
       // Normalize projectRoot to use ~ when it's under the home directory
       const homeDir = homedir();
@@ -726,6 +738,53 @@ async function registerProjectInSources(
     } catch {
       // Source has no manifest or isn't writable — silently skip
     }
+  }
+}
+
+async function runBeforeSyncHooks(
+  projectRoot: string,
+  commands: string[],
+): Promise<void> {
+  for (const command of commands) {
+    try {
+      await execAsync(command, {
+        cwd: projectRoot,
+        maxBuffer: 1024 * 1024,
+      });
+    } catch (err) {
+      const detail = formatHookFailureDetail(err);
+      throw new Error(
+        `before_sync hook failed: ${command}${detail ? `\n${detail}` : ""}`,
+      );
+    }
+  }
+}
+
+function formatHookFailureDetail(err: unknown): string {
+  if (!err || typeof err !== "object") return "";
+  const parts: string[] = [];
+  if ("stdout" in err && typeof err.stdout === "string" && err.stdout.trim()) {
+    parts.push(`stdout:\n${err.stdout.trim()}`);
+  }
+  if ("stderr" in err && typeof err.stderr === "string" && err.stderr.trim()) {
+    parts.push(`stderr:\n${err.stderr.trim()}`);
+  }
+  return parts.join("\n");
+}
+
+async function isLinkedGitWorktree(projectRoot: string): Promise<boolean> {
+  try {
+    const [{ stdout: topStdout }, { stdout: commonStdout }] = await Promise.all([
+      execFileAsync("git", ["-C", projectRoot, "rev-parse", "--show-toplevel"]),
+      execFileAsync("git", ["-C", projectRoot, "rev-parse", "--git-common-dir"]),
+    ]);
+    const top = resolve(topStdout.trim());
+    const commonDir = commonStdout.trim();
+    const commonAbs = resolve(top, commonDir);
+    const primaryClone = resolve(commonAbs, "..");
+    return top !== primaryClone;
+  } catch {
+    return false;
   }
 }
 

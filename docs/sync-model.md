@@ -96,6 +96,11 @@ The system should distinguish:
 Conflicts should be surfaced before overwrite. Silent destructive sync is out of
 scope.
 
+Generated target directories are mirrors, not canonical source. Local edits in a
+generated mirror must either be promoted back to the configured source or
+explicitly overwritten with `--force`; ordinary sync must not silently replace
+locked drift or untracked pre-existing skill directories.
+
 ## Apply Semantics
 
 The apply phase should strive for:
@@ -112,6 +117,17 @@ Dry-run output should be first-class. Users should be able to see:
 - which will be removed
 - where conflicts exist
 - how lock/state files will change
+
+Dry-run should still resolve manifests and sources. Missing source skills,
+malformed manifests, parse errors, drift errors, and permission errors are hard
+failures in dry-run; only a missing manifest is a no-op.
+
+## Project-Local Hooks
+
+Projects can configure `hooks.before_sync` to run repository-specific checks
+before non-dry-run mutation. This is intentionally local configuration: policies
+such as worktree write preflights should live in the project that needs them,
+not in shared/global agent instructions or generic skill behavior.
 
 ## Why This Is Different
 

@@ -29,6 +29,12 @@ config:
 overrides:
   code:
     install_mode: symlink
+hooks:
+  before_sync:
+    - make agent-write-preflight
+project_registry:
+  auto_register: true
+  include_worktrees: true
 `;
     const manifest = parseManifest(yaml);
 
@@ -45,6 +51,8 @@ overrides:
     expect(manifest.installMode).toBe("mirror");
     expect(manifest.config.code).toEqual({ lint: "ruff check ." });
     expect(manifest.overrides.code?.installMode).toBe("symlink");
+    expect(manifest.hooks.beforeSync).toEqual(["make agent-write-preflight"]);
+    expect(manifest.projectRegistry.includeWorktrees).toBe(true);
   });
 
   it("defaults install_mode to mirror", () => {
@@ -55,6 +63,11 @@ skills:
 `;
     const manifest = parseManifest(yaml);
     expect(manifest.installMode).toBe("mirror");
+    expect(manifest.hooks.beforeSync).toEqual([]);
+    expect(manifest.projectRegistry).toEqual({
+      autoRegister: true,
+      includeWorktrees: false,
+    });
   });
 
   it("defaults targets to .claude/skills", () => {

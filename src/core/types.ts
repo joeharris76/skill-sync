@@ -124,6 +124,10 @@ export interface Manifest {
   overrides: Record<string, SkillOverride>;
   /** Downstream projects that consume this manifest as a skill source. */
   projects?: string[];
+  /** Project-configured lifecycle hooks. */
+  hooks: ManifestHooks;
+  /** Policy for auto-maintaining the downstream project registry. */
+  projectRegistry: ProjectRegistryConfig;
 }
 
 export interface SourceConfig {
@@ -139,6 +143,18 @@ export interface SkillOverride {
   installMode?: InstallMode;
   sourceName?: string;
   revision?: string;
+}
+
+export interface ManifestHooks {
+  /** Shell command(s) to run before a non-dry-run sync mutates local targets. */
+  beforeSync: string[];
+}
+
+export interface ProjectRegistryConfig {
+  /** Whether successful syncs from this source should auto-register consumers. */
+  autoRegister: boolean;
+  /** Whether linked git worktrees should be recorded as distinct downstream projects. */
+  includeWorktrees: boolean;
 }
 
 // ---------------------------------------------------------------------------

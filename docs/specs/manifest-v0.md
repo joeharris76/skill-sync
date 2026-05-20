@@ -207,6 +207,18 @@ overrides:
 # projects:
 #   - ~/Developer/my-project
 #   - ~/Developer/another-project
+
+# Optional project-local hooks. Hooks are configured by the consuming project,
+# run from the project root, and are not global agent policy.
+# hooks:
+#   before_sync: make agent-write-preflight
+
+# Optional registry policy for manifests used as local sources.
+# Linked git worktrees are skipped by default so retained pools and review
+# worktrees do not pollute the durable project registry.
+# project_registry:
+#   auto_register: true
+#   include_worktrees: false
 ```
 
 ### 3.1 Source Resolution
@@ -246,6 +258,21 @@ projects:
 
 Projects are recorded with `~`-prefixed paths when they live under the home directory.
 The list is append-only; entries are never removed automatically.
+
+By default, linked git worktrees are not recorded as separate projects. A source
+manifest can opt in with `project_registry.include_worktrees: true` when its
+worktrees are durable identities rather than temporary execution slots.
+
+### 3.5 Hooks
+
+The optional `hooks.before_sync` field declares one shell command or a list of
+shell commands to run from the consuming project root before a non-dry-run
+`sync` mutates targets, lock files, generated config, or source registries. A
+failed hook blocks sync before materialization begins.
+
+Hooks are intentionally project-local. They are the right place for repository
+policies such as write preflights, branch guards, or generated-file checks that
+do not apply globally to every skill-sync consumer.
 
 ---
 

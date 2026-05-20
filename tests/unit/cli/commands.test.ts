@@ -54,11 +54,43 @@ describe("runCli", () => {
   });
 
   it("sync --dry-run --json returns valid JSON without manifest", async () => {
-    const result = await runCli(["sync", "--dry-run", "--json"]);
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-no-manifest-"));
+    const result = await runCli(["sync", "--dry-run", "--json", "--project", projectRoot]);
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout!);
     expect(parsed).toHaveProperty("install");
     expect(parsed).toHaveProperty("unchanged");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync --dry-run surfaces missing source skills instead of an empty plan", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-dry-error-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    await mkdir(sourceRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: personal",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - docs",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["sync", "--dry-run", "--json", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('Skill "docs" not found in sources: personal');
+
+    await rm(projectRoot, { recursive: true, force: true });
   });
 
   it("status --json returns valid JSON without manifest", async () => {

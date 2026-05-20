@@ -1,12 +1,19 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import type { Manifest, SourceConfig, InstallMode } from "./types.js";
+import type { Manifest, SourceConfig, InstallMode, ManifestHooks, ProjectRegistryConfig } from "./types.js";
 
 const MANIFEST_FILENAME = "skill-sync.yaml";
 const SUPPORTED_VERSION = 1;
 
 const VALID_INSTALL_MODES = new Set<InstallMode>(["copy", "symlink", "mirror"]);
+
+export class ManifestNotFoundError extends Error {
+  constructor(public readonly manifestPath: string) {
+    super(`No skill-sync.yaml found at ${manifestPath}`);
+    this.name = "ManifestNotFoundError";
+  }
+}
 
 /**
  * Read and parse a skill-sync.yaml manifest from a project root.
@@ -14,7 +21,20 @@ const VALID_INSTALL_MODES = new Set<InstallMode>(["copy", "symlink", "mirror"]);
  */
 export async function readManifest(projectRoot: string): Promise<Manifest> {
   const manifestPath = join(projectRoot, MANIFEST_FILENAME);
-  const content = await readFile(manifestPath, "utf-8");
+  let content: string;
+  try {
+    content = await readFile(manifestPath, "utf-8");
+  } catch (err) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      throw new ManifestNotFoundError(manifestPath);
+    }
+    throw err;
+  }
   return parseManifest(content);
 }
 
@@ -38,6 +58,8 @@ export function parseManifest(content: string): Manifest {
   const profile =
     typeof raw.profile === "string" ? raw.profile : undefined;
   const projects = parseProjects(raw.projects);
+  const hooks = parseHooks(raw.hooks);
+  const projectRegistry = parseProjectRegistry(raw.project_registry);
 
   return {
     version: SUPPORTED_VERSION,
@@ -48,6 +70,8 @@ export function parseManifest(content: string): Manifest {
     installMode,
     config,
     overrides,
+    hooks,
+    projectRegistry,
     ...(projects.length > 0 ? { projects } : {}),
   };
 }
@@ -107,6 +131,35 @@ function parseTargets(raw: unknown): Record<string, string> {
 function parseProjects(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter((s): s is string => typeof s === "string");
+}
+
+function parseHooks(raw: unknown): ManifestHooks {
+  if (!raw || typeof raw !== "object") return { beforeSync: [] };
+  const hooks = raw as Record<string, unknown>;
+  const beforeSync = hooks.before_sync;
+  if (typeof beforeSync === "string" && beforeSync.trim()) {
+    return { beforeSync: [beforeSync] };
+  }
+  if (Array.isArray(beforeSync)) {
+    return {
+      beforeSync: beforeSync.filter(
+        (command): command is string =>
+          typeof command === "string" && command.trim().length > 0,
+      ),
+    };
+  }
+  return { beforeSync: [] };
+}
+
+function parseProjectRegistry(raw: unknown): ProjectRegistryConfig {
+  if (!raw || typeof raw !== "object") {
+    return { autoRegister: true, includeWorktrees: false };
+  }
+  const registry = raw as Record<string, unknown>;
+  return {
+    autoRegister: registry.auto_register !== false,
+    includeWorktrees: registry.include_worktrees === true,
+  };
 }
 
 function parseInstallMode(raw: unknown): InstallMode {
@@ -171,6 +224,23 @@ export function serializeManifest(manifest: Manifest): string {
   if (manifest.profile) raw.profile = manifest.profile;
   raw.targets = manifest.targets;
   raw.install_mode = manifest.installMode;
+  if (manifest.hooks.beforeSync.length > 0) {
+    raw.hooks = {
+      before_sync:
+        manifest.hooks.beforeSync.length === 1
+          ? manifest.hooks.beforeSync[0]
+          : manifest.hooks.beforeSync,
+    };
+  }
+  if (
+    !manifest.projectRegistry.autoRegister ||
+    manifest.projectRegistry.includeWorktrees
+  ) {
+    raw.project_registry = {
+      auto_register: manifest.projectRegistry.autoRegister,
+      include_worktrees: manifest.projectRegistry.includeWorktrees,
+    };
+  }
   if (manifest.projects && manifest.projects.length > 0) raw.projects = manifest.projects;
   if (Object.keys(manifest.config).length > 0) raw.config = manifest.config;
   if (Object.keys(manifest.overrides).length > 0) {

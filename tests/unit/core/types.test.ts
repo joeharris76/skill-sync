@@ -111,6 +111,13 @@ describe("core type surface", () => {
       overrides: {
         test: override,
       },
+      hooks: {
+        beforeSync: [],
+      },
+      projectRegistry: {
+        autoRegister: true,
+        includeWorktrees: false,
+      },
     };
 
     const lock: LockFile = {
@@ -159,6 +166,7 @@ describe("core type surface", () => {
       remove: [],
       conflicts: [],
       unchanged: ["test"],
+      skipped: [],
       warnings: [],
     };
 
@@ -224,4 +232,3 @@ describe("core type surface", () => {
     expectTypeOf<SkillSource["provenance"]>().returns.toEqualTypeOf<SourceProvenance>();
   });
 });
-

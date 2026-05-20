@@ -1,4 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { moduleExists } from "../../helpers/module-availability.js";
 
 type CliModule = {
@@ -26,9 +29,12 @@ describeCli("cli contract", () => {
       return;
     }
 
-    const result = await cliModule.runCli(["sync", "--dry-run", "--json"]);
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-contract-no-manifest-"));
+    const result = await cliModule.runCli(["sync", "--dry-run", "--json", "--project", projectRoot]);
     expect(result.exitCode).toBe(0);
     expect(result.stdout ?? "").toMatch(/install|update|remove|conflicts|unchanged/);
+
+    await rm(projectRoot, { recursive: true, force: true });
   });
 
   it("supports status and validate commands", async () => {
@@ -42,4 +48,3 @@ describeCli("cli contract", () => {
     });
   });
 });
-

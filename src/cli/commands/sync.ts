@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
 import { formatOutput } from "../output.js";
 import { syncOperation } from "../../core/operations.js";
+import { ManifestNotFoundError } from "../../core/manifest.js";
 import type { SyncPlan } from "../../core/types.js";
 
 export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
@@ -15,7 +16,7 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
     try {
       result = await syncOperation({ projectRoot, dryRun, force });
     } catch (err) {
-      if (dryRun) {
+      if (dryRun && err instanceof ManifestNotFoundError) {
         const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], skipped: [], warnings: [] };
         return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skill-sync.yaml found. Nothing to sync.") };
       }
