@@ -45,6 +45,12 @@ describeSyncer("core/syncer contract", () => {
             installMode: "mirror",
             files: {},
           },
+          test: {
+            installMode: "mirror",
+            files: {
+              "SKILL.md": { sha256: "same", size: 10 },
+            },
+          },
         },
       },
       resolvedSkills: [
@@ -110,4 +116,3 @@ describeSyncer("core/syncer contract", () => {
     await rm(projectPath("tests", ".tmp"), { recursive: true, force: true });
   });
 });
-

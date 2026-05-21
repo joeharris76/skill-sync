@@ -120,10 +120,29 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
     );
 
     if (!locked) {
-      // Check if already installed and clean in ALL targets (drift report says so)
-      if (driftReports.length > 0 && driftReports.every((report) => report.clean.includes(skill.name))) {
-        plan.unchanged.push(skill.name);
-        continue;
+      if (targetRoots.length > 0) {
+        const targetStates = await Promise.all(
+          targetRoots.map((targetRoot) =>
+            checkTargetSkillState(targetRoot, skill.name, skill.files),
+          ),
+        );
+        if (targetStates.some((state) => state === "differs")) {
+          plan.conflicts.push({
+            name: skill.name,
+            localChanges: [{
+              skill: skill.name,
+              file: "<untracked>",
+              expected: "<absent-from-lock>",
+              actual: "<present-on-disk>",
+            }],
+            upstreamChanges: skill.files,
+          });
+          continue;
+        }
+        if (targetStates.every((state) => state === "matches")) {
+          plan.skipped.push({ name: skill.name, reason: "disk-matches-source" });
+          continue;
+        }
       }
       // New install
       plan.install.push({
@@ -284,22 +303,30 @@ async function checkDiskMatchesSource(
   skillName: string,
   sourceFiles: SkillFile[],
 ): Promise<boolean> {
+  return (await checkTargetSkillState(targetRoot, skillName, sourceFiles)) === "matches";
+}
+
+async function checkTargetSkillState(
+  targetRoot: string,
+  skillName: string,
+  sourceFiles: SkillFile[],
+): Promise<"missing" | "matches" | "differs"> {
   const skillDir = join(targetRoot, skillName);
   let diskFiles: SkillFile[];
   try {
     diskFiles = await hashSkillDirectory(skillDir);
   } catch {
-    return false;
+    return "missing";
   }
   const diskMap = new Map(diskFiles.map((f) => [f.relativePath, f.sha256]));
 
-  if (diskFiles.length !== sourceFiles.length) return false;
+  if (diskFiles.length !== sourceFiles.length) return "differs";
 
   for (const sf of sourceFiles) {
     const diskHash = diskMap.get(sf.relativePath);
-    if (diskHash !== sf.sha256) return false;
+    if (diskHash !== sf.sha256) return "differs";
   }
-  return true;
+  return "matches";
 }
 
 /**

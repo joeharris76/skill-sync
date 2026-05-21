@@ -1,7 +1,9 @@
+import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
 import { formatOutput } from "../output.js";
 import { syncOperation } from "../../core/operations.js";
+import { ManifestNotFoundError } from "../../core/manifest.js";
 import type { SyncPlan } from "../../core/types.js";
 
 export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
@@ -15,9 +17,17 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
     try {
       result = await syncOperation({ projectRoot, dryRun, force });
     } catch (err) {
-      if (dryRun) {
-        const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], skipped: [], warnings: [] };
-        return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skill-sync.yaml found. Nothing to sync.") };
+      if (err instanceof ManifestNotFoundError) {
+        // A non-existent project path is an error in any mode, not a no-op.
+        if (!(await directoryExists(projectRoot))) {
+          throw new Error(`Project path not found: ${projectRoot}`);
+        }
+        // An existing directory without a manifest is "nothing to sync" only
+        // for dry-run; a real sync still surfaces the missing manifest.
+        if (dryRun) {
+          const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], skipped: [], warnings: [] };
+          return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skill-sync.yaml found. Nothing to sync.") };
+        }
       }
       throw err;
     }
@@ -30,11 +40,7 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
     }
 
     if (result.conflicts && result.conflicts.length > 0) {
-      const conflictNames = result.conflicts.map((c) => c.name).join(", ");
-      const msg =
-        `Sync blocked by ${result.conflicts.length} conflict(s): ${conflictNames}\n` +
-        `Run \`skill-sync promote\` to push local changes upstream first,\n` +
-        `or use \`skill-sync sync --force\` to overwrite local modifications.`;
+      const msg = formatConflictMessage(result.conflicts);
       if (mode === "json") {
         return {
           exitCode: 1,
@@ -75,6 +81,37 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
     const message = err instanceof Error ? err.message : String(err);
     return { exitCode: 1, stderr: message };
   }
+}
+
+async function directoryExists(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function formatConflictMessage(conflicts: SyncPlan["conflicts"]): string {
+  const conflictNames = conflicts.map((c) => c.name).join(", ");
+  const lines = [
+    `Sync blocked by ${conflicts.length} conflict(s): ${conflictNames}`,
+  ];
+  const untracked = conflicts
+    .filter((conflict) =>
+      conflict.localChanges.some((change) => change.file === "<untracked>"),
+    )
+    .map((conflict) => conflict.name);
+  if (untracked.length > 0) {
+    lines.push(
+      `Untracked target skill present on disk but not in skill-sync.lock: ${untracked.join(", ")}.`,
+      "Promote the local copy to the configured source, remove the target copy, or use `skill-sync sync --force` to overwrite it.",
+    );
+  }
+  lines.push(
+    "Run `skill-sync promote` to push local changes upstream first,",
+    "or use `skill-sync sync --force` to overwrite local modifications.",
+  );
+  return lines.join("\n");
 }
 
 function formatPlanText(plan: SyncPlan): string {

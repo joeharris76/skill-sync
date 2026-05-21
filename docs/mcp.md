@@ -37,7 +37,7 @@ enumerate all installed skills by querying the template's list callback.
 
 | Tool | Input | Description |
 |------|-------|-------------|
-| `sync-skills` | `dry_run?: bool`, `force?: bool` | Resolve skills from configured sources and apply to all targets. `dry_run` previews the plan without applying. `force` overwrites local modifications. |
+| `sync-skills` | `dry_run?: bool`, `force?: bool` | Resolve skills from configured sources and apply to all targets. `dry_run` previews the plan without applying. `force` overwrites local modifications. Non-dry-run sync runs any project-configured `hooks.before_sync` before mutation. |
 | `pin-skill` | `skill: string` | Lock a skill to its current git revision so future syncs use that exact version. Only works for git-sourced skills with a resolved revision. |
 | `unpin-skill` | `skill: string` | Remove a revision pin, allowing the skill to float and receive updates on future syncs. |
 | `prune-skills` | `dry_run?: bool` | Remove installed skills not declared in the project manifest. `dry_run` shows what would be removed. |
@@ -102,3 +102,8 @@ node dist/mcp/index.js /path/to/project
 The CLI and MCP server are two surfaces over one shared core. They are peers,
 not a hierarchy. An agent using the MCP server has access to the same
 operations a developer using the CLI has.
+
+Dry-run errors are reported as errors. Only a missing manifest is treated as
+"nothing to sync" by the CLI. Project-specific write policy belongs in
+`skill-sync.yaml` hooks or local project commands, not in global agent
+instructions or shared skills.

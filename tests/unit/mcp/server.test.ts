@@ -463,6 +463,27 @@ describe("MCP tool: sync-skills", () => {
 
     expect(parsed).toHaveProperty("error");
   });
+
+  it("returns error JSON for dry_run=true when source resolution fails", async () => {
+    const projectRoot = join(tmpBase, "sync-dry-error-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "personal", type: "local", path: join(projectRoot, "missing-source") }],
+        skills: ["docs"],
+        targets: { claude: ".claude/skills" },
+      }),
+    );
+
+    const server = createServer(projectRoot) as TestMcpServer;
+    const tool = server._registeredTools["sync-skills"];
+    const result = await tool.handler({ dry_run: true, force: false });
+    const parsed = JSON.parse(result.content[0]!.text);
+
+    expect(parsed.error).toContain('Skill "docs" not found in sources: personal');
+  });
 });
 
 describe("MCP tool: prune-skills", () => {

@@ -6,8 +6,10 @@
  */
 
 import { resolve, join } from "node:path";
-import { writeFile, readFile, access, constants } from "node:fs/promises";
+import { writeFile, readFile, access, constants, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
+import { execFile, spawn } from "node:child_process";
+import { promisify } from "node:util";
 import { readManifest, serializeManifest } from "./manifest.js";
 import {
   readLockFile,
@@ -41,6 +43,9 @@ import type {
   ResolvedSkill,
 } from "./types.js";
 import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
+
+const execFileAsync = promisify(execFile);
+const HOOK_FAILURE_OUTPUT_LIMIT = 64 * 1024;
 
 // ---------------------------------------------------------------------------
 // Sync
@@ -166,6 +171,8 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
         conflicts: plan.conflicts,
       };
     }
+
+    await runBeforeSyncHooks(projectRoot, manifest.hooks.beforeSync);
 
     // Apply: materialize installs, updates, and forced conflicts
     const updatedLock = { ...lockFile, skills: { ...lockFile.skills } };
@@ -704,6 +711,7 @@ async function registerProjectInSources(
   sources: import("./types.js").SourceConfig[],
 ): Promise<void> {
   const expandHome = (p: string) => p.replace(/^~/, homedir());
+  const isLinkedWorktree = await isLinkedGitWorktree(projectRoot);
   for (const source of sources) {
     if (source.type !== "local" || !source.path) continue;
     const sourcePath = expandHome(source.path);
@@ -712,6 +720,10 @@ async function registerProjectInSources(
     const sourceManifestPath = join(sourceRoot, "skill-sync.yaml");
     try {
       const sourceManifest = await readManifest(sourceRoot);
+      if (!sourceManifest.projectRegistry.autoRegister) continue;
+      if (isLinkedWorktree && !sourceManifest.projectRegistry.includeWorktrees) {
+        continue;
+      }
       const existing = sourceManifest.projects ?? [];
       // Normalize projectRoot to use ~ when it's under the home directory
       const homeDir = homedir();
@@ -726,6 +738,94 @@ async function registerProjectInSources(
     } catch {
       // Source has no manifest or isn't writable — silently skip
     }
+  }
+}
+
+async function runBeforeSyncHooks(
+  projectRoot: string,
+  commands: string[],
+): Promise<void> {
+  for (const command of commands) {
+    try {
+      await runShellHook(command, projectRoot);
+    } catch (err) {
+      const detail = formatHookFailureDetail(err);
+      throw new Error(
+        `before_sync hook failed: ${command}${detail ? `\n${detail}` : ""}`,
+      );
+    }
+  }
+}
+
+async function runShellHook(command: string, cwd: string): Promise<void> {
+  await new Promise<void>((resolvePromise, reject) => {
+    const child = spawn(command, {
+      cwd,
+      shell: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout = appendOutputTail(stdout, chunk);
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr = appendOutputTail(stderr, chunk);
+    });
+    child.on("error", (err) => {
+      reject(Object.assign(err, { stdout, stderr }));
+    });
+    child.on("close", (code, signal) => {
+      if (code === 0) {
+        resolvePromise();
+        return;
+      }
+      const reason = signal ? `signal ${signal}` : `exit code ${code}`;
+      reject(Object.assign(new Error(`Hook exited with ${reason}`), { stdout, stderr }));
+    });
+  });
+}
+
+function appendOutputTail(current: string, chunk: string): string {
+  const next = current + chunk;
+  return next.length > HOOK_FAILURE_OUTPUT_LIMIT
+    ? next.slice(-HOOK_FAILURE_OUTPUT_LIMIT)
+    : next;
+}
+
+function formatHookFailureDetail(err: unknown): string {
+  if (!err || typeof err !== "object") return "";
+  const parts: string[] = [];
+  // Lead with the exit reason (e.g. "Hook exited with exit code 7" or a spawn
+  // error) so a hook that fails without writing to stderr still explains itself.
+  if ("message" in err && typeof err.message === "string" && err.message.trim()) {
+    parts.push(err.message.trim());
+  }
+  if ("stdout" in err && typeof err.stdout === "string" && err.stdout.trim()) {
+    parts.push(`stdout:\n${err.stdout.trim()}`);
+  }
+  if ("stderr" in err && typeof err.stderr === "string" && err.stderr.trim()) {
+    parts.push(`stderr:\n${err.stderr.trim()}`);
+  }
+  return parts.join("\n");
+}
+
+async function isLinkedGitWorktree(projectRoot: string): Promise<boolean> {
+  try {
+    const [{ stdout: topStdout }, { stdout: commonStdout }] = await Promise.all([
+      execFileAsync("git", ["-C", projectRoot, "rev-parse", "--show-toplevel"]),
+      execFileAsync("git", ["-C", projectRoot, "rev-parse", "--git-common-dir"]),
+    ]);
+    const top = await realpath(resolve(topStdout.trim()));
+    const commonDir = commonStdout.trim();
+    const commonAbs = await realpath(resolve(projectRoot, commonDir));
+    const primaryClone = await realpath(resolve(commonAbs, ".."));
+    return top !== primaryClone;
+  } catch {
+    return false;
   }
 }
 

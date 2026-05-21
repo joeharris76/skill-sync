@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
-import { writeFile, mkdir, rm } from "node:fs/promises";
+import { writeFile, mkdir, rm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { stringify as stringifyYaml } from "yaml";
 
 const mockedOs = vi.hoisted(() => ({ homeDir: "" }));
@@ -28,6 +30,7 @@ import type { LockFile } from "../../../src/core/types.js";
 import { existsSync } from "node:fs";
 
 const tmpBase = join(tmpdir(), "skill-sync-operations-test-" + Date.now());
+const execFileAsync = promisify(execFile);
 
 async function writeManifest(
   projectRoot: string,
@@ -417,6 +420,140 @@ describe("syncOperation — local drift conflict (silent-overwrite regression)",
   });
 });
 
+describe("syncOperation — untracked target conflict", () => {
+  it("blocks first install when an untracked target skill would be overwritten", async () => {
+    const sourceRoot = join(tmpBase, "untracked-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+
+    const projectRoot = await makeConsumerProject("untracked-project-" + Date.now(), sourceRoot, ["code"]);
+    const targetSkillDir = join(projectRoot, ".claude", "skills", "code");
+    await mkdir(targetSkillDir, { recursive: true });
+    await writeFile(
+      join(targetSkillDir, "SKILL.md"),
+      "---\nname: code\ndescription: local code skill\n---\n# Local only\n",
+    );
+
+    const result = await syncOperation({ projectRoot });
+
+    expect(result.applied).toBe(false);
+    expect(result.conflicts?.[0]?.name).toBe("code");
+    expect(await readFile(join(targetSkillDir, "SKILL.md"), "utf8")).toContain("Local only");
+  });
+});
+
+describe("syncOperation — before_sync hooks", () => {
+  it("runs a configured before_sync hook before applying changes", async () => {
+    const sourceRoot = join(tmpBase, "hook-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+
+    const projectRoot = join(tmpBase, "hook-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+        hooks: {
+          before_sync: "node -e \"require('fs').writeFileSync('hook-ran.txt', 'yes')\"",
+        },
+      }),
+    );
+
+    const result = await syncOperation({ projectRoot });
+
+    expect(result.applied).toBe(true);
+    expect(await readFile(join(projectRoot, "hook-ran.txt"), "utf8")).toBe("yes");
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
+  });
+
+  it("allows verbose successful before_sync hooks without treating output as failure", async () => {
+    const sourceRoot = join(tmpBase, "hook-verbose-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+
+    const projectRoot = join(tmpBase, "hook-verbose-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+        hooks: {
+          before_sync: "node -e \"process.stdout.write('x'.repeat(1024 * 1024 + 10))\"",
+        },
+      }),
+    );
+
+    const result = await syncOperation({ projectRoot });
+
+    expect(result.applied).toBe(true);
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
+  });
+
+  it("runs before_sync hooks even when sync has no skill changes", async () => {
+    const sourceRoot = join(tmpBase, "hook-noop-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+
+    const projectRoot = join(tmpBase, "hook-noop-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+        hooks: {
+          before_sync: "node -e \"const fs=require('fs'); const p='hook-count.txt'; const n=fs.existsSync(p) ? Number(fs.readFileSync(p, 'utf8')) : 0; fs.writeFileSync(p, String(n + 1));\"",
+        },
+      }),
+    );
+
+    await syncOperation({ projectRoot });
+    await syncOperation({ projectRoot });
+
+    expect(await readFile(join(projectRoot, "hook-count.txt"), "utf8")).toBe("2");
+  });
+
+  it("blocks mutation when a configured before_sync hook fails", async () => {
+    const sourceRoot = join(tmpBase, "hook-fail-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+
+    const projectRoot = join(tmpBase, "hook-fail-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+        hooks: {
+          before_sync: "node -e \"process.stderr.write('blocked'); process.exit(7)\"",
+        },
+      }),
+    );
+
+    // Surfaces the command, the exit reason, and any stderr the hook emitted.
+    await expect(syncOperation({ projectRoot })).rejects.toThrow(
+      /before_sync hook failed:[\s\S]*exit code 7[\s\S]*blocked/,
+    );
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(false);
+  });
+});
+
 describe("syncOperation — registerProjectInSources", () => {
   it("registers the consumer project path in the local source manifest", async () => {
     const sourceRoot = join(tmpBase, "reg-source-" + Date.now());
@@ -482,6 +619,95 @@ describe("syncOperation — registerProjectInSources", () => {
 
     const result = await syncOperation({ projectRoot });
     expect(result.applied).toBe(true);
+  });
+
+  it("does not register linked git worktrees unless the source manifest opts in", async () => {
+    const sourceRoot = join(tmpBase, "worktree-source-" + Date.now(), "skills");
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    const sourceParent = join(sourceRoot, "..");
+    await writeFile(
+      join(sourceParent, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["code"],
+        targets: { default: "." },
+        install_mode: "mirror",
+      }),
+    );
+
+    const primaryRoot = join(tmpBase, "worktree-primary-" + Date.now());
+    const linkedRoot = join(tmpBase, "worktree-linked-" + Date.now());
+    await mkdir(primaryRoot, { recursive: true });
+    await execFileAsync("git", ["init"], { cwd: primaryRoot });
+    await writeFile(join(primaryRoot, "README.md"), "# test\n");
+    await execFileAsync("git", ["add", "README.md"], { cwd: primaryRoot });
+    await execFileAsync(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: primaryRoot },
+    );
+    await execFileAsync("git", ["worktree", "add", linkedRoot], { cwd: primaryRoot });
+    await writeFile(
+      join(linkedRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    await syncOperation({ projectRoot: linkedRoot });
+
+    const sourceManifest = await readManifest(sourceParent);
+    expect(sourceManifest.projects ?? []).toEqual([]);
+  });
+
+  it("registers normal git repositories when the manifest lives in a subdirectory", async () => {
+    const sourceRoot = join(tmpBase, "subdir-reg-source-" + Date.now(), "skills");
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    const sourceParent = join(sourceRoot, "..");
+    await writeFile(
+      join(sourceParent, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["code"],
+        targets: { default: "." },
+        install_mode: "mirror",
+      }),
+    );
+
+    const repoRoot = join(tmpBase, "subdir-reg-repo-" + Date.now());
+    const projectRoot = join(repoRoot, "packages", "consumer");
+    await mkdir(projectRoot, { recursive: true });
+    await execFileAsync("git", ["init"], { cwd: repoRoot });
+    await writeFile(join(repoRoot, "README.md"), "# test\n");
+    await execFileAsync("git", ["add", "README.md"], { cwd: repoRoot });
+    await execFileAsync(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repoRoot },
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    await syncOperation({ projectRoot });
+
+    const sourceManifest = await readManifest(sourceParent);
+    expect(sourceManifest.projects?.some((entry) => entry.endsWith("/packages/consumer"))).toBe(true);
   });
 });
 
