@@ -394,7 +394,7 @@ export async function unpinOperation(
   const manifest = await readManifest(projectRoot);
 
   const override = manifest.overrides[skillName];
-  if (!override || !override.revision) {
+  if (!override?.revision) {
     return {
       unpinned: false,
       message: `Skill "${skillName}" is not pinned.`,
@@ -587,7 +587,7 @@ export async function doctorOperation(
 
   // Check 6: Settings requirements (claude only in v0)
   if (manifest && lockFile) {
-    const claudeTarget = manifest.targets["claude"];
+    const claudeTarget = manifest.targets.claude;
     if (claudeTarget) {
       const targetRoot = resolve(projectRoot, claudeTarget);
       const settingsPath = join(projectRoot, ".claude", "settings.json");
@@ -610,7 +610,7 @@ export async function doctorOperation(
             message: `Skill "${gap.skillName}" requires claude permissions not in settings.json: ${gap.missingAllows.join(", ")}. Run \`skill-sync settings generate\` to see suggested additions.`,
           });
         }
-      } else if (installedPkgs.some((p) => p.meta?.settingsRequirements?.["claude"])) {
+      } else if (installedPkgs.some((p) => p.meta?.settingsRequirements?.claude)) {
         checks.push({
           check: "settings-requirements:claude",
           status: "ok",
