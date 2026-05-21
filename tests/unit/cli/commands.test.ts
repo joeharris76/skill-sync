@@ -64,6 +64,15 @@ describe("runCli", () => {
     await rm(projectRoot, { recursive: true, force: true });
   });
 
+  it("sync --dry-run fails when the project path does not exist", async () => {
+    const projectRoot = join(tmpdir(), "skill-sync-cli-missing-project-" + Date.now());
+
+    const result = await runCli(["sync", "--dry-run", "--json", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Project path not found");
+  });
+
   it("sync --dry-run surfaces missing source skills instead of an empty plan", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-dry-error-"));
     const sourceRoot = join(projectRoot, "source-skills");
@@ -89,6 +98,47 @@ describe("runCli", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Skill "docs" not found in sources: personal');
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync conflict text explains untracked target skills", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-untracked-conflict-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    await mkdir(join(sourceRoot, "code"), { recursive: true });
+    await writeFile(
+      join(sourceRoot, "code", "SKILL.md"),
+      "---\nname: code\ndescription: Code skill\n---\n# Source\n",
+      "utf8",
+    );
+    const targetSkillDir = join(projectRoot, ".claude", "skills", "code");
+    await mkdir(targetSkillDir, { recursive: true });
+    await writeFile(
+      join(targetSkillDir, "SKILL.md"),
+      "---\nname: code\ndescription: Local skill\n---\n# Local\n",
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["sync", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Untracked target skill present on disk but not in skill-sync.lock: code.");
 
     await rm(projectRoot, { recursive: true, force: true });
   });

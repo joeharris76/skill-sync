@@ -274,6 +274,10 @@ Hooks are intentionally project-local. They are the right place for repository
 policies such as write preflights, branch guards, or generated-file checks that
 do not apply globally to every skill-sync consumer.
 
+Hooks run for every non-dry-run sync after conflict checks, including an
+otherwise no-op skill plan, because sync may still update lock metadata or
+source registry state. Dry-run sync never executes hooks.
+
 ---
 
 ## 4. Lock File: skill-sync.lock

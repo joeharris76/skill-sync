@@ -471,6 +471,60 @@ describe("syncOperation — before_sync hooks", () => {
     expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
   });
 
+  it("allows verbose successful before_sync hooks without treating output as failure", async () => {
+    const sourceRoot = join(tmpBase, "hook-verbose-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+
+    const projectRoot = join(tmpBase, "hook-verbose-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+        hooks: {
+          before_sync: "node -e \"process.stdout.write('x'.repeat(1024 * 1024 + 10))\"",
+        },
+      }),
+    );
+
+    const result = await syncOperation({ projectRoot });
+
+    expect(result.applied).toBe(true);
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
+  });
+
+  it("runs before_sync hooks even when sync has no skill changes", async () => {
+    const sourceRoot = join(tmpBase, "hook-noop-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+
+    const projectRoot = join(tmpBase, "hook-noop-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+        hooks: {
+          before_sync: "node -e \"const fs=require('fs'); const p='hook-count.txt'; const n=fs.existsSync(p) ? Number(fs.readFileSync(p, 'utf8')) : 0; fs.writeFileSync(p, String(n + 1));\"",
+        },
+      }),
+    );
+
+    await syncOperation({ projectRoot });
+    await syncOperation({ projectRoot });
+
+    expect(await readFile(join(projectRoot, "hook-count.txt"), "utf8")).toBe("2");
+  });
+
   it("blocks mutation when a configured before_sync hook fails", async () => {
     const sourceRoot = join(tmpBase, "hook-fail-source-" + Date.now());
     await mkdir(sourceRoot, { recursive: true });
@@ -607,6 +661,50 @@ describe("syncOperation — registerProjectInSources", () => {
 
     const sourceManifest = await readManifest(sourceParent);
     expect(sourceManifest.projects ?? []).toEqual([]);
+  });
+
+  it("registers normal git repositories when the manifest lives in a subdirectory", async () => {
+    const sourceRoot = join(tmpBase, "subdir-reg-source-" + Date.now(), "skills");
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    const sourceParent = join(sourceRoot, "..");
+    await writeFile(
+      join(sourceParent, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["code"],
+        targets: { default: "." },
+        install_mode: "mirror",
+      }),
+    );
+
+    const repoRoot = join(tmpBase, "subdir-reg-repo-" + Date.now());
+    const projectRoot = join(repoRoot, "packages", "consumer");
+    await mkdir(projectRoot, { recursive: true });
+    await execFileAsync("git", ["init"], { cwd: repoRoot });
+    await writeFile(join(repoRoot, "README.md"), "# test\n");
+    await execFileAsync("git", ["add", "README.md"], { cwd: repoRoot });
+    await execFileAsync(
+      "git",
+      ["-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "init"],
+      { cwd: repoRoot },
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    await syncOperation({ projectRoot });
+
+    const sourceManifest = await readManifest(sourceParent);
+    expect(sourceManifest.projects?.some((entry) => entry.endsWith("/packages/consumer"))).toBe(true);
   });
 });
 

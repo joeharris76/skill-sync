@@ -6,9 +6,9 @@
  */
 
 import { resolve, join } from "node:path";
-import { writeFile, readFile, access, constants } from "node:fs/promises";
+import { writeFile, readFile, access, constants, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
-import { exec, execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { readManifest, serializeManifest } from "./manifest.js";
 import {
@@ -44,8 +44,8 @@ import type {
 } from "./types.js";
 import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
 
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
+const HOOK_FAILURE_OUTPUT_LIMIT = 64 * 1024;
 
 // ---------------------------------------------------------------------------
 // Sync
@@ -747,10 +747,7 @@ async function runBeforeSyncHooks(
 ): Promise<void> {
   for (const command of commands) {
     try {
-      await execAsync(command, {
-        cwd: projectRoot,
-        maxBuffer: 1024 * 1024,
-      });
+      await runShellHook(command, projectRoot);
     } catch (err) {
       const detail = formatHookFailureDetail(err);
       throw new Error(
@@ -758,6 +755,45 @@ async function runBeforeSyncHooks(
       );
     }
   }
+}
+
+async function runShellHook(command: string, cwd: string): Promise<void> {
+  await new Promise<void>((resolvePromise, reject) => {
+    const child = spawn(command, {
+      cwd,
+      shell: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout = appendOutputTail(stdout, chunk);
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr = appendOutputTail(stderr, chunk);
+    });
+    child.on("error", (err) => {
+      reject(Object.assign(err, { stdout, stderr }));
+    });
+    child.on("close", (code, signal) => {
+      if (code === 0) {
+        resolvePromise();
+        return;
+      }
+      const reason = signal ? `signal ${signal}` : `exit code ${code}`;
+      reject(Object.assign(new Error(`Hook exited with ${reason}`), { stdout, stderr }));
+    });
+  });
+}
+
+function appendOutputTail(current: string, chunk: string): string {
+  const next = current + chunk;
+  return next.length > HOOK_FAILURE_OUTPUT_LIMIT
+    ? next.slice(-HOOK_FAILURE_OUTPUT_LIMIT)
+    : next;
 }
 
 function formatHookFailureDetail(err: unknown): string {
@@ -778,10 +814,10 @@ async function isLinkedGitWorktree(projectRoot: string): Promise<boolean> {
       execFileAsync("git", ["-C", projectRoot, "rev-parse", "--show-toplevel"]),
       execFileAsync("git", ["-C", projectRoot, "rev-parse", "--git-common-dir"]),
     ]);
-    const top = resolve(topStdout.trim());
+    const top = await realpath(resolve(topStdout.trim()));
     const commonDir = commonStdout.trim();
-    const commonAbs = resolve(top, commonDir);
-    const primaryClone = resolve(commonAbs, "..");
+    const commonAbs = await realpath(resolve(projectRoot, commonDir));
+    const primaryClone = await realpath(resolve(commonAbs, ".."));
     return top !== primaryClone;
   } catch {
     return false;
