@@ -799,6 +799,11 @@ function appendOutputTail(current: string, chunk: string): string {
 function formatHookFailureDetail(err: unknown): string {
   if (!err || typeof err !== "object") return "";
   const parts: string[] = [];
+  // Lead with the exit reason (e.g. "Hook exited with exit code 7" or a spawn
+  // error) so a hook that fails without writing to stderr still explains itself.
+  if ("message" in err && typeof err.message === "string" && err.message.trim()) {
+    parts.push(err.message.trim());
+  }
   if ("stdout" in err && typeof err.stdout === "string" && err.stdout.trim()) {
     parts.push(`stdout:\n${err.stdout.trim()}`);
   }

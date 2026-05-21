@@ -211,10 +211,10 @@ overrides:
 # Optional project-local hooks. Hooks are configured by the consuming project,
 # run from the project root, and are not global agent policy.
 # hooks:
-#   before_sync: make agent-write-preflight
+#   before_sync: make preflight
 
 # Optional registry policy for manifests used as local sources.
-# Linked git worktrees are skipped by default so retained pools and review
+# Linked git worktrees are skipped by default so temporary or pooled
 # worktrees do not pollute the durable project registry.
 # project_registry:
 #   auto_register: true

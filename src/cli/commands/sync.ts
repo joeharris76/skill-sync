@@ -17,12 +17,17 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
     try {
       result = await syncOperation({ projectRoot, dryRun, force });
     } catch (err) {
-      if (dryRun && err instanceof ManifestNotFoundError) {
+      if (err instanceof ManifestNotFoundError) {
+        // A non-existent project path is an error in any mode, not a no-op.
         if (!(await directoryExists(projectRoot))) {
           throw new Error(`Project path not found: ${projectRoot}`);
         }
-        const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], skipped: [], warnings: [] };
-        return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skill-sync.yaml found. Nothing to sync.") };
+        // An existing directory without a manifest is "nothing to sync" only
+        // for dry-run; a real sync still surfaces the missing manifest.
+        if (dryRun) {
+          const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], skipped: [], warnings: [] };
+          return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skill-sync.yaml found. Nothing to sync.") };
+        }
       }
       throw err;
     }

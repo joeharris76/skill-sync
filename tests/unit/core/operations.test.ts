@@ -546,7 +546,10 @@ describe("syncOperation — before_sync hooks", () => {
       }),
     );
 
-    await expect(syncOperation({ projectRoot })).rejects.toThrow(/before_sync hook failed/);
+    // Surfaces the command, the exit reason, and any stderr the hook emitted.
+    await expect(syncOperation({ projectRoot })).rejects.toThrow(
+      /before_sync hook failed:[\s\S]*exit code 7[\s\S]*blocked/,
+    );
     expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(false);
   });
 });

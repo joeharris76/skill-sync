@@ -73,6 +73,15 @@ describe("runCli", () => {
     expect(result.stderr).toContain("Project path not found");
   });
 
+  it("sync (non-dry-run) also fails when the project path does not exist", async () => {
+    const projectRoot = join(tmpdir(), "skill-sync-cli-missing-project-apply-" + Date.now());
+
+    const result = await runCli(["sync", "--json", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Project path not found");
+  });
+
   it("sync --dry-run surfaces missing source skills instead of an empty plan", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-dry-error-"));
     const sourceRoot = join(projectRoot, "source-skills");
