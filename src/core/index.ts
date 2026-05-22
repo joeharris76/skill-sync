@@ -69,6 +69,9 @@ export {
 // Runtime exports — hasher
 export { sha256File, sha256, hashSkillDirectory } from "./hasher.js";
 
+// Runtime exports — paths
+export { expandTilde, resolvePath } from "./paths.js";
+
 // Runtime exports — resolver
 export { resolveSkill, resolveAll, SkillNotFoundError } from "./resolver.js";
 

@@ -1,6 +1,6 @@
 import { access, constants } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { homedir } from "node:os";
+import { expandTilde } from "../core/paths.js";
 import type {
   SkillSource,
   ResolvedSkill,
@@ -17,7 +17,7 @@ export class LocalSource implements SkillSource {
   constructor(name: string, path: string) {
     this.name = name;
     // Expand ~ to home directory
-    this.basePath = resolve(path.replace(/^~/, homedir()));
+    this.basePath = resolve(expandTilde(path));
   }
 
   async resolve(skillName: string): Promise<ResolvedSkill | null> {

@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { resolvePath } from "../../core/paths.js";
 import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
 import { formatOutput, formatTable } from "../output.js";
 import { readManifest } from "../../core/manifest.js";
@@ -55,7 +56,7 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
     }
     const perTarget = await Promise.all(
       targetEntries.map(async ([targetName, targetPath]) => {
-        const drift = await detectDrift(resolve(projectRoot, targetPath), lockFile);
+        const drift = await detectDrift(resolvePath(projectRoot, targetPath), lockFile);
         const skills = Object.entries(lockFile.skills).map(([name, locked]) => {
           let state: string;
           if (drift.missing.includes(name)) {

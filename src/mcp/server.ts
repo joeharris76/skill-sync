@@ -1,6 +1,7 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { resolve, join } from "node:path";
+import { resolvePath } from "../core/paths.js";
 import { readFile, readdir, access, constants } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { readManifest } from "../core/manifest.js";
@@ -407,7 +408,7 @@ async function getTargetRoots(projectRoot: string): Promise<TargetRoot[]> {
     const manifest = await readManifest(projectRoot);
     const targets = Object.entries(manifest.targets).map(([name, path]) => ({
       name,
-      root: resolve(projectRoot, path),
+      root: resolvePath(projectRoot, path),
     }));
     if (targets.length > 0) {
       return targets;

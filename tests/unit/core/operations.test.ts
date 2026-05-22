@@ -832,3 +832,75 @@ describe("settingsGenerateOperation", () => {
     expect(result.suggestedFragment).toEqual({});
   });
 });
+
+// ---------------------------------------------------------------------------
+// syncOperation — tilde target expansion (junk literal-~ dir regression)
+// ---------------------------------------------------------------------------
+
+describe("syncOperation — tilde target expansion", () => {
+  it("materializes ~-rooted targets under the home directory, not a literal ~ dir", async () => {
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const home = join(tmpBase, "home-" + stamp);
+    await mkdir(home, { recursive: true });
+    mockedOs.homeDir = home;
+
+    const sourceRoot = join(tmpBase, "tilde-source-" + stamp);
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+
+    const projectRoot = join(tmpBase, "tilde-project-" + stamp);
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "local", type: "local", path: sourceRoot }],
+        skills: ["code"],
+        // ~-rooted target: the bug wrote this to <projectRoot>/~/.claude/skills
+        targets: { claude: "~/.claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    await syncOperation({ projectRoot });
+
+    // Expanded under the (mocked) home directory ...
+    expect(existsSync(join(home, ".claude", "skills", "code", "SKILL.md"))).toBe(true);
+    // ... and never into a literal "~" directory beside the project or home.
+    expect(existsSync(join(projectRoot, "~"))).toBe(false);
+    expect(existsSync(join(home, "~"))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// syncOperation — source self-registration guard
+// ---------------------------------------------------------------------------
+
+describe("syncOperation — project auto-registration", () => {
+  it("does not register a source repo as a downstream project of itself", async () => {
+    const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    mockedOs.homeDir = join(tmpBase, "home-" + stamp);
+    await mkdir(mockedOs.homeDir, { recursive: true });
+
+    // The repo is both the source and the project being synced.
+    const repoRoot = join(tmpBase, "self-repo-" + stamp);
+    await makeLocalSkillSource(join(repoRoot, "skills"), "code");
+    const manifestPath = join(repoRoot, "skill-sync.yaml");
+    await writeFile(
+      manifestPath,
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "self", type: "local", path: join(repoRoot, "skills") }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    await syncOperation({ projectRoot: repoRoot });
+
+    // The manifest must not gain a `projects:` entry pointing at itself.
+    const sourceManifest = await readManifest(repoRoot);
+    expect(sourceManifest.projects ?? []).toEqual([]);
+  });
+});

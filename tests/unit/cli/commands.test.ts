@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { runCli } from "../../../src/cli/index.js";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sha256 } from "../../../src/core/hasher.js";
@@ -1191,6 +1192,61 @@ describe("skill-sync settings", () => {
       expect(parsed.agent).toBe("codex");
     } finally {
       await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("skill-sync sync/status — tilde target resolution", () => {
+  it("expands a ~-rooted target so status reports clean (not missing) after sync", async () => {
+    const originalHome = process.env.HOME;
+    const base = await mkdtemp(join(tmpdir(), "skill-sync-tilde-cli-"));
+    const home = join(base, "home");
+    const sourceRoot = join(base, "src");
+    const projectRoot = join(base, "project");
+    await mkdir(join(sourceRoot, "demo"), { recursive: true });
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(sourceRoot, "demo", "SKILL.md"),
+      "---\nname: demo\ndescription: demo skill\n---\n# demo\n",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - demo",
+        "targets:",
+        "  claude: ~/.claude/skills",
+        "install_mode: mirror",
+      ].join("\n"),
+    );
+
+    try {
+      // os.homedir() honors $HOME on POSIX; point it at a temp dir.
+      process.env.HOME = home;
+
+      const sync = await runCli(["sync", "--project", projectRoot]);
+      expect(sync.exitCode).toBe(0);
+      // Materialized under the home dir, never into a literal "~" dir.
+      expect(existsSync(join(home, ".claude", "skills", "demo", "SKILL.md"))).toBe(true);
+      expect(existsSync(join(projectRoot, "~"))).toBe(false);
+
+      const status = await runCli(["status", "--json", "--project", projectRoot]);
+      expect(status.exitCode).toBe(0);
+      const parsed = JSON.parse(status.stdout!);
+      const claude = parsed.targets.find(
+        (t: { target: string }) => t.target === "claude",
+      );
+      expect(claude.summary.missing).toBe(0);
+      expect(claude.summary.clean).toBeGreaterThanOrEqual(1);
+    } finally {
+      if (originalHome === undefined) delete process.env.HOME;
+      else process.env.HOME = originalHome;
+      await rm(base, { recursive: true, force: true });
     }
   });
 });

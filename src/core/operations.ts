@@ -6,6 +6,7 @@
  */
 
 import { resolve, join } from "node:path";
+import { resolvePath, expandTilde } from "./paths.js";
 import { writeFile, readFile, access, constants } from "node:fs/promises";
 import { homedir } from "node:os";
 import { exec, execFile } from "node:child_process";
@@ -124,15 +125,15 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     }
 
     const driftReports = await Promise.all(
-      targetEntries.map(async ([targetName, targetPath]) => ({
-        targetName,
-        targetPath,
-        targetRoot: resolve(projectRoot, targetPath),
-        drift: await detectDrift(
-          resolve(projectRoot, targetPath),
-          lockFile,
-        ),
-      })),
+      targetEntries.map(async ([targetName, targetPath]) => {
+        const targetRoot = resolvePath(projectRoot, targetPath);
+        return {
+          targetName,
+          targetPath,
+          targetRoot,
+          drift: await detectDrift(targetRoot, lockFile),
+        };
+      }),
     );
 
     // Plan
@@ -446,7 +447,7 @@ export async function pruneOperation(
     throw new Error("No targets defined in skill-sync.yaml");
   }
 
-  const drift = await detectDrift(resolve(projectRoot, primaryTarget), lockFile);
+  const drift = await detectDrift(resolvePath(projectRoot, primaryTarget), lockFile);
   const manifestSkills = new Set(manifest.skills);
   const lockOnly = Object.keys(lockFile.skills).filter(
     (name) => !manifestSkills.has(name),
@@ -459,7 +460,7 @@ export async function pruneOperation(
 
   for (const name of toPrune) {
     for (const [, targetPath] of targetEntries) {
-      await dematerialize(name, resolve(projectRoot, targetPath));
+      await dematerialize(name, resolvePath(projectRoot, targetPath));
     }
     delete lockFile.skills[name];
   }
@@ -544,7 +545,7 @@ export async function doctorOperation(
     }
 
     for (const [target, dir] of Object.entries(manifest.targets)) {
-      const targetPath = resolve(projectRoot, dir);
+      const targetPath = resolvePath(projectRoot, dir);
       try {
         await access(targetPath, constants.R_OK);
         checks.push({ check: `target:${target}`, status: "ok", message: `${dir} exists` });
@@ -557,7 +558,7 @@ export async function doctorOperation(
   // Check 4: Drift detection
   if (manifest && lockFile) {
     for (const [target, dir] of Object.entries(manifest.targets)) {
-      const targetRoot = resolve(projectRoot, dir);
+      const targetRoot = resolvePath(projectRoot, dir);
       const drift = await detectDrift(targetRoot, lockFile);
       if (drift.modified.length === 0 && drift.missing.length === 0) {
         checks.push({ check: `drift:${target}`, status: "ok", message: "All installed skills match lock file" });
@@ -589,7 +590,7 @@ export async function doctorOperation(
   if (manifest && lockFile) {
     const claudeTarget = manifest.targets["claude"];
     if (claudeTarget) {
-      const targetRoot = resolve(projectRoot, claudeTarget);
+      const targetRoot = resolvePath(projectRoot, claudeTarget);
       const settingsPath = join(projectRoot, ".claude", "settings.json");
       const settingsFile = await readAgentSettingsFile(settingsPath);
       const installedPkgs: Array<{ name: string; meta: import("./types.js").SkillSyncMeta | null }> = [];
@@ -669,7 +670,7 @@ export async function settingsGenerateOperation(
     return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };
   }
 
-  const targetRoot = resolve(projectRoot, agentTarget);
+  const targetRoot = resolvePath(projectRoot, agentTarget);
   const settingsPath = join(projectRoot, `.${agent}`, "settings.json");
   const settingsFile = await readAgentSettingsFile(settingsPath);
 
@@ -710,13 +711,14 @@ async function registerProjectInSources(
   projectRoot: string,
   sources: import("./types.js").SourceConfig[],
 ): Promise<void> {
-  const expandHome = (p: string) => p.replace(/^~/, homedir());
   const isLinkedWorktree = await isLinkedGitWorktree(projectRoot);
   for (const source of sources) {
     if (source.type !== "local" || !source.path) continue;
-    const sourcePath = expandHome(source.path);
+    const sourcePath = expandTilde(source.path);
     // The source path points to the skills directory; the manifest lives one level up
     const sourceRoot = resolve(sourcePath, "..");
+    // Never register a source's own repo as a downstream project of itself.
+    if (resolve(sourceRoot) === resolve(projectRoot)) continue;
     const sourceManifestPath = join(sourceRoot, "skill-sync.yaml");
     try {
       const sourceManifest = await readManifest(sourceRoot);
