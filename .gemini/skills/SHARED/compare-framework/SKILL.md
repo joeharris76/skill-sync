@@ -3,67 +3,29 @@ name: compare-framework
 description: Compare two artifacts for semantic and behavioral equivalence.
 ---
 
-# Semantic Comparison Framework
+# Compare Framework
 
-Compare artifacts for behavioral/execution equivalence.
+Compare behavior, contracts, and relationships; do not compare wording alone.
 
 ## Workflow
 
-1. Extract semantics from Artifact A (IN PARALLEL)
-2. Extract semantics from Artifact B (IN PARALLEL)
-3. Compare extracted data (after both complete)
-4. Calculate equivalence score
-5. Generate report with shared/unique items, warnings
+1. Extract semantics from artifact A and B independently, preferably in parallel.
+2. Normalize items, relationships, metadata, and confidence.
+3. Compare exact matches, semantic equivalents, type mismatches, and unique items.
+4. Score: primary items 40%, relationships 40%, structure 20%.
+5. Report shared/unique items and warnings.
 
-**Critical:** Run steps 1-2 in parallel. Extract independently; never prime with expected changes or "items to verify."
+## Thresholds
 
-## Comparison Rules
-
-1. **Exact Match**: Identical normalized form -> shared
-2. **Semantic Equivalence**: Different form, identical meaning -> shared
-3. **Type Mismatch**: Same concept, different structure -> flag
-4. **Unique**: In only one artifact
-
-## Scoring Thresholds
-
-| Score | Interpretation |
-|-------|----------------|
-| >=0.95 | Equivalent - safe to proceed |
-| 0.85-0.94 | Mostly equivalent - review carefully |
+| Score | Meaning |
+|---|---|
+| >=0.95 | Equivalent |
+| 0.85-0.94 | Mostly equivalent; review |
 | 0.70-0.84 | Significant differences |
-| <0.70 | BREAKING - not equivalent |
+| <0.70 | Breaking/not equivalent |
 
-Score = `primary 40% + relationship 40% + structure 20%`; breaking change = 0.5x, critical relationship loss = 0.7x.
+Breaking contract changes halve the score; lost critical relationships multiply by 0.7.
 
-## Warning Severities
+## Limits
 
-| Type | Severity | Trigger |
-|------|----------|---------|
-| Breaking change | CRITICAL | Core contract changed |
-| Relationship loss | HIGH | Dependency removed |
-| Structural change | MEDIUM | Organization differs |
-| Minor difference | LOW | Cosmetic changes |
-
-## Extraction Agent Template
-
-Task template:
-
-```
-**SEMANTIC EXTRACTION**
-**Artifact**: {{path}} | **Type**: {{code|document|config}}
-
-Extract ALL {{type-specific items}}; normalize forms, include line numbers, note confidence.
-Output (JSON): { "items": [...], "relationships": [...], "metadata": {...} }
-```
-
-## Limitations
-
-- Cannot execute to verify runtime behavior — structural analysis only
-- Dynamic/implicit behavior (reflection, monkey-patching, runtime registration) may be missed
-- External references (URLs, file paths, env vars) not followed
-- Confidence decreases with indirection depth
-
-## Rules
-
-- Execute both extractions in a single message with TWO Task calls
-- See per-skill `references/compare.md` for templates and domain extraction categories
+Static comparison can miss runtime registration, reflection, external references, and behavior hidden behind indirection. Note confidence and any unverified assumptions.
