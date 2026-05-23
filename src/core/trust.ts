@@ -1,8 +1,4 @@
-import type {
-  SourceConfig,
-  SourceProvenance,
-  ValidationDiagnostic,
-} from "./types.js";
+import type { SourceConfig, SourceProvenance, ValidationDiagnostic } from "./types.js";
 
 /**
  * Trust policy for controlling which sources are allowed.
@@ -61,9 +57,7 @@ export function checkSourceTrust(
 
   // Check allowlist (if present, only allowed sources pass)
   if (policy.allowedSources && policy.allowedSources.length > 0) {
-    const allowed = policy.allowedSources.some((pattern) =>
-      matchesSourcePattern(source, pattern),
-    );
+    const allowed = policy.allowedSources.some((pattern) => matchesSourcePattern(source, pattern));
     if (!allowed) {
       diagnostics.push({
         rule: "untrusted-source",
@@ -86,12 +80,14 @@ export function checkProvenanceRequired(
 ): ValidationDiagnostic[] {
   if (!policy.requireProvenance) return [];
   if (!provenance) {
-    return [{
-      rule: "missing-provenance",
-      severity: "error",
-      message: `Skill "${skillName}" is missing source provenance (required by trust policy)`,
-      skill: skillName,
-    }];
+    return [
+      {
+        rule: "missing-provenance",
+        severity: "error",
+        message: `Skill "${skillName}" is missing source provenance (required by trust policy)`,
+        skill: skillName,
+      },
+    ];
   }
   return [];
 }
@@ -117,10 +113,7 @@ export function formatProvenanceReport(
   }));
 }
 
-function matchesSourcePattern(
-  source: SourceConfig,
-  pattern: SourcePattern,
-): boolean {
+function matchesSourcePattern(source: SourceConfig, pattern: SourcePattern): boolean {
   if (pattern.type && source.type !== pattern.type) return false;
   if (pattern.name && source.name !== pattern.name) return false;
   if (pattern.urlPrefix && source.url && !source.url.startsWith(pattern.urlPrefix)) return false;

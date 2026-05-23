@@ -1,14 +1,9 @@
-import { access, constants, mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
+import { access, constants, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
-import type {
-  SkillSource,
-  ResolvedSkill,
-  FetchedSkill,
-  SourceProvenance,
-} from "../core/types.js";
+import type { FetchedSkill, ResolvedSkill, SkillSource, SourceProvenance } from "../core/types.js";
 
 const exec = promisify(execFile);
 
@@ -59,7 +54,7 @@ export class GitSource implements SkillSource {
     };
   }
 
-  provenance(resolved: ResolvedSkill): SourceProvenance {
+  provenance(_resolved: ResolvedSkill): SourceProvenance {
     return {
       type: this.type,
       name: this.name,
@@ -83,13 +78,7 @@ export class GitSource implements SkillSource {
 
     const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-git-"));
     try {
-      await exec("git", [
-        "clone",
-        "--depth",
-        "1",
-        this.url,
-        tmpDir,
-      ]);
+      await exec("git", ["clone", "--depth", "1", this.url, tmpDir]);
 
       await exec("git", ["checkout", this.ref], {
         cwd: tmpDir,

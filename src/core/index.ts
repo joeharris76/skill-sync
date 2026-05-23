@@ -1,163 +1,141 @@
 // Type exports
-export type {
-  // Skill Package
-  SkillPackage,
-  SkillMdMetadata,
-  SkillSyncMeta,
-  ConfigInput,
-  SkillFile,
 
-  // Source
-  SourceType,
-  SourceProvenance,
-  SourceConfig,
-  SkillSource,
-  ResolvedSkill,
-  FetchedSkill,
-
-  // Manifest
-  Manifest,
-  InstallMode,
-  SkillOverride,
-
-  // Lock File
-  LockFile,
-  LockedSkill,
-  LockedFile,
-
-  // Sync
-  SyncPlan,
-  PlannedInstall,
-  PlannedUpdate,
-  FileChange,
-  ConflictEntry,
-  SkippedEntry,
-
-  // Store
-  InstalledSkill,
-  DriftReport,
-  DriftEntry,
-
-  // Validation
-  ValidationSeverity,
-  ValidationResult,
-  ValidationDiagnostic,
-} from "./types.js";
-
-// Runtime exports — manifest
-export { readManifest, parseManifest, serializeManifest } from "./manifest.js";
-
-// Runtime exports — lock
-export {
-  createLockFile,
-  readLockFile,
-  writeLockFile,
-  lockSkill,
-  unlockSkill,
-  getLockedSkill,
-  parseLockFile,
-  serializeLockFile,
-} from "./lock.js";
-
-// Runtime exports — parser
-export {
-  parseSkillMdFrontmatter,
-  parseSkillSyncMeta,
-  loadSkillPackage,
-} from "./parser.js";
-
-// Runtime exports — hasher
-export { sha256File, sha256, hashSkillDirectory } from "./hasher.js";
-
-// Runtime exports — paths
-export { expandTilde, resolvePath } from "./paths.js";
-
-// Runtime exports — resolver
-export { resolveSkill, resolveAll, SkillNotFoundError } from "./resolver.js";
-
-// Runtime exports — syncer
-export { planSync, applySync } from "./syncer.js";
-export type { PreparedSkill, PlanSyncInput, ApplySyncInput, ApplySyncResult } from "./syncer.js";
-
-// Runtime exports — drift
-export { detectDrift } from "./drift.js";
-
-// Runtime exports — materializer
-export { materialize, dematerialize } from "./materializer.js";
-export type { MaterializeOptions, MaterializeResult } from "./materializer.js";
-
+export type { AgentTarget, AgentTargetConfig } from "./compatibility.js";
 // Runtime exports — compatibility
 export {
-  checkCompatibility,
-  checkAllTargetCompatibility,
   AGENT_TARGETS,
+  checkAllTargetCompatibility,
+  checkCompatibility,
 } from "./compatibility.js";
-export type { AgentTarget, AgentTargetConfig } from "./compatibility.js";
-
+export type { ConfigGeneratorInput } from "./config-generator.js";
 // Runtime exports — config generator
 export {
   generateConfig,
-  writeProjectConfig,
   validateConfigOverrides,
+  writeProjectConfig,
 } from "./config-generator.js";
-export type { ConfigGeneratorInput } from "./config-generator.js";
-
+// Runtime exports — drift
+export { detectDrift } from "./drift.js";
+// Runtime exports — hasher
+export { hashSkillDirectory, sha256, sha256File } from "./hasher.js";
+// Runtime exports — instruction audit
+export {
+  auditAgentInstructions,
+  auditInstructions,
+} from "./instruction-audit.js";
+export { INSTRUCTION_TARGETS } from "./instruction-targets.js";
+export type {
+  InstructionAgent,
+  InstructionAgentAudit,
+  InstructionAuditDiagnostic,
+  InstructionAuditEntry,
+  InstructionAuditReport,
+  InstructionFileScope,
+  InstructionFileState,
+  InstructionTargetConfig,
+  OverlapDetail,
+} from "./instruction-types.js";
+// Runtime exports — lock
+export {
+  createLockFile,
+  getLockedSkill,
+  lockSkill,
+  parseLockFile,
+  readLockFile,
+  serializeLockFile,
+  unlockSkill,
+  writeLockFile,
+} from "./lock.js";
+// Runtime exports — manifest
+export { parseManifest, readManifest, serializeManifest } from "./manifest.js";
+export type { MaterializeOptions, MaterializeResult } from "./materializer.js";
+// Runtime exports — materializer
+export { dematerialize, materialize } from "./materializer.js";
+export type {
+  InstructionAuditOptions,
+  PinResult,
+  PruneResult,
+  SyncOptions,
+  SyncResult,
+  UnpinResult,
+} from "./operations.js";
+// Runtime exports — operations (shared CLI/MCP orchestration)
+export {
+  instructionAuditOperation,
+  pinOperation,
+  pruneOperation,
+  syncOperation,
+  unpinOperation,
+} from "./operations.js";
+// Runtime exports — parser
+export {
+  loadSkillPackage,
+  parseSkillMdFrontmatter,
+  parseSkillSyncMeta,
+} from "./parser.js";
+// Runtime exports — paths
+export { expandTilde, resolvePath } from "./paths.js";
 // Runtime exports — portability
 export {
   checkPortability,
   isPortableMode,
   validatePortability,
 } from "./portability.js";
-
+// Runtime exports — resolver
+export { resolveAll, resolveSkill, SkillNotFoundError } from "./resolver.js";
 // Runtime exports — security
 export { checkScriptSafety, checkUnsafePatterns } from "./security.js";
-
+export type { ApplySyncInput, ApplySyncResult, PlanSyncInput, PreparedSkill } from "./syncer.js";
+// Runtime exports — syncer
+export { applySync, planSync } from "./syncer.js";
+export type { SourcePattern, TrustPolicy } from "./trust.js";
 // Runtime exports — trust
 export {
-  checkSourceTrust,
   checkProvenanceRequired,
-  formatProvenanceReport,
+  checkSourceTrust,
   DEFAULT_TRUST_POLICY,
+  formatProvenanceReport,
 } from "./trust.js";
-export type { TrustPolicy, SourcePattern } from "./trust.js";
-
+export type {
+  ConfigInput,
+  ConflictEntry,
+  DriftEntry,
+  DriftReport,
+  FetchedSkill,
+  FileChange,
+  // Store
+  InstalledSkill,
+  InstallMode,
+  LockedFile,
+  LockedSkill,
+  // Lock File
+  LockFile,
+  // Manifest
+  Manifest,
+  PlannedInstall,
+  PlannedUpdate,
+  ResolvedSkill,
+  SkillFile,
+  SkillMdMetadata,
+  SkillOverride,
+  // Skill Package
+  SkillPackage,
+  SkillSource,
+  SkillSyncMeta,
+  SkippedEntry,
+  SourceConfig,
+  SourceProvenance,
+  // Source
+  SourceType,
+  // Sync
+  SyncPlan,
+  ValidationDiagnostic,
+  ValidationResult,
+  // Validation
+  ValidationSeverity,
+} from "./types.js";
 // Runtime exports — validator
 export {
-  validateSkillPackage,
   validateManifest,
+  validateSkillPackage,
 } from "./validator.js";
-
-// Runtime exports — operations (shared CLI/MCP orchestration)
-export {
-  syncOperation,
-  instructionAuditOperation,
-  pinOperation,
-  unpinOperation,
-  pruneOperation,
-} from "./operations.js";
-export type {
-  InstructionAuditOptions,
-  SyncOptions,
-  SyncResult,
-  PinResult,
-  UnpinResult,
-  PruneResult,
-} from "./operations.js";
-
-// Runtime exports — instruction audit
-export {
-  auditInstructions,
-  auditAgentInstructions,
-} from "./instruction-audit.js";
-export { INSTRUCTION_TARGETS } from "./instruction-targets.js";
-export type {
-  InstructionAgent,
-  InstructionFileScope,
-  InstructionFileState,
-  InstructionAuditEntry,
-  InstructionAgentAudit,
-  InstructionAuditDiagnostic,
-  InstructionAuditReport,
-  InstructionTargetConfig,
-  OverlapDetail,
-} from "./instruction-types.js";

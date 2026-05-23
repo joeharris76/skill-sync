@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
-import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
-import { formatOutput } from "../output.js";
-import { syncOperation } from "../../core/operations.js";
 import { ManifestNotFoundError } from "../../core/manifest.js";
+import { type SyncResult, syncOperation } from "../../core/operations.js";
 import type { SyncPlan } from "../../core/types.js";
+import { formatOutput } from "../output.js";
+import type { CliResult, OutputMode, ParsedArgs } from "../types.js";
 
 export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
   const mode: OutputMode = args.flags.json ? "json" : "text";
@@ -12,21 +12,30 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
   const projectRoot = resolve(String(args.flags.project ?? "."));
 
   try {
-    let result;
+    let result: SyncResult;
     try {
       result = await syncOperation({ projectRoot, dryRun, force });
     } catch (err) {
       if (dryRun && err instanceof ManifestNotFoundError) {
-        const emptyPlan = { install: [], update: [], remove: [], conflicts: [], unchanged: [], skipped: [], warnings: [] };
-        return { exitCode: 0, stdout: formatOutput(emptyPlan, mode, () => "No skill-sync.yaml found. Nothing to sync.") };
+        const emptyPlan = {
+          install: [],
+          update: [],
+          remove: [],
+          conflicts: [],
+          unchanged: [],
+          skipped: [],
+          warnings: [],
+        };
+        return {
+          exitCode: 0,
+          stdout: formatOutput(emptyPlan, mode, () => "No skill-sync.yaml found. Nothing to sync."),
+        };
       }
       throw err;
     }
 
     if (dryRun) {
-      const output = formatOutput(result.plan, mode, (data) =>
-        formatPlanText(data as SyncPlan),
-      );
+      const output = formatOutput(result.plan, mode, (data) => formatPlanText(data as SyncPlan));
       return { exitCode: 0, stdout: output };
     }
 
@@ -39,11 +48,7 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
       if (mode === "json") {
         return {
           exitCode: 1,
-          stdout: JSON.stringify(
-            { error: "conflicts", conflicts: result.conflicts },
-            null,
-            2,
-          ),
+          stdout: JSON.stringify({ error: "conflicts", conflicts: result.conflicts }, null, 2),
           stderr: msg,
         };
       }
@@ -53,20 +58,13 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
     const output = formatOutput(result.summary, mode, (data) => {
       const s = data as typeof result.summary;
       const lines: string[] = [];
-      if (s.installed.length)
-        lines.push(`Installed: ${s.installed.join(", ")}`);
+      if (s.installed.length) lines.push(`Installed: ${s.installed.join(", ")}`);
       if (s.updated.length) lines.push(`Updated: ${s.updated.join(", ")}`);
       if (s.removed.length) lines.push(`Removed: ${s.removed.join(", ")}`);
-      if (s.forced.length)
-        lines.push(
-          `Forced (overwrote local changes): ${s.forced.join(", ")}`,
-        );
+      if (s.forced.length) lines.push(`Forced (overwrote local changes): ${s.forced.join(", ")}`);
       if (s.skipped.length)
-        lines.push(
-          `Skipped (disk matches source): ${s.skipped.map((sk) => sk.name).join(", ")}`,
-        );
-      if (s.unchanged.length)
-        lines.push(`Unchanged: ${s.unchanged.join(", ")}`);
+        lines.push(`Skipped (disk matches source): ${s.skipped.map((sk) => sk.name).join(", ")}`);
+      if (s.unchanged.length) lines.push(`Unchanged: ${s.unchanged.join(", ")}`);
       if (s.warnings.length) lines.push("", ...s.warnings);
       return lines.length ? lines.join("\n") : "Nothing to do.";
     });
@@ -80,21 +78,14 @@ export async function syncCommand(args: ParsedArgs): Promise<CliResult> {
 
 function formatPlanText(plan: SyncPlan): string {
   const lines: string[] = [];
-  if (plan.install.length)
-    lines.push(`Install: ${plan.install.map((i) => i.name).join(", ")}`);
-  if (plan.update.length)
-    lines.push(`Update: ${plan.update.map((u) => u.name).join(", ")}`);
+  if (plan.install.length) lines.push(`Install: ${plan.install.map((i) => i.name).join(", ")}`);
+  if (plan.update.length) lines.push(`Update: ${plan.update.map((u) => u.name).join(", ")}`);
   if (plan.remove.length) lines.push(`Remove: ${plan.remove.join(", ")}`);
   if (plan.conflicts.length)
-    lines.push(
-      `Conflicts: ${plan.conflicts.map((c) => c.name).join(", ")}`,
-    );
+    lines.push(`Conflicts: ${plan.conflicts.map((c) => c.name).join(", ")}`);
   if (plan.skipped.length)
-    lines.push(
-      `Skipped (disk matches source): ${plan.skipped.map((s) => s.name).join(", ")}`,
-    );
-  if (plan.unchanged.length)
-    lines.push(`Unchanged: ${plan.unchanged.join(", ")}`);
+    lines.push(`Skipped (disk matches source): ${plan.skipped.map((s) => s.name).join(", ")}`);
+  if (plan.unchanged.length) lines.push(`Unchanged: ${plan.unchanged.join(", ")}`);
   if (plan.warnings.length) lines.push("", ...plan.warnings);
   return lines.length ? lines.join("\n") : "Nothing to do.";
 }

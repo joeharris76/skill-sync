@@ -1,17 +1,21 @@
 import { resolve } from "node:path";
-import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
-import { formatOutput, formatDiagnostics } from "../output.js";
-import { readManifest } from "../../core/manifest.js";
-import { readLockFile } from "../../core/lock.js";
-import { loadSkillPackage } from "../../core/parser.js";
-import { validatePortability } from "../../core/portability.js";
 import { checkAllTargetCompatibility } from "../../core/compatibility.js";
 import { validateConfigOverrides } from "../../core/config-generator.js";
-import type { ValidationDiagnostic } from "../../core/types.js";
-import { checkSourceTrust, checkProvenanceRequired, DEFAULT_TRUST_POLICY } from "../../core/trust.js";
-import { checkScriptSafety } from "../../core/security.js";
+import { readLockFile } from "../../core/lock.js";
+import { readManifest } from "../../core/manifest.js";
 import { instructionAuditOperation } from "../../core/operations.js";
+import { loadSkillPackage } from "../../core/parser.js";
+import { validatePortability } from "../../core/portability.js";
+import { checkScriptSafety } from "../../core/security.js";
+import {
+  checkProvenanceRequired,
+  checkSourceTrust,
+  DEFAULT_TRUST_POLICY,
+} from "../../core/trust.js";
+import type { Manifest, ValidationDiagnostic } from "../../core/types.js";
+import { formatDiagnostics, formatOutput } from "../output.js";
 import { isImplementedSourceType } from "../source-factory.js";
+import type { CliResult, OutputMode, ParsedArgs } from "../types.js";
 
 export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
   const mode: OutputMode = args.flags.json ? "json" : "text";
@@ -19,12 +23,28 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
   const projectRoot = resolve(String(args.flags.project ?? "."));
 
   try {
-    let manifest;
+    let manifest: Manifest;
     try {
       manifest = await readManifest(projectRoot);
     } catch {
-      const result = { valid: true, diagnostics: [{ rule: "no-manifest", severity: "warning" as const, message: "No skill-sync.yaml found." }] };
-      return { exitCode: 0, stdout: formatOutput(result, mode, () => "WARN  No skill-sync.yaml found.\n\nValidation passed with warnings.") };
+      const result = {
+        valid: true,
+        diagnostics: [
+          {
+            rule: "no-manifest",
+            severity: "warning" as const,
+            message: "No skill-sync.yaml found.",
+          },
+        ],
+      };
+      return {
+        exitCode: 0,
+        stdout: formatOutput(
+          result,
+          mode,
+          () => "WARN  No skill-sync.yaml found.\n\nValidation passed with warnings.",
+        ),
+      };
     }
     const lockFile = await readLockFile(projectRoot);
 
@@ -79,7 +99,9 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
               const compatDiags = checkAllTargetCompatibility(pkg, manifest.targets);
               diagnostics.push(...compatDiags);
               diagnostics.push(...checkScriptSafety(pkg, DEFAULT_TRUST_POLICY));
-              diagnostics.push(...checkProvenanceRequired(skillName, locked.source, DEFAULT_TRUST_POLICY));
+              diagnostics.push(
+                ...checkProvenanceRequired(skillName, locked.source, DEFAULT_TRUST_POLICY),
+              );
             }
           } catch {
             diagnostics.push({

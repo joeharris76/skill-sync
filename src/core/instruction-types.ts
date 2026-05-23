@@ -5,11 +5,7 @@ export type InstructionAgent = "claude" | "codex" | "gemini" | "cursor" | "copil
 
 export type InstructionFileScope = "global" | "project" | "override";
 
-export type InstructionFileState =
-  | "missing"
-  | "present"
-  | "mirror-of-global"
-  | "overlaps-global";
+export type InstructionFileState = "missing" | "present" | "mirror-of-global" | "overlaps-global";
 
 export interface OverlapDetail {
   totalLines: number;

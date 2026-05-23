@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
-import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
-import { formatOutput } from "../output.js";
 import { settingsGenerateOperation } from "../../core/operations.js";
+import { formatOutput } from "../output.js";
+import type { CliResult, OutputMode, ParsedArgs } from "../types.js";
 
 export async function settingsCommand(args: ParsedArgs): Promise<CliResult> {
   const subcommand = args.positionals[0];
@@ -42,10 +42,7 @@ async function settingsGenerate(args: ParsedArgs): Promise<CliResult> {
       return lines.join("\n");
     }
 
-    lines.push(
-      `Settings requirements for ${result.gaps.length} skill(s) targeting ${agent}:`,
-      "",
-    );
+    lines.push(`Settings requirements for ${result.gaps.length} skill(s) targeting ${agent}:`, "");
 
     for (const gap of result.gaps) {
       lines.push(`  ${gap.skillName}: ${gap.missingAllows.join(", ")}`);

@@ -1,12 +1,13 @@
 import { resolve } from "node:path";
-import { resolvePath } from "../../core/paths.js";
-import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
-import { formatOutput, formatTable } from "../output.js";
-import { readManifest } from "../../core/manifest.js";
-import { readLockFile } from "../../core/lock.js";
 import { detectDrift } from "../../core/drift.js";
-import { instructionAuditOperation } from "../../core/operations.js";
 import type { InstructionAgentAudit } from "../../core/instruction-types.js";
+import { readLockFile } from "../../core/lock.js";
+import { readManifest } from "../../core/manifest.js";
+import { instructionAuditOperation } from "../../core/operations.js";
+import { resolvePath } from "../../core/paths.js";
+import type { Manifest } from "../../core/types.js";
+import { formatOutput, formatTable } from "../output.js";
+import type { CliResult, OutputMode, ParsedArgs } from "../types.js";
 
 export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
   const mode: OutputMode = args.flags.json ? "json" : "text";
@@ -14,7 +15,7 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
 
   try {
     const instructionReport = await instructionAuditOperation({ projectRoot });
-    let manifest;
+    let manifest: Manifest;
     try {
       manifest = await readManifest(projectRoot);
     } catch {
@@ -43,9 +44,7 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
       };
       return {
         exitCode: 0,
-        stdout: formatOutput(data, mode, () =>
-          renderStatusText([], instructionReport.agents, msg),
-        ),
+        stdout: formatOutput(data, mode, () => renderStatusText([], instructionReport.agents, msg)),
       };
     }
 
@@ -172,12 +171,7 @@ function renderStatusText(
 
   if (shouldShowInstructionSection(agents)) {
     lines.push("Instruction Files:", "");
-    lines.push(
-      formatTable(
-        buildInstructionRows(agents),
-        ["Agent", "Global", "Project", "State"],
-      ),
-    );
+    lines.push(formatTable(buildInstructionRows(agents), ["Agent", "Global", "Project", "State"]));
     lines.push("");
   }
 
@@ -185,11 +179,12 @@ function renderStatusText(
 }
 
 function shouldShowInstructionSection(agents: InstructionAgentAudit[]): boolean {
-  return agents.some((agent) =>
-    agent.configured ||
-    [...agent.globalFiles, ...agent.projectFiles, ...agent.overrideFiles].some(
-      (entry) => entry.state !== "missing",
-    )
+  return agents.some(
+    (agent) =>
+      agent.configured ||
+      [...agent.globalFiles, ...agent.projectFiles, ...agent.overrideFiles].some(
+        (entry) => entry.state !== "missing",
+      ),
   );
 }
 
@@ -201,10 +196,10 @@ function buildInstructionRows(agents: InstructionAgentAudit[]) {
       return {
         Agent: agent.agent,
         Global: displayInstructionPath(agent.globalFiles, agent.expectedGlobalFiles),
-        Project: displayInstructionPath(
-          localEntries,
-          [...agent.expectedProjectFiles, ...agent.expectedOverrideFiles],
-        ),
+        Project: displayInstructionPath(localEntries, [
+          ...agent.expectedProjectFiles,
+          ...agent.expectedOverrideFiles,
+        ]),
         State: summarizeInstructionState(agent),
       };
     });

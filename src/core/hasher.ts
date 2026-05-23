@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { readdir } from "node:fs/promises";
 import type { SkillFile } from "./types.js";
 
 /** Compute SHA256 hex digest of a file. */
@@ -19,20 +18,14 @@ export function sha256(data: string | Buffer): string {
  * Walk a skill directory and return SkillFile entries for every file.
  * Excludes directories, follows no symlinks into outside paths.
  */
-export async function hashSkillDirectory(
-  skillDir: string,
-): Promise<SkillFile[]> {
+export async function hashSkillDirectory(skillDir: string): Promise<SkillFile[]> {
   const files: SkillFile[] = [];
   await walkDir(skillDir, skillDir, files);
   files.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
   return files;
 }
 
-async function walkDir(
-  baseDir: string,
-  currentDir: string,
-  out: SkillFile[],
-): Promise<void> {
+async function walkDir(baseDir: string, currentDir: string, out: SkillFile[]): Promise<void> {
   const entries = await readdir(currentDir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = join(currentDir, entry.name);

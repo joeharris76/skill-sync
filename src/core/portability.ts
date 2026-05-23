@@ -1,16 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { SkillPackage, InstallMode, ValidationDiagnostic } from "./types.js";
+import type { InstallMode, SkillPackage, ValidationDiagnostic } from "./types.js";
 
 // Patterns that indicate non-portable paths
 const NON_PORTABLE_PATTERNS = [
-  /~\//,                              // Home directory references
-  /\/Users\/[^/]+\//,                 // macOS absolute user paths
-  /\/home\/[^/]+\//,                  // Linux absolute user paths
-  /C:\\Users\\/i,                     // Windows user paths
-  /\/\.claude\/skills\//,             // Direct references to global Claude skill store
-  /\/\.codex\/skills\//,              // Direct references to global Codex skill store
-  /\/\.gemini\/skills\//,             // Direct references to global Gemini skill store
+  /~\//, // Home directory references
+  /\/Users\/[^/]+\//, // macOS absolute user paths
+  /\/home\/[^/]+\//, // Linux absolute user paths
+  /C:\\Users\\/i, // Windows user paths
+  /\/\.claude\/skills\//, // Direct references to global Claude skill store
+  /\/\.codex\/skills\//, // Direct references to global Codex skill store
+  /\/\.gemini\/skills\//, // Direct references to global Gemini skill store
 ];
 
 /**
@@ -20,9 +20,7 @@ const NON_PORTABLE_PATTERNS = [
  * home-directory references that would break in CI, web, or another
  * developer's machine.
  */
-export async function checkPortability(
-  pkg: SkillPackage,
-): Promise<ValidationDiagnostic[]> {
+export async function checkPortability(pkg: SkillPackage): Promise<ValidationDiagnostic[]> {
   const diagnostics: ValidationDiagnostic[] = [];
 
   // Check skill content files (skip sync engine metadata)

@@ -1,9 +1,8 @@
 import { readFile } from "node:fs/promises";
-import type { ValidationResult, ValidationDiagnostic, SkillPackage, Manifest } from "./types.js";
-import { loadSkillPackage } from "./parser.js";
-import { checkPortability } from "./portability.js";
 import { parseManifest } from "./manifest.js";
-import { isPortableMode } from "./portability.js";
+import { loadSkillPackage } from "./parser.js";
+import { checkPortability, isPortableMode } from "./portability.js";
+import type { Manifest, SkillPackage, ValidationDiagnostic, ValidationResult } from "./types.js";
 
 /**
  * Validate a skill package directory.
@@ -13,9 +12,7 @@ import { isPortableMode } from "./portability.js";
  * - No non-portable paths in content
  * - skill.yaml is valid if present
  */
-export async function validateSkillPackage(
-  skillDir: string,
-): Promise<ValidationResult> {
+export async function validateSkillPackage(skillDir: string): Promise<ValidationResult> {
   const diagnostics: ValidationDiagnostic[] = [];
 
   let pkg: SkillPackage;
@@ -24,11 +21,13 @@ export async function validateSkillPackage(
   } catch (err) {
     return {
       valid: false,
-      diagnostics: [{
-        rule: "load-error",
-        severity: "error",
-        message: `Failed to load skill package: ${err instanceof Error ? err.message : String(err)}`,
-      }],
+      diagnostics: [
+        {
+          rule: "load-error",
+          severity: "error",
+          message: `Failed to load skill package: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      ],
     };
   }
 
@@ -37,7 +36,7 @@ export async function validateSkillPackage(
     diagnostics.push({
       rule: "missing-frontmatter-name",
       severity: "error",
-      message: "SKILL.md is missing a \"name\" field in frontmatter",
+      message: 'SKILL.md is missing a "name" field in frontmatter',
       skill: pkg.name,
       file: "SKILL.md",
     });
@@ -46,7 +45,7 @@ export async function validateSkillPackage(
     diagnostics.push({
       rule: "missing-frontmatter-description",
       severity: "error",
-      message: "SKILL.md is missing a \"description\" field in frontmatter",
+      message: 'SKILL.md is missing a "description" field in frontmatter',
       skill: pkg.name,
       file: "SKILL.md",
     });
@@ -81,9 +80,7 @@ export async function validateSkillPackage(
  * - Skills list is non-empty
  * - Targets are defined
  */
-export async function validateManifest(
-  manifestPath: string,
-): Promise<ValidationResult> {
+export async function validateManifest(manifestPath: string): Promise<ValidationResult> {
   const diagnostics: ValidationDiagnostic[] = [];
 
   let content: string;
@@ -92,11 +89,13 @@ export async function validateManifest(
   } catch (err) {
     return {
       valid: false,
-      diagnostics: [{
-        rule: "manifest-read-error",
-        severity: "error",
-        message: `Cannot read manifest: ${err instanceof Error ? err.message : String(err)}`,
-      }],
+      diagnostics: [
+        {
+          rule: "manifest-read-error",
+          severity: "error",
+          message: `Cannot read manifest: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      ],
     };
   }
 
@@ -106,11 +105,13 @@ export async function validateManifest(
   } catch (err) {
     return {
       valid: false,
-      diagnostics: [{
-        rule: "manifest-parse-error",
-        severity: "error",
-        message: err instanceof Error ? err.message : String(err),
-      }],
+      diagnostics: [
+        {
+          rule: "manifest-parse-error",
+          severity: "error",
+          message: err instanceof Error ? err.message : String(err),
+        },
+      ],
     };
   }
 

@@ -1,12 +1,7 @@
 import { access, constants } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { expandTilde } from "../core/paths.js";
-import type {
-  SkillSource,
-  ResolvedSkill,
-  FetchedSkill,
-  SourceProvenance,
-} from "../core/types.js";
+import type { FetchedSkill, ResolvedSkill, SkillSource, SourceProvenance } from "../core/types.js";
 
 /** Source adapter for local filesystem skill directories. */
 export class LocalSource implements SkillSource {

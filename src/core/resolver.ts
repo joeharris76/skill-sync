@@ -1,19 +1,12 @@
-import type {
-  SkillSource,
-  ResolvedSkill,
-  FetchedSkill,
-  SkillSyncMeta,
-} from "./types.js";
 import { loadSkillPackage } from "./parser.js";
+import type { ResolvedSkill, SkillSource } from "./types.js";
 
 export class SkillNotFoundError extends Error {
   constructor(
     public readonly skillName: string,
     public readonly searchedSources: string[],
   ) {
-    super(
-      `Skill "${skillName}" not found in sources: ${searchedSources.join(", ")}`,
-    );
+    super(`Skill "${skillName}" not found in sources: ${searchedSources.join(", ")}`);
     this.name = "SkillNotFoundError";
   }
 }

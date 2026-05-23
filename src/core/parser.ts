@@ -1,14 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { hashSkillDirectory } from "./hasher.js";
 import type {
-  SkillMdMetadata,
-  SkillSyncMeta,
-  SkillPackage,
   ConfigInput,
   SettingsRequirements,
+  SkillMdMetadata,
+  SkillPackage,
+  SkillSyncMeta,
 } from "./types.js";
-import { hashSkillDirectory } from "./hasher.js";
 
 /**
  * Parse SKILL.md YAML frontmatter.
@@ -45,9 +45,7 @@ export function parseSkillSyncMeta(content: string): SkillSyncMeta {
     tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
     category: typeof raw.category === "string" ? raw.category : undefined,
     depends: Array.isArray(raw.depends) ? (raw.depends as string[]) : [],
-    configInputs: Array.isArray(raw.config_inputs)
-      ? (raw.config_inputs as ConfigInput[])
-      : [],
+    configInputs: Array.isArray(raw.config_inputs) ? (raw.config_inputs as ConfigInput[]) : [],
     targets:
       raw.targets && typeof raw.targets === "object"
         ? (raw.targets as Record<string, boolean>)
@@ -87,9 +85,7 @@ function parseSettingsRequirements(raw: unknown): SettingsRequirements | undefin
  * Load a complete SkillPackage from a directory on disk.
  * The directory must contain a SKILL.md file.
  */
-export async function loadSkillPackage(
-  skillDir: string,
-): Promise<SkillPackage> {
+export async function loadSkillPackage(skillDir: string): Promise<SkillPackage> {
   const skillMdPath = join(skillDir, "SKILL.md");
   const skillMdContent = await readFile(skillMdPath, "utf-8");
   const skillMd = parseSkillMdFrontmatter(skillMdContent);

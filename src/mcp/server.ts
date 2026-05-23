@@ -1,17 +1,24 @@
+import type { Dirent } from "node:fs";
+import { access, constants, readdir, readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { resolve, join } from "node:path";
-import { resolvePath } from "../core/paths.js";
-import { readFile, readdir, access, constants } from "node:fs/promises";
-import type { Dirent } from "node:fs";
-import { readManifest } from "../core/manifest.js";
-import { readLockFile } from "../core/lock.js";
-import { detectDrift } from "../core/drift.js";
-import { loadSkillPackage } from "../core/parser.js";
-import { validatePortability } from "../core/portability.js";
 import { checkAllTargetCompatibility } from "../core/compatibility.js";
 import { validateConfigOverrides } from "../core/config-generator.js";
-import { syncOperation, pinOperation, unpinOperation, pruneOperation, doctorOperation, instructionAuditOperation } from "../core/operations.js";
+import { detectDrift } from "../core/drift.js";
+import { readLockFile } from "../core/lock.js";
+import { readManifest } from "../core/manifest.js";
+import {
+  doctorOperation,
+  instructionAuditOperation,
+  pinOperation,
+  pruneOperation,
+  syncOperation,
+  unpinOperation,
+} from "../core/operations.js";
+import { loadSkillPackage } from "../core/parser.js";
+import { resolvePath } from "../core/paths.js";
+import { validatePortability } from "../core/portability.js";
 import type { SkillPackage, ValidationDiagnostic } from "../core/types.js";
 
 interface TargetRoot {
@@ -52,11 +59,13 @@ export function createServer(projectRoot: string): McpServer {
         files: s.files.length,
       }));
       return {
-        contents: [{
-          uri: "skill://list",
-          mimeType: "application/json",
-          text: JSON.stringify(listing, null, 2),
-        }],
+        contents: [
+          {
+            uri: "skill://list",
+            mimeType: "application/json",
+            text: JSON.stringify(listing, null, 2),
+          },
+        ],
       };
     },
   );
@@ -67,17 +76,19 @@ export function createServer(projectRoot: string): McpServer {
 
   server.resource(
     "skill",
-    new ResourceTemplate("skill://{name}", { list: async () => {
-      const skills = await listInstalledSkills(root);
-      return {
-        resources: skills.map((s) => ({
-          uri: `skill://${s.name}`,
-          name: s.name,
-          description: s.description,
-          mimeType: "text/markdown",
-        })),
-      };
-    }}),
+    new ResourceTemplate("skill://{name}", {
+      list: async () => {
+        const skills = await listInstalledSkills(root);
+        return {
+          resources: skills.map((s) => ({
+            uri: `skill://${s.name}`,
+            name: s.name,
+            description: s.description,
+            mimeType: "text/markdown",
+          })),
+        };
+      },
+    }),
     { description: "Read a skill's SKILL.md content" },
     async (uri, variables) => {
       const name = String(variables.name);
@@ -88,11 +99,13 @@ export function createServer(projectRoot: string): McpServer {
       const skillMdPath = join(skillRoot.root, name, "SKILL.md");
       const content = await readFile(skillMdPath, "utf-8");
       return {
-        contents: [{
-          uri: uri.href,
-          mimeType: "text/markdown",
-          text: content,
-        }],
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/markdown",
+            text: content,
+          },
+        ],
       };
     },
   );
@@ -112,20 +125,25 @@ export function createServer(projectRoot: string): McpServer {
       // Security: ensure path stays within skill directory
       const resolvedPath = resolve(fullPath);
       const skillDir = resolve(join(skillRoot.root, name));
-      if (!resolvedPath.startsWith(skillDir + "/") && resolvedPath !== skillDir) {
+      if (!resolvedPath.startsWith(`${skillDir}/`) && resolvedPath !== skillDir) {
         throw new Error("Path traversal not allowed");
       }
       const content = await readFile(resolvedPath, "utf-8");
-      const mimeType = filePath.endsWith(".md") ? "text/markdown"
-        : filePath.endsWith(".yaml") || filePath.endsWith(".yml") ? "text/yaml"
-        : filePath.endsWith(".json") ? "application/json"
-        : "text/plain";
+      const mimeType = filePath.endsWith(".md")
+        ? "text/markdown"
+        : filePath.endsWith(".yaml") || filePath.endsWith(".yml")
+          ? "text/yaml"
+          : filePath.endsWith(".json")
+            ? "application/json"
+            : "text/plain";
       return {
-        contents: [{
-          uri: uri.href,
-          mimeType,
-          text: content,
-        }],
+        contents: [
+          {
+            uri: uri.href,
+            mimeType,
+            text: content,
+          },
+        ],
       };
     },
   );
@@ -137,7 +155,11 @@ export function createServer(projectRoot: string): McpServer {
   server.tool(
     "search-skills",
     "Search installed skills by name or tag",
-    { query: z.string().describe("Search term to match against skill names, descriptions, and tags") },
+    {
+      query: z
+        .string()
+        .describe("Search term to match against skill names, descriptions, and tags"),
+    },
     async ({ query }) => {
       const skills = await listInstalledSkills(root);
       const lower = query.toLowerCase();
@@ -149,39 +171,44 @@ export function createServer(projectRoot: string): McpServer {
       });
 
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(matches.map((s) => ({
-            name: s.name,
-            description: s.description,
-            tags: s.meta?.tags ?? [],
-            files: s.files.map((f) => f.relativePath),
-          })), null, 2),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              matches.map((s) => ({
+                name: s.name,
+                description: s.description,
+                tags: s.meta?.tags ?? [],
+                files: s.files.map((f) => f.relativePath),
+              })),
+              null,
+              2,
+            ),
+          },
+        ],
       };
     },
   );
 
-  server.tool(
-    "skill-status",
-    "Show installation status and drift for all skills",
-    {},
-    async () => {
-      const lockFile = await readLockFile(root);
-      if (!lockFile) {
-        return {
-          content: [{ type: "text" as const, text: "No lock file found. Run `skill-sync sync` first." }],
-        };
-      }
-      const targets = await getTargetRoots(root);
-      const statuses = await Promise.all(
-        targets.map(async (target) => ({
-          target: target.name,
-          drift: await detectDrift(target.root, lockFile),
-        })),
-      );
+  server.tool("skill-status", "Show installation status and drift for all skills", {}, async () => {
+    const lockFile = await readLockFile(root);
+    if (!lockFile) {
       return {
-        content: [{
+        content: [
+          { type: "text" as const, text: "No lock file found. Run `skill-sync sync` first." },
+        ],
+      };
+    }
+    const targets = await getTargetRoots(root);
+    const statuses = await Promise.all(
+      targets.map(async (target) => ({
+        target: target.name,
+        drift: await detectDrift(target.root, lockFile),
+      })),
+    );
+    return {
+      content: [
+        {
           type: "text" as const,
           text: JSON.stringify(
             statuses.map((status) => ({
@@ -194,10 +221,10 @@ export function createServer(projectRoot: string): McpServer {
             null,
             2,
           ),
-        }],
-      };
-    },
-  );
+        },
+      ],
+    };
+  });
 
   server.tool(
     "validate-skills",
@@ -207,18 +234,24 @@ export function createServer(projectRoot: string): McpServer {
       const diagnostics = await runValidation(root);
       const hasErrors = diagnostics.some((d) => d.severity === "error");
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            valid: !hasErrors,
-            diagnostics: diagnostics.map((d) => ({
-              severity: d.severity,
-              rule: d.rule,
-              message: d.message,
-              skill: d.skill,
-            })),
-          }, null, 2),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                valid: !hasErrors,
+                diagnostics: diagnostics.map((d) => ({
+                  severity: d.severity,
+                  rule: d.rule,
+                  message: d.message,
+                  skill: d.skill,
+                })),
+              },
+              null,
+              2,
+            ),
+          },
+        ],
       };
     },
   );
@@ -232,10 +265,12 @@ export function createServer(projectRoot: string): McpServer {
       const structuredContent = report as unknown as Record<string, unknown>;
       return {
         structuredContent,
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(report, null, 2),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(report, null, 2),
+          },
+        ],
       };
     },
   );
@@ -244,29 +279,54 @@ export function createServer(projectRoot: string): McpServer {
     "sync-skills",
     `Resolve skills from configured sources and apply them to all targets. Supports dry-run and force modes. ${SYNC_REPO_HYGIENE_GUIDANCE}`,
     {
-      dry_run: z.boolean().optional().default(false).describe("Preview changes without applying them"),
-      force: z.boolean().optional().default(false).describe("Overwrite local modifications without conflict check"),
+      dry_run: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("Preview changes without applying them"),
+      force: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("Overwrite local modifications without conflict check"),
     },
     async ({ dry_run, force }) => {
       try {
         const result = await syncOperation({ projectRoot: root, dryRun: dry_run, force });
 
         if (dry_run) {
-          return { content: [{ type: "text" as const, text: JSON.stringify(result.plan, null, 2) }] };
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify(result.plan, null, 2) }],
+          };
         }
 
         if (result.conflicts && result.conflicts.length > 0) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: "conflicts", conflicts: result.conflicts }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "conflicts", conflicts: result.conflicts }, null, 2),
+              },
+            ],
           };
         }
 
-        return { content: [{ type: "text" as const, text: JSON.stringify(result.summary, null, 2) }] };
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(result.summary, null, 2) }],
+        };
       } catch (err) {
-        return { content: [{ type: "text" as const, text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }, null, 2) }] };
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                { error: err instanceof Error ? err.message : String(err) },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
       }
     },
   );
@@ -280,7 +340,18 @@ export function createServer(projectRoot: string): McpServer {
         const result = await pinOperation(root, skill);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
-        return { content: [{ type: "text" as const, text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }, null, 2) }] };
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                { error: err instanceof Error ? err.message : String(err) },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
       }
     },
   );
@@ -294,7 +365,18 @@ export function createServer(projectRoot: string): McpServer {
         const result = await unpinOperation(root, skill);
         return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
       } catch (err) {
-        return { content: [{ type: "text" as const, text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }, null, 2) }] };
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                { error: err instanceof Error ? err.message : String(err) },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
       }
     },
   );
@@ -302,16 +384,44 @@ export function createServer(projectRoot: string): McpServer {
   server.tool(
     "prune-skills",
     "Remove installed skills that are not declared in the project manifest.",
-    { dry_run: z.boolean().optional().default(false).describe("Show what would be removed without removing it") },
+    {
+      dry_run: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("Show what would be removed without removing it"),
+    },
     async ({ dry_run }) => {
       try {
         const result = await pruneOperation(root, dry_run);
         if (result.dryRun && result.pruned.length > 0) {
-          return { content: [{ type: "text" as const, text: JSON.stringify({ wouldPrune: result.pruned }, null, 2) }] };
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ wouldPrune: result.pruned }, null, 2),
+              },
+            ],
+          };
         }
-        return { content: [{ type: "text" as const, text: JSON.stringify({ pruned: result.pruned }, null, 2) }] };
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify({ pruned: result.pruned }, null, 2) },
+          ],
+        };
       } catch (err) {
-        return { content: [{ type: "text" as const, text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }, null, 2) }] };
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                { error: err instanceof Error ? err.message : String(err) },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
       }
     },
   );
@@ -359,10 +469,12 @@ export function createServer(projectRoot: string): McpServer {
       const skillRoot = await findSkillRoot(root, name);
       if (!skillRoot) {
         return {
-          messages: [{
-            role: "user" as const,
-            content: { type: "text" as const, text: `Skill "${name}" not found.` },
-          }],
+          messages: [
+            {
+              role: "user" as const,
+              content: { type: "text" as const, text: `Skill "${name}" not found.` },
+            },
+          ],
         };
       }
       const skillMdPath = join(skillRoot.root, name, "SKILL.md");
@@ -371,27 +483,32 @@ export function createServer(projectRoot: string): McpServer {
         content = await readFile(skillMdPath, "utf-8");
       } catch {
         return {
-          messages: [{
-            role: "user" as const,
-            content: { type: "text" as const, text: `Skill "${name}" not found.` },
-          }],
+          messages: [
+            {
+              role: "user" as const,
+              content: { type: "text" as const, text: `Skill "${name}" not found.` },
+            },
+          ],
         };
       }
 
       // Strip frontmatter for the prompt body
       const body = content.replace(/^---[\s\S]*?---\n?/, "").trim();
-      const repoHygienePreamble = name === "skill-sync"
-        ? `Before following these instructions, enforce repo hygiene: ${SYNC_REPO_HYGIENE_GUIDANCE}\n\n`
-        : "";
+      const repoHygienePreamble =
+        name === "skill-sync"
+          ? `Before following these instructions, enforce repo hygiene: ${SYNC_REPO_HYGIENE_GUIDANCE}\n\n`
+          : "";
 
       return {
-        messages: [{
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text: `Use the following skill instructions:\n\n${repoHygienePreamble}${body}`,
+        messages: [
+          {
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text: `Use the following skill instructions:\n\n${repoHygienePreamble}${body}`,
+            },
           },
-        }],
+        ],
       };
     },
   );
@@ -417,11 +534,17 @@ async function getTargetRoots(projectRoot: string): Promise<TargetRoot[]> {
     // Fall through to default target.
   }
   const defaults: TargetRoot[] = [];
-  for (const [name, dir] of [["claude", ".claude/skills"], ["codex", ".codex/skills"], ["gemini", ".gemini/skills"]] as const) {
+  for (const [name, dir] of [
+    ["claude", ".claude/skills"],
+    ["codex", ".codex/skills"],
+    ["gemini", ".gemini/skills"],
+  ] as const) {
     try {
       await access(resolve(projectRoot, dir), constants.R_OK);
       defaults.push({ name, root: resolve(projectRoot, dir) });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   if (defaults.length > 0) return defaults;
@@ -473,7 +596,8 @@ export async function runValidation(projectRoot: string): Promise<ValidationDiag
   try {
     const manifest = await readManifest(projectRoot);
     const lockFile = await readLockFile(projectRoot);
-    if (!lockFile) return [{ rule: "no-lock-file", severity: "warning", message: "No lock file found." }];
+    if (!lockFile)
+      return [{ rule: "no-lock-file", severity: "warning", message: "No lock file found." }];
 
     const installedPkgs: SkillPackage[] = [];
     const targets = await getTargetRoots(projectRoot);
@@ -488,7 +612,9 @@ export async function runValidation(projectRoot: string): Promise<ValidationDiag
             installedPkgs.push(pkg);
           }
           const portDiags = await validatePortability(pkg, locked.installMode);
-          diagnostics.push(...portDiags.map((diag) => ({ ...diag, message: `[${target.name}] ${diag.message}` })));
+          diagnostics.push(
+            ...portDiags.map((diag) => ({ ...diag, message: `[${target.name}] ${diag.message}` })),
+          );
         } catch {
           diagnostics.push({
             rule: "skill-not-found",
@@ -509,7 +635,11 @@ export async function runValidation(projectRoot: string): Promise<ValidationDiag
       diagnostics.push({ rule: "config-override", severity: "warning", message: w });
     }
   } catch (err) {
-    diagnostics.push({ rule: "manifest-error", severity: "error", message: err instanceof Error ? err.message : String(err) });
+    diagnostics.push({
+      rule: "manifest-error",
+      severity: "error",
+      message: err instanceof Error ? err.message : String(err),
+    });
   }
   return diagnostics;
 }

@@ -29,9 +29,7 @@ export function formatTable(
   const header = columns.map((c, i) => c.padEnd(widths[i]!)).join("  ");
   const separator = widths.map((w) => "-".repeat(w)).join("  ");
   const body = rows
-    .map((row) =>
-      columns.map((c, i) => String(row[c] ?? "").padEnd(widths[i]!)).join("  "),
-    )
+    .map((row) => columns.map((c, i) => String(row[c] ?? "").padEnd(widths[i]!)).join("  "))
     .join("\n");
 
   return `${header}\n${separator}\n${body}`;

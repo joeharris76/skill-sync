@@ -1,14 +1,14 @@
-import type { CliResult } from "./types.js";
-import { parseArgv } from "./parse.js";
-import { syncCommand } from "./commands/sync.js";
-import { statusCommand } from "./commands/status.js";
-import { validateCommand } from "./commands/validate.js";
 import { diffCommand } from "./commands/diff.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { pinCommand, unpinCommand } from "./commands/pin.js";
-import { pruneCommand } from "./commands/prune.js";
 import { promoteCommand } from "./commands/promote.js";
+import { pruneCommand } from "./commands/prune.js";
 import { settingsCommand } from "./commands/settings.js";
+import { statusCommand } from "./commands/status.js";
+import { syncCommand } from "./commands/sync.js";
+import { validateCommand } from "./commands/validate.js";
+import { parseArgv } from "./parse.js";
+import type { CliResult } from "./types.js";
 
 const VERSION = "0.0.1";
 
@@ -51,7 +51,8 @@ const COMMANDS: Record<string, { description: string; usage: string }> = {
   },
   settings: {
     description: "Show required agent settings from installed skills",
-    usage: "skill-sync settings <subcommand> [--agent <name>] [--json]\n\nSubcommands:\n  generate   Print suggested settings fragment for installed skills",
+    usage:
+      "skill-sync settings <subcommand> [--agent <name>] [--json]\n\nSubcommands:\n  generate   Print suggested settings fragment for installed skills",
   },
 };
 
@@ -155,8 +156,8 @@ export async function runCli(argv: string[]): Promise<CliResult> {
  */
 export async function main(): Promise<void> {
   const result = await runCli(process.argv.slice(2));
-  if (result.stdout) process.stdout.write(result.stdout + "\n");
-  if (result.stderr) process.stderr.write(result.stderr + "\n");
+  if (result.stdout) process.stdout.write(`${result.stdout}\n`);
+  if (result.stderr) process.stderr.write(`${result.stderr}\n`);
   process.exitCode = result.exitCode;
 }
 

@@ -1,8 +1,18 @@
-import type { SkillPackage, ValidationDiagnostic } from "./types.js";
 import type { TrustPolicy } from "./trust.js";
+import type { SkillPackage, ValidationDiagnostic } from "./types.js";
 
 /** File extensions considered executable. */
-const EXECUTABLE_EXTENSIONS = new Set([".sh", ".bash", ".py", ".rb", ".js", ".ts", ".ps1", ".bat", ".cmd"]);
+const EXECUTABLE_EXTENSIONS = new Set([
+  ".sh",
+  ".bash",
+  ".py",
+  ".rb",
+  ".js",
+  ".ts",
+  ".ps1",
+  ".bat",
+  ".cmd",
+]);
 
 /** Patterns indicating executable content in non-executable files. */
 const SHEBANG_PATTERN = /^#!\//;
@@ -18,7 +28,7 @@ export function checkScriptSafety(
   policy: TrustPolicy = {},
 ): ValidationDiagnostic[] {
   const diagnostics: ValidationDiagnostic[] = [];
-  const severity = policy.allowScripts === false ? "error" as const : "warning" as const;
+  const severity = policy.allowScripts === false ? ("error" as const) : ("warning" as const);
 
   for (const file of pkg.files) {
     // Check scripts/ directory

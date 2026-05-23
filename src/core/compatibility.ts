@@ -59,10 +59,7 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
  * Check a skill package's compatibility with a specific agent target.
  * Returns diagnostics for unsupported features or missing metadata.
  */
-export function checkCompatibility(
-  pkg: SkillPackage,
-  target: AgentTarget,
-): ValidationDiagnostic[] {
+export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): ValidationDiagnostic[] {
   const diagnostics: ValidationDiagnostic[] = [];
   const config = AGENT_TARGETS[target];
 
@@ -87,9 +84,7 @@ export function checkCompatibility(
       });
     }
     if (feature === "scripts/") {
-      const hasScripts = pkg.files.some((f) =>
-        f.relativePath.startsWith("scripts/"),
-      );
+      const hasScripts = pkg.files.some((f) => f.relativePath.startsWith("scripts/"));
       if (hasScripts) {
         diagnostics.push({
           rule: "unsupported-feature",
@@ -134,9 +129,7 @@ export function checkAllTargetCompatibility(
   const diagnostics: ValidationDiagnostic[] = [];
   for (const targetKey of Object.keys(targets)) {
     if (targetKey in AGENT_TARGETS) {
-      diagnostics.push(
-        ...checkCompatibility(pkg, targetKey as AgentTarget),
-      );
+      diagnostics.push(...checkCompatibility(pkg, targetKey as AgentTarget));
     }
   }
   return diagnostics;

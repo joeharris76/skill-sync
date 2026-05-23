@@ -1,7 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import type { Manifest, SourceConfig, InstallMode, ManifestHooks, ProjectRegistryConfig } from "./types.js";
+import type {
+  InstallMode,
+  Manifest,
+  ManifestHooks,
+  ProjectRegistryConfig,
+  SourceConfig,
+} from "./types.js";
 
 const MANIFEST_FILENAME = "skill-sync.yaml";
 const SUPPORTED_VERSION = 1;
@@ -44,9 +50,7 @@ export function parseManifest(content: string): Manifest {
 
   const version = raw.version;
   if (version !== SUPPORTED_VERSION) {
-    throw new Error(
-      `Unsupported manifest version: ${version} (expected ${SUPPORTED_VERSION})`,
-    );
+    throw new Error(`Unsupported manifest version: ${version} (expected ${SUPPORTED_VERSION})`);
   }
 
   const sources = parseSources(raw.sources);
@@ -55,8 +59,7 @@ export function parseManifest(content: string): Manifest {
   const installMode = parseInstallMode(raw.install_mode);
   const config = parseConfig(raw.config);
   const overrides = parseOverrides(raw.overrides);
-  const profile =
-    typeof raw.profile === "string" ? raw.profile : undefined;
+  const profile = typeof raw.profile === "string" ? raw.profile : undefined;
   const projects = parseProjects(raw.projects);
   const hooks = parseHooks(raw.hooks);
   const projectRegistry = parseProjectRegistry(raw.project_registry);
@@ -143,8 +146,7 @@ function parseHooks(raw: unknown): ManifestHooks {
   if (Array.isArray(beforeSync)) {
     return {
       beforeSync: beforeSync.filter(
-        (command): command is string =>
-          typeof command === "string" && command.trim().length > 0,
+        (command): command is string => typeof command === "string" && command.trim().length > 0,
       ),
     };
   }
@@ -169,9 +171,7 @@ function parseInstallMode(raw: unknown): InstallMode {
   return "mirror";
 }
 
-function parseConfig(
-  raw: unknown,
-): Record<string, Record<string, unknown>> {
+function parseConfig(raw: unknown): Record<string, Record<string, unknown>> {
   if (!raw || typeof raw !== "object") return {};
   const result: Record<string, Record<string, unknown>> = {};
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
@@ -232,10 +232,7 @@ export function serializeManifest(manifest: Manifest): string {
           : manifest.hooks.beforeSync,
     };
   }
-  if (
-    !manifest.projectRegistry.autoRegister ||
-    manifest.projectRegistry.includeWorktrees
-  ) {
+  if (!manifest.projectRegistry.autoRegister || manifest.projectRegistry.includeWorktrees) {
     raw.project_registry = {
       auto_register: manifest.projectRegistry.autoRegister,
       include_worktrees: manifest.projectRegistry.includeWorktrees,

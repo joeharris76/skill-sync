@@ -1,7 +1,7 @@
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { mkdir, writeFile, readFile } from "node:fs/promises";
-import { stringify as stringifyYaml, parse as parseYaml } from "yaml";
-import type { SkillPackage, ConfigInput } from "./types.js";
+import { stringify as stringifyYaml } from "yaml";
+import type { SkillPackage } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Config Generation
@@ -91,9 +91,7 @@ export function validateConfigOverrides(
   for (const [skillName, config] of Object.entries(manifestConfig)) {
     const pkg = skillMap.get(skillName);
     if (!pkg) {
-      warnings.push(
-        `Config for "${skillName}" has no matching installed skill`,
-      );
+      warnings.push(`Config for "${skillName}" has no matching installed skill`);
       continue;
     }
 
@@ -105,17 +103,13 @@ export function validateConfigOverrides(
     const declaredKeys = new Set(
       pkg.meta.configInputs.map((ci) => {
         const parts = ci.key.split(".");
-        return parts.length === 2 && parts[0] === skillName
-          ? parts[1]!
-          : ci.key;
+        return parts.length === 2 && parts[0] === skillName ? parts[1]! : ci.key;
       }),
     );
 
     for (const key of Object.keys(config)) {
       if (!declaredKeys.has(key)) {
-        warnings.push(
-          `Config key "${skillName}.${key}" is not declared in skill's config_inputs`,
-        );
+        warnings.push(`Config key "${skillName}.${key}" is not declared in skill's config_inputs`);
       }
     }
   }

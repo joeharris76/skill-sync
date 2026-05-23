@@ -1,6 +1,6 @@
-import { access, constants, readFile, readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { access, constants, readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { sha256 } from "./hasher.js";
 import { INSTRUCTION_TARGETS } from "./instruction-targets.js";
 import type {
@@ -25,7 +25,7 @@ export async function auditInstructions(
   const configuredSet = new Set(configuredTargets);
   const agents = await Promise.all(
     (Object.keys(INSTRUCTION_TARGETS) as InstructionAgent[]).map((agent) =>
-      auditAgentInstructions(agent, root, configuredSet.has(agent))
+      auditAgentInstructions(agent, root, configuredSet.has(agent)),
     ),
   );
 
@@ -44,9 +44,7 @@ export async function auditAgentInstructions(
 ): Promise<InstructionAgentAudit> {
   const target = INSTRUCTION_TARGETS[agent];
   const globalFiles = await Promise.all(
-    target.globalFiles.map((pathSpec) =>
-      discoverFile(agent, "global", pathSpec, projectRoot),
-    ),
+    target.globalFiles.map((pathSpec) => discoverFile(agent, "global", pathSpec, projectRoot)),
   );
 
   let projectFiles =
@@ -59,26 +57,18 @@ export async function auditAgentInstructions(
         );
 
   let overrideFiles = await Promise.all(
-    target.overrideFiles.map((pathSpec) =>
-      discoverFile(agent, "override", pathSpec, projectRoot),
-    ),
+    target.overrideFiles.map((pathSpec) => discoverFile(agent, "override", pathSpec, projectRoot)),
   );
 
   const globalEntry = globalFiles.find((entry) => entry.state !== "missing");
-  const globalContent = globalEntry
-    ? await readExistingText(globalEntry.resolvedPath)
-    : undefined;
+  const globalContent = globalEntry ? await readExistingText(globalEntry.resolvedPath) : undefined;
 
   if (globalEntry && typeof globalContent === "string") {
     projectFiles = await Promise.all(
-      projectFiles.map((entry) =>
-        classifyAgainstGlobal(entry, globalEntry, globalContent),
-      ),
+      projectFiles.map((entry) => classifyAgainstGlobal(entry, globalEntry, globalContent)),
     );
     overrideFiles = await Promise.all(
-      overrideFiles.map((entry) =>
-        classifyAgainstGlobal(entry, globalEntry, globalContent),
-      ),
+      overrideFiles.map((entry) => classifyAgainstGlobal(entry, globalEntry, globalContent)),
     );
   }
 
@@ -117,9 +107,7 @@ async function classifyAgainstGlobal(
     ...entry,
     state,
     overlapDetail:
-      state === "mirror-of-global" || state === "overlaps-global"
-        ? overlapDetail
-        : undefined,
+      state === "mirror-of-global" || state === "overlaps-global" ? overlapDetail : undefined,
   };
 }
 
@@ -177,11 +165,7 @@ export function classifyState(
   if (projectEntry.state === "missing") {
     return "missing";
   }
-  if (
-    !globalEntry ||
-    globalEntry.state === "missing" ||
-    typeof globalContent !== "string"
-  ) {
+  if (!globalEntry || globalEntry.state === "missing" || typeof globalContent !== "string") {
     return "present";
   }
   if (projectEntry.sha256 && globalEntry.sha256 && projectEntry.sha256 === globalEntry.sha256) {
@@ -196,10 +180,7 @@ export function classifyState(
   return "present";
 }
 
-export function detectOverlap(
-  projectContent: string,
-  globalContent: string,
-): OverlapDetail {
+export function detectOverlap(projectContent: string, globalContent: string): OverlapDetail {
   const projectLines = normalizedLineSet(projectContent);
   const globalLines = new Set(normalizedLineSet(globalContent));
   const overlappingLines = projectLines.filter((line) => globalLines.has(line));
@@ -297,9 +278,7 @@ async function discoverCursorRules(projectRoot: string): Promise<InstructionAudi
   }
 }
 
-function generateDiagnostics(
-  agents: InstructionAgentAudit[],
-): InstructionAuditDiagnostic[] {
+function generateDiagnostics(agents: InstructionAgentAudit[]): InstructionAuditDiagnostic[] {
   const diagnostics: InstructionAuditDiagnostic[] = [];
 
   for (const agent of agents) {
