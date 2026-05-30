@@ -10,7 +10,7 @@ import { validateCommand } from "./commands/validate.js";
 import { parseArgv } from "./parse.js";
 import type { CliResult } from "./types.js";
 
-const VERSION = "0.0.1";
+const VERSION = "0.1.0";
 
 const COMMANDS: Record<string, { description: string; usage: string }> = {
   sync: {

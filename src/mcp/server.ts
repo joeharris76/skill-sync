@@ -40,7 +40,7 @@ export function createServer(projectRoot: string): McpServer {
 
   const server = new McpServer({
     name: "skill-sync",
-    version: "0.0.1",
+    version: "0.1.0",
   });
 
   // ---------------------------------------------------------------------------
@@ -538,6 +538,7 @@ async function getTargetRoots(projectRoot: string): Promise<TargetRoot[]> {
     ["claude", ".claude/skills"],
     ["codex", ".codex/skills"],
     ["gemini", ".gemini/skills"],
+    ["antigravity", ".agents/skills"],
   ] as const) {
     try {
       await access(resolve(projectRoot, dir), constants.R_OK);

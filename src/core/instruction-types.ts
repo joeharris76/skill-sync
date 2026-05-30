@@ -1,7 +1,7 @@
 /* v8 ignore file */
 import type { ValidationSeverity } from "./types.js";
 
-export type InstructionAgent = "claude" | "codex" | "gemini" | "cursor" | "copilot";
+export type InstructionAgent = "claude" | "codex" | "gemini" | "cursor" | "copilot" | "antigravity";
 
 export type InstructionFileScope = "global" | "project" | "override";
 

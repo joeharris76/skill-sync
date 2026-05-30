@@ -1,6 +1,6 @@
 {
   "name": "skill-sync",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Local-first skill distribution system for AI agents",
   "type": "module",
   "bin": {

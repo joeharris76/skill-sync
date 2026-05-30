@@ -5,7 +5,7 @@ import type { SkillPackage, ValidationDiagnostic } from "./types.js";
 // ---------------------------------------------------------------------------
 
 /** Known agent targets and their directory conventions. */
-export type AgentTarget = "claude" | "codex" | "gemini" | "generic-mcp";
+export type AgentTarget = "claude" | "codex" | "gemini" | "antigravity" | "generic-mcp";
 
 export interface AgentTargetConfig {
   /** Human-readable name. */
@@ -39,6 +39,13 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
     label: "Gemini CLI",
     defaultSkillDir: ".gemini/skills",
     readsFrontmatter: true, // assumed parity with Claude/Codex; verify against Gemini CLI docs
+    supportsAgentsMd: false,
+    unsupportedFeatures: ["allowed-tools"],
+  },
+  antigravity: {
+    label: "Antigravity CLI",
+    defaultSkillDir: ".agents/skills",
+    readsFrontmatter: true,
     supportsAgentsMd: false,
     unsupportedFeatures: ["allowed-tools"],
   },

@@ -11,6 +11,7 @@ const NON_PORTABLE_PATTERNS = [
   /\/\.claude\/skills\//, // Direct references to global Claude skill store
   /\/\.codex\/skills\//, // Direct references to global Codex skill store
   /\/\.gemini\/skills\//, // Direct references to global Gemini skill store
+  /\/\.agents\/skills\//, // Direct references to global/local Agents skill store
 ];
 
 /**

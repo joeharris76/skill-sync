@@ -41,6 +41,14 @@ export const INSTRUCTION_TARGETS: Record<InstructionAgent, InstructionTargetConf
     globalAvailableRemotely: true,
     agentTargetKey: "copilot",
   },
+  antigravity: {
+    label: "Antigravity CLI",
+    globalFiles: ["~/.gemini/antigravity-cli/ANTIGRAVITY.md"],
+    projectFiles: ["ANTIGRAVITY.md", ".gemini/antigravity-cli/ANTIGRAVITY.md"],
+    overrideFiles: [],
+    globalAvailableRemotely: false,
+    agentTargetKey: "antigravity",
+  },
 };
 
 export function isInstructionAgent(value: string): value is InstructionAgent {
