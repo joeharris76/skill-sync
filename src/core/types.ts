@@ -42,6 +42,13 @@ export interface SkillSyncMeta {
   targets: Record<string, boolean>;
   /** Per-agent runtime settings requirements declared by the skill author. */
   settingsRequirements?: SettingsRequirements;
+  /**
+   * Path patterns the author certifies as documentary (not runtime), exempting
+   * them from the non-portable-path scanner. Globs allowed (e.g.
+   * "~/.gemini/*.json"). A finding is suppressed only when EVERY non-portable
+   * token on the line is covered, so genuine leaks alongside them still fail.
+   */
+  portabilityAllow?: string[];
   /** Source provenance (set by sync engine, not the skill author). */
   source?: SourceProvenance;
 }
