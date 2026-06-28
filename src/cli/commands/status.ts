@@ -54,8 +54,8 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
       return { exitCode: 1, stderr: "No targets defined in skill-sync.yaml" };
     }
     const perTarget = await Promise.all(
-      targetEntries.map(async ([targetName, targetPath]) => {
-        const drift = await detectDrift(resolvePath(projectRoot, targetPath), lockFile);
+      targetEntries.map(async ([targetName, targetCfg]) => {
+        const drift = await detectDrift(resolvePath(projectRoot, targetCfg.dir), lockFile);
         const skills = Object.entries(lockFile.skills).map(([name, locked]) => {
           let state: string;
           if (drift.missing.includes(name)) {
@@ -86,7 +86,7 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
 
         return {
           target: targetName,
-          path: targetPath,
+          path: targetCfg.dir,
           skills,
           summary: {
             clean: drift.clean.length,

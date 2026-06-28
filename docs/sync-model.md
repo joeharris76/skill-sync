@@ -28,11 +28,59 @@ Each source should expose enough metadata to support provenance and lock-state.
 The product should support multiple install modes because users have different
 needs during development, CI, and web/remote execution.
 
-Planned modes:
+Modes:
 - `copy`: materialize copied files locally
-- `symlink`: local development convenience
-- `mirror`: managed local mirror of upstream content
-- vendored snapshot: pinned content stored locally for reproducibility
+- `symlink`: local development convenience (not portable, cannot be committed)
+- `mirror`: managed local mirror of upstream content (default)
+
+Install mode controls *how bytes land on disk*. It is orthogonal to whether
+those bytes are committed to git — that is the per-target `tracked` flag (see
+"Git tracking" below). What was previously sketched as a separate "vendored
+snapshot" mode is, in practice, `mirror` + `tracked: true`: pinning a revision
+is already handled by `overrides[skill].revision` + the lock, so the genuinely
+new axis is git-visibility, not a fourth byte-layout.
+
+## Git Tracking (committed snapshots)
+
+By default, materialized skills are a regenerated mirror that the consumer
+gitignores — only `skill-sync.yaml` + `skill-sync.lock` are committed. That
+keeps a single source of truth, but the skills never reach environments that
+clone only the consumer repo (cloud/web agents, CI, a fresh machine).
+
+A consumer can opt a target into committing its materialized skills + injected
+config by making the target an object with `tracked: true`:
+
+```yaml
+targets:
+  claude:
+    dir: .claude/skills
+    tracked: true
+    ignore: [blog, substack]   # keep these skills gitignored within the target
+  codex: .codex/skills          # bare string = untracked (today's behavior)
+```
+
+When a target is tracked, skill-sync:
+- emits NO `.gitignore` entry for its dir (so the committed snapshot is visible),
+  and an anchored ignore for each excluded skill (no negation patterns);
+- manages a `.gitattributes` `-text` block over the tracked tree so committed
+  bytes survive EOL normalization (the integrity gate hashes committed bytes);
+- writes the injected `skill-sync.config.yaml` exclusion-aware and deterministic,
+  so a fresh clone regenerates a byte-identical file;
+- keeps machine-specific home paths out of the committed lock (provenance paths
+  are stored `~`-relative).
+
+skill-sync stays hands-off for repos that never opt in: it manages `.gitignore`
+only once a target is tracked (or a managed block already exists). It never runs
+git — committing the snapshot is the user's explicit step.
+
+### Two-tier integrity
+
+- `skill-sync verify` — OFFLINE gate (no source access): proves every tracked
+  target's committed snapshot matches the lock + regenerated config. Catches
+  hand-edits, extra/missing files, stray paths, and stale config. Exits non-zero
+  on any issue, so it is the canonical cloud/CI check.
+- `skill-sync sync --dry-run` (a.k.a. `diff`) — freshness vs the source. Runs
+  only where the (possibly private) source is reachable.
 
 ## Lockfile
 

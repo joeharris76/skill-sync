@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { expandTilde, resolvePath } from "../../../src/core/paths.js";
+import { expandTilde, relativeInside, resolvePath, toTildePath } from "../../../src/core/paths.js";
 
 describe("expandTilde", () => {
   it("expands a bare ~ to the home directory", () => {
@@ -47,5 +47,48 @@ describe("resolvePath", () => {
 
   it("returns an absolute target unchanged", () => {
     expect(resolvePath("/some/project", "/abs/skills")).toBe("/abs/skills");
+  });
+});
+
+describe("toTildePath", () => {
+  it("collapses a home-rooted path to ~/...", () => {
+    expect(toTildePath(join(homedir(), ".skill-sync/skills/code"))).toBe(
+      "~/.skill-sync/skills/code",
+    );
+  });
+
+  it("collapses the home directory itself to ~", () => {
+    expect(toTildePath(homedir())).toBe("~");
+  });
+
+  it("leaves paths outside the home directory unchanged", () => {
+    expect(toTildePath("/var/lib/skills")).toBe("/var/lib/skills");
+  });
+
+  it("round-trips with expandTilde", () => {
+    const abs = join(homedir(), ".skill-sync/skills/code");
+    expect(expandTilde(toTildePath(abs))).toBe(abs);
+  });
+});
+
+describe("relativeInside", () => {
+  it("returns a forward-slashed relative path for an in-repo target", () => {
+    expect(relativeInside("/repo", ".claude/skills")).toBe(".claude/skills");
+  });
+
+  it("returns null for a target outside the repo (~-rooted)", () => {
+    expect(relativeInside("/repo", "~/.claude/skills")).toBeNull();
+  });
+
+  it("returns null for an absolute target outside the repo", () => {
+    expect(relativeInside("/repo", "/other/skills")).toBeNull();
+  });
+
+  it("returns null when the target is the repo root itself", () => {
+    expect(relativeInside("/repo", ".")).toBeNull();
+  });
+
+  it("resolves an absolute target that is inside the repo", () => {
+    expect(relativeInside("/repo", "/repo/.codex/skills")).toBe(".codex/skills");
   });
 });

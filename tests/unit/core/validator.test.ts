@@ -131,6 +131,42 @@ describe("validateManifest", () => {
     expect(result.diagnostics[0]!.rule).toBe("manifest-parse-error");
   });
 
+  it("fails when a tracked target resolves outside the repo", async () => {
+    const path = join(tmpBase, "tracked-outside.yaml");
+    await mkdir(tmpBase, { recursive: true });
+    await writeFile(
+      path,
+      "version: 1\nsources:\n  - name: s\n    type: local\n    path: /tmp\nskills:\n  - x\ntargets:\n  claude:\n    dir: ~/.claude/skills\n    tracked: true\n",
+    );
+    const result = await validateManifest(path);
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics.some((d) => d.rule === "tracked-target-outside-repo")).toBe(true);
+  });
+
+  it("fails when symlink mode is combined with a tracked target", async () => {
+    const path = join(tmpBase, "tracked-symlink.yaml");
+    await mkdir(tmpBase, { recursive: true });
+    await writeFile(
+      path,
+      "version: 1\nsources:\n  - name: s\n    type: local\n    path: /tmp\nskills:\n  - x\ntargets:\n  claude:\n    dir: .claude/skills\n    tracked: true\ninstall_mode: symlink\n",
+    );
+    const result = await validateManifest(path);
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics.some((d) => d.rule === "tracked-symlink-mode")).toBe(true);
+  });
+
+  it("accepts a tracked in-repo target with a portable install mode", async () => {
+    const path = join(tmpBase, "tracked-ok.yaml");
+    await mkdir(tmpBase, { recursive: true });
+    await writeFile(
+      path,
+      "version: 1\nsources:\n  - name: s\n    type: local\n    path: /tmp\nskills:\n  - x\ntargets:\n  claude:\n    dir: .claude/skills\n    tracked: true\ninstall_mode: mirror\n",
+    );
+    const result = await validateManifest(path);
+    expect(result.diagnostics.some((d) => d.rule === "tracked-target-outside-repo")).toBe(false);
+    expect(result.diagnostics.some((d) => d.rule === "tracked-symlink-mode")).toBe(false);
+  });
+
   afterAll(async () => {
     await rm(tmpBase, { recursive: true, force: true });
   });

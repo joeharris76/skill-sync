@@ -27,7 +27,7 @@ describeManifest("core/manifest contract", () => {
       sources: Array<{ name: string; type: string }>;
       skills: string[];
       profile?: string;
-      targets: Record<string, string>;
+      targets: Record<string, { dir: string }>;
       installMode: string;
       config: Record<string, Record<string, unknown>>;
       overrides: Record<string, { installMode?: string }>;
@@ -38,7 +38,7 @@ describeManifest("core/manifest contract", () => {
     expect(parsed.sources[0]).toMatchObject({ name: "personal", type: "local" });
     expect(parsed.skills).toEqual(["code", "test", "SHARED/commit-framework"]);
     expect(parsed.profile).toBe("python-backend");
-    expect(parsed.targets.codex).toBe(".codex/skills");
+    expect(parsed.targets.codex?.dir).toBe(".codex/skills");
     expect(parsed.installMode).toBe("mirror");
     expect(parsed.config.test?.runner).toBe("uv run pytest");
     expect(parsed.overrides.test?.installMode).toBe("copy");
@@ -50,12 +50,12 @@ describeManifest("core/manifest contract", () => {
     const serialized = manifestModule.serializeManifest(parsed);
     const reparsed = manifestModule.parseManifest(serialized) as {
       skills: string[];
-      targets: Record<string, string>;
+      targets: Record<string, { dir: string }>;
       installMode: string;
     };
 
     expect(reparsed.skills).toContain("code");
-    expect(reparsed.targets.claude).toBe(".claude/skills");
+    expect(reparsed.targets.claude?.dir).toBe(".claude/skills");
     expect(reparsed.installMode).toBe("mirror");
   });
 

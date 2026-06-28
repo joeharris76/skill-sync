@@ -7,6 +7,7 @@ import { settingsCommand } from "./commands/settings.js";
 import { statusCommand } from "./commands/status.js";
 import { syncCommand } from "./commands/sync.js";
 import { validateCommand } from "./commands/validate.js";
+import { verifyCommand } from "./commands/verify.js";
 import { parseArgv } from "./parse.js";
 import type { CliResult } from "./types.js";
 
@@ -24,6 +25,10 @@ const COMMANDS: Record<string, { description: string; usage: string }> = {
   validate: {
     description: "Check manifest, portability, and compatibility",
     usage: "skill-sync validate [--exit-code] [--json]",
+  },
+  verify: {
+    description: "Verify committed tracked snapshots match the lock + config (CI gate)",
+    usage: "skill-sync verify [--json]",
   },
   diff: {
     description: "Preview what sync would change (alias: sync --dry-run)",
@@ -128,6 +133,8 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       return statusCommand(parsed);
     case "validate":
       return validateCommand(parsed);
+    case "verify":
+      return verifyCommand(parsed);
     case "diff":
       return diffCommand(parsed);
     case "doctor":

@@ -523,9 +523,9 @@ export function createServer(projectRoot: string): McpServer {
 async function getTargetRoots(projectRoot: string): Promise<TargetRoot[]> {
   try {
     const manifest = await readManifest(projectRoot);
-    const targets = Object.entries(manifest.targets).map(([name, path]) => ({
+    const targets = Object.entries(manifest.targets).map(([name, cfg]) => ({
       name,
-      root: resolvePath(projectRoot, path),
+      root: resolvePath(projectRoot, cfg.dir),
     }));
     if (targets.length > 0) {
       return targets;
