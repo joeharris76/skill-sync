@@ -80,6 +80,15 @@ targets:
   codex: true        # Compatible with OpenAI Codex
   generic-mcp: true  # Usable via MCP by any client
 
+# Paths the author certifies as DOCUMENTARY (not runtime), exempt from the
+# non-portable-path scanner. Globs allowed. A finding is suppressed only when
+# EVERY non-portable token on a line is covered, so a real leak sharing a line
+# with a documented path still fails. Use sparingly — for prose/tables that
+# document where a CLI stores global config, not to silence genuine ~/ leaks.
+portability_allow:
+  - "~/.codex/config.toml"
+  - "~/.gemini/*.json"
+
 # Source provenance (set by sync engine during install/sync — not authorable)
 # This field is ignored if present in an authored file.
 # source:
@@ -88,7 +97,7 @@ targets:
 #   fetchedAt: "2026-03-06T10:00:00Z"
 ```
 
-**Author-controlled fields:** `tags`, `category`, `depends`, `config_inputs`, `targets`
+**Author-controlled fields:** `tags`, `category`, `depends`, `config_inputs`, `targets`, `portability_allow`
 
 **Sync-engine-controlled fields:** `source` (written during install/sync, never hand-edited)
 
