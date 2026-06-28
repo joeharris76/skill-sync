@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "prepare": "tsup",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest",
     "test:run": "vitest run",

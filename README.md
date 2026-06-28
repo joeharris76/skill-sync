@@ -117,9 +117,29 @@ Commands:
 - `skill-sync unpin <skill>` — allow a pinned skill to float for updates
 - `skill-sync prune` — remove skills not declared in the manifest
 - `skill-sync promote` — guidance for promoting local changes back upstream (manual in v0)
+- `skill-sync verify` — prove committed tracked snapshots match the lock + config (offline CI gate)
 
 All commands support `--json` for machine-readable output and `--project`/`-p`
 to specify the project root.
+
+### Verifying committed snapshots in CI
+
+When a consumer marks a target `tracked: true`, its materialized skills + injected
+config are committed to git so they reach cloud/CI/fresh clones. `skill-sync verify`
+is the offline gate that proves the committed snapshot still matches the lock + the
+regenerated config — it needs **no skills source**, so it runs in any environment.
+
+A consumer's CI does not need skill-sync installed or on npm. Run it straight from
+git with a pinned commit (Node 18+ required for `npx`):
+
+```sh
+# exits 0 if the committed snapshot is clean, 1 on any drift / hand-edit / stale config
+npx -y github:joeharris76/skill-sync#<commit-sha> verify --project .
+```
+
+`npx` clones the pinned ref, builds `dist/` via the package's `prepare` script, and
+runs `verify`. Pin a `<commit-sha>` (or tag) for reproducibility. Once skill-sync is
+published to npm this becomes `npx -y skill-sync@<version> verify`.
 
 ## MCP Server
 

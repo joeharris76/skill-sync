@@ -1,3 +1,6 @@
+#!/usr/bin/env node
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { diffCommand } from "./commands/diff.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { pinCommand, unpinCommand } from "./commands/pin.js";
@@ -168,12 +171,21 @@ export async function main(): Promise<void> {
   process.exitCode = result.exitCode;
 }
 
-// Auto-run when executed directly
-const isDirectExecution =
-  typeof process !== "undefined" &&
-  process.argv[1] &&
-  (process.argv[1].endsWith("/cli/index.js") || process.argv[1].endsWith("/cli/index.ts"));
+// Auto-run when this module is executed as a program — directly
+// (`node dist/cli/index.js`), via `tsx`, or via the installed `bin` (where
+// `npx`/npm invoke a `.bin/skill-sync` symlink, so argv[1] is the symlink, not
+// this file). Compare real paths so all three match, while staying false when
+// the module is merely IMPORTED (e.g. tests importing `runCli`).
+function isExecutedDirectly(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(entry) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+}
 
-if (isDirectExecution) {
+if (isExecutedDirectly()) {
   main();
 }
