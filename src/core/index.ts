@@ -16,6 +16,9 @@ export {
 } from "./config-generator.js";
 // Runtime exports — drift
 export { detectDrift } from "./drift.js";
+export type { GitTrackingPlan, GitTrackingReport } from "./gitignore.js";
+// Runtime exports — git tracking (managed .gitignore / .gitattributes)
+export { applyGitTracking, applyManagedBlock, planGitTracking } from "./gitignore.js";
 // Runtime exports — hasher
 export { hashSkillDirectory, sha256, sha256File } from "./hasher.js";
 // Runtime exports — instruction audit
@@ -66,6 +69,7 @@ export {
   pruneOperation,
   syncOperation,
   unpinOperation,
+  verifyOperation,
 } from "./operations.js";
 // Runtime exports — parser
 export {
@@ -74,7 +78,7 @@ export {
   parseSkillSyncMeta,
 } from "./parser.js";
 // Runtime exports — paths
-export { expandTilde, resolvePath } from "./paths.js";
+export { expandTilde, relativeInside, resolvePath, toTildePath } from "./paths.js";
 // Runtime exports — portability
 export {
   checkPortability,
@@ -129,6 +133,7 @@ export type {
   SourceType,
   // Sync
   SyncPlan,
+  TargetConfig,
   ValidationDiagnostic,
   ValidationResult,
   // Validation
@@ -139,3 +144,6 @@ export {
   validateManifest,
   validateSkillPackage,
 } from "./validator.js";
+export type { VerifyIssue, VerifyIssueKind, VerifyReport } from "./verify.js";
+// Runtime exports — verify (tracked-snapshot integrity gate)
+export { verifyTrackedTargets } from "./verify.js";

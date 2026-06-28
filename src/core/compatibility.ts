@@ -1,4 +1,4 @@
-import type { SkillPackage, ValidationDiagnostic } from "./types.js";
+import type { SkillPackage, TargetConfig, ValidationDiagnostic } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Agent Target Definitions
@@ -131,7 +131,7 @@ export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): Vali
  */
 export function checkAllTargetCompatibility(
   pkg: SkillPackage,
-  targets: Record<string, string>,
+  targets: Record<string, TargetConfig>,
 ): ValidationDiagnostic[] {
   const diagnostics: ValidationDiagnostic[] = [];
   for (const targetKey of Object.keys(targets)) {

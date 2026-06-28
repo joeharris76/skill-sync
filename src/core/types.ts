@@ -110,13 +110,32 @@ export interface SkillFile {
 
 export type InstallMode = "copy" | "symlink" | "mirror";
 
+/**
+ * Per-target materialization config.
+ *
+ * `tracked` is the git-visibility axis, orthogonal to {@link InstallMode}
+ * (which controls how bytes land on disk). When `tracked` is true the
+ * materialized skills under `dir` are committed to git so they reach
+ * cloud/CI/fresh-clone environments; when false (the default) skill-sync keeps
+ * `dir` gitignored as a regenerated mirror. `ignore` lists skill names to keep
+ * gitignored within an otherwise-tracked target.
+ */
+export interface TargetConfig {
+  /** Local directory path for this agent's materialized skills. */
+  dir: string;
+  /** Commit the materialized skills under `dir` to git. Default: false. */
+  tracked?: boolean;
+  /** Skill names to exclude from tracking within this target (kept gitignored). */
+  ignore?: string[];
+}
+
 export interface Manifest {
   version: number;
   sources: SourceConfig[];
   skills: string[];
   profile?: string;
-  /** Agent identifier → local directory path. */
-  targets: Record<string, string>;
+  /** Agent identifier → per-target config. */
+  targets: Record<string, TargetConfig>;
   installMode: InstallMode;
   /** Project-specific config values keyed by skill name. */
   config: Record<string, Record<string, unknown>>;

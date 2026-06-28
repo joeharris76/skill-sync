@@ -85,8 +85,8 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
 
       for (const [skillName, locked] of Object.entries(lockFile.skills)) {
         let primaryPkgLoaded = false;
-        for (const [targetName, targetPath] of targetEntries) {
-          const skillPath = resolve(projectRoot, targetPath, skillName);
+        for (const [targetName, targetCfg] of targetEntries) {
+          const skillPath = resolve(projectRoot, targetCfg.dir, skillName);
           try {
             const pkg = await loadSkillPackage(skillPath);
             if (!primaryPkgLoaded) {

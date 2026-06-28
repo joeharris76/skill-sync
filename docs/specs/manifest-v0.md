@@ -170,9 +170,27 @@ skills:
 
 # Where to materialize skills in this project.
 # Supports multiple targets for multi-agent setups.
+#
+# A target value is either:
+#   - a bare string: the directory path; the materialized mirror is gitignored
+#     (default — today's behavior, single source of truth, no committed churn).
+#   - an object: { dir, tracked?, ignore? } to opt into committing the snapshot.
+#       dir      Directory path (required).
+#       tracked  When true, the materialized skills + injected config under `dir`
+#                are committed to git (reach cloud/CI/fresh clones). skill-sync
+#                manages a .gitignore / .gitattributes block accordingly and the
+#                snapshot is provable against the lock via `skill-sync verify`.
+#                A tracked target must be inside the repo and use a non-symlink
+#                install mode. Default: false.
+#       ignore   Skill names kept gitignored within an otherwise-tracked target
+#                (e.g. personal skills), excluded from the committed snapshot and
+#                from that target's generated config.
 targets:
-  claude: .claude/skills       # Claude Code reads from here
-  codex: .codex/skills         # OpenAI Codex reads from here
+  claude:                      # object form: committed snapshot
+    dir: .claude/skills
+    tracked: true
+    ignore: [blog, substack]
+  codex: .codex/skills         # string form: untracked mirror (gitignored)
   # generic: .agent/skills     # Generic agent path
 
 # Default install mode for this project.
@@ -428,6 +446,8 @@ Additionally, `validateManifest()` enforces:
 | `no-skills` | Warning | At least one skill should be listed |
 | `no-targets` | Error | At least one target must be defined |
 | `non-portable-install-mode` | Warning | Default install mode should be portable (copy or mirror) |
+| `tracked-target-outside-repo` | Error | A `tracked` target must resolve inside the repo to be committable |
+| `tracked-symlink-mode` | Error/Warning | `symlink` install mode cannot be committed in a tracked target (error if global, warning if a per-skill override) |
 
 ---
 

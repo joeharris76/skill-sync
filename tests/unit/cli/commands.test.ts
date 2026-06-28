@@ -287,6 +287,106 @@ describe("runCli", () => {
     await rm(projectRoot, { recursive: true, force: true });
   });
 
+  it("sync manages .gitignore/.gitattributes for tracked targets", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-tracked-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(
+      join(skillRoot, "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "", "# Code"].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(skillRoot, "skill.yaml"),
+      "targets:\n  claude: true\n  codex: true\n",
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude:",
+        "    dir: .claude/skills",
+        "    tracked: true",
+        "  codex: .codex/skills",
+        "install_mode: mirror",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["sync", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+
+    const gitignore = await readFile(join(projectRoot, ".gitignore"), "utf8");
+    // Tracked target is NOT ignored; untracked sibling IS ignored.
+    expect(gitignore).not.toContain("/.claude/skills/\n");
+    expect(gitignore).toContain("/.codex/skills/");
+    // Tracked tree gets -text so committed bytes survive EOL normalization.
+    const gitattributes = await readFile(join(projectRoot, ".gitattributes"), "utf8");
+    expect(gitattributes).toContain("/.claude/skills/** -text");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("verify passes after a tracked sync and fails after a hand-edit", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-verify-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(
+      join(skillRoot, "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "", "# Code"].join("\n"),
+      "utf8",
+    );
+    await writeFile(join(skillRoot, "skill.yaml"), "targets:\n  claude: true\n", "utf8");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude:",
+        "    dir: .claude/skills",
+        "    tracked: true",
+        "install_mode: mirror",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    expect((await runCli(["sync", "--project", projectRoot])).exitCode).toBe(0);
+
+    // Clean snapshot → verify passes.
+    const pass = await runCli(["verify", "--project", projectRoot]);
+    expect(pass.exitCode).toBe(0);
+
+    // Hand-edit a committed skill file → verify fails (non-zero, CI gate).
+    await writeFile(join(projectRoot, ".claude/skills/code/SKILL.md"), "TAMPERED", "utf8");
+    const fail = await runCli(["verify", "--project", projectRoot]);
+    expect(fail.exitCode).toBe(1);
+
+    const failJson = await runCli(["verify", "--project", projectRoot, "--json"]);
+    const parsed = JSON.parse(failJson.stdout ?? "{}");
+    expect(parsed.ok).toBe(false);
+    expect(parsed.issues.length).toBeGreaterThan(0);
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
   it("sync detects conflicts on non-primary targets", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-multi-target-"));
     const sourceRoot = join(projectRoot, "source-skills");
