@@ -7,41 +7,35 @@ tools: Bash, Read, Write, Edit, Agent, Glob, Grep
 
 # Blog Workflow
 
-Plan, research, draft, critique, polish, audit, and commit blog work.
+Route the request to one action below. Resolve voice before drafting or
+editing.
 
 ## Guides
 
-Resolve style/voice in order: project `_blog/STYLE_GUIDE.md` + `_blog/VOICE_REFERENCE.md`, then global `~/.claude/blog/*`. If neither exists, proceed and note the gap. Drafting must read the voice reference first.
+Read project `_blog/STYLE_GUIDE.md` and `_blog/VOICE_REFERENCE.md` first, then
+global `~/.claude/blog/*`. If neither exists, proceed and note the gap.
 
 ## Actions
 
-| Action | Trigger | Contract |
+| Action | Trigger | Read |
 |---|---|---|
-| `plan` | "plan blog post", "new blog series" | Create outline or series plan |
-| `research` | "research blog", "develop outline" | Build evidence-backed outline/research notes |
-| `draft` | "draft blog", "write post" | Write or continue draft using voice guide |
-| `critique` | "critique draft", "review blog" | Adversarial editorial/technical review |
-| `deformulize` | "deformulize", "vary patterns" | Detect and vary formulaic structure/language |
-| `editorial-review` | "editorial review", "voice check", "style check" | Fast voice/style compliance pass |
-| `audit` | "audit blog", "content audit", "audit series" | Batch review posts/series for patterns and gaps |
-| `cleanup` | "commit blog changes" | Validate and commit blog files |
-| `help` | "help", "list actions" | Show actions |
+| `plan` | plan a post/new series | `references/plan.md` |
+| `research` | research/develop outline | `references/research.md` |
+| `draft` | draft/write post | `references/draft.md` |
+| `critique` | critique/review blog | `references/critique.md` |
+| `deformulize` | deformulize/vary patterns | `references/deformulize.md` |
+| `editorial-review` | editorial/voice/style check | `references/editorial-review.md` |
+| `audit` | audit blog/series/drafts | `references/audit.md` |
+| `cleanup` | commit blog changes | `references/cleanup.md` |
+| `help` | help/list actions | this table |
 
-## Hard Rules
+## Global rules
 
-- Write actions auto-cleanup after verification; use SHARED/commit-framework/SKILL.md with prefix `docs(blog)`.
-- Plain `critique`, `editorial-review`, `audit`, and `deformulize` without `--chain`/`--fix` are read-only under SHARED/review-protocol/SKILL.md; after findings, `critique`/`editorial-review`/`audit` apply its L2 audit.
-- Use official/primary sources for claims when possible; cite research notes.
-- Do not invent results, pricing, quotes, benchmarks, or external facts; verify current facts when unstable.
-
-## Action Notes
-
-- **Plan:** single post -> define thesis, audience, type, length, outline path. Series -> create `{series}/series-plan.md` with concept, audience, tone, template, posts, cadence. Before committing thesis/audience/outline, apply plan-deepening L3; note any thesis reframe.
-- **Research:** read outline, series plan, style guide, related posts; gather primary/secondary/original evidence; update outline and save substantial notes under `{series}/research/`. When findings change the outline or thesis, apply plan-deepening L3 before updating.
-- **Draft:** save to `{series}/drafts/{slug}.md`; include title, hook, TL;DR when appropriate, sectioned argument, reproducible commands/data for technical posts, references.
-- **Critique:** evaluate style, technical accuracy, methodology, sources, limitations, hook, flow, title, evidence, links, length. Score 9-10 publish-ready, 7-8 targeted, 5-6 significant, <5 structural. See `references/critique.md`.
-- **Critique --chain:** apply non-structural fixes only; leave thesis/positioning changes for user judgment; commit when verified.
-- **Deformulize:** flag repeated openings, section skeletons, transitions, closings, generic headings, and predictable cadence; suggest specific alternatives.
-- **Editorial-review:** produce pass/fail checklist for voice, banned patterns, clarity, title, claims, links, and formatting. Optional subagent prompt should be generated from this checklist.
-- **Audit:** scan one series or corpus for stale claims, repeated structures, missing links, weak posts, source gaps, and publication readiness; output findings and recommended fixes.
-- **Cleanup:** commit only modified blog files and report files, commit hash, and remaining human decisions.
+- Write actions use `SHARED/commit-framework/SKILL.md` with prefix `docs(blog)`
+  after verification and cleanup.
+- Plain `critique`, `editorial-review`, `audit`, and `deformulize` are
+  read-only under `SHARED/review-protocol/SKILL.md`; `--chain`/`--fix` may
+  apply only the fixes allowed by the action reference. After findings,
+  `critique`, `editorial-review`, and `audit` apply its L2 audit.
+- Use official/primary sources when possible, cite research notes, and verify
+  unstable facts. Never invent results, pricing, quotes, benchmarks, or facts.
