@@ -238,10 +238,10 @@ overrides:
 # Optional project-local hooks. Hooks are configured by the consuming project,
 # run from the project root, and are not global agent policy.
 # hooks:
-#   before_sync: make agent-write-preflight
+#   before_sync: make preflight
 
 # Optional registry policy for manifests used as local sources.
-# Linked git worktrees are skipped by default so retained pools and review
+# Linked git worktrees are skipped by default so temporary or pooled
 # worktrees do not pollute the durable project registry.
 # project_registry:
 #   auto_register: true
@@ -300,6 +300,10 @@ failed hook blocks sync before materialization begins.
 Hooks are intentionally project-local. They are the right place for repository
 policies such as write preflights, branch guards, or generated-file checks that
 do not apply globally to every skill-sync consumer.
+
+Hooks run for every non-dry-run sync after conflict checks, including an
+otherwise no-op skill plan, because sync may still update lock metadata or
+source registry state. Dry-run sync never executes hooks.
 
 ---
 

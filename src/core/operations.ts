@@ -5,8 +5,8 @@
  * CLI and MCP are thin adapters over these operations.
  */
 
-import { exec, execFile } from "node:child_process";
-import { access, constants, readFile, writeFile } from "node:fs/promises";
+import { execFile, spawn } from "node:child_process";
+import { access, constants, readFile, realpath, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { createSourcesFromConfigForSkill, isImplementedSourceType } from "../sources/factory.js";
@@ -43,8 +43,8 @@ import type {
 } from "./types.js";
 import { type VerifyReport, verifyTrackedTargets } from "./verify.js";
 
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
+const HOOK_FAILURE_OUTPUT_LIMIT = 64 * 1024;
 
 // ---------------------------------------------------------------------------
 // Sync
@@ -866,10 +866,7 @@ async function registerProjectInSources(
 async function runBeforeSyncHooks(projectRoot: string, commands: string[]): Promise<void> {
   for (const command of commands) {
     try {
-      await execAsync(command, {
-        cwd: projectRoot,
-        maxBuffer: 1024 * 1024,
-      });
+      await runShellHook(command, projectRoot);
     } catch (err) {
       const detail = formatHookFailureDetail(err);
       throw new Error(`before_sync hook failed: ${command}${detail ? `\n${detail}` : ""}`);
@@ -877,9 +874,51 @@ async function runBeforeSyncHooks(projectRoot: string, commands: string[]): Prom
   }
 }
 
+async function runShellHook(command: string, cwd: string): Promise<void> {
+  await new Promise<void>((resolvePromise, reject) => {
+    const child = spawn(command, {
+      cwd,
+      shell: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout = appendOutputTail(stdout, chunk);
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr = appendOutputTail(stderr, chunk);
+    });
+    child.on("error", (err) => {
+      reject(Object.assign(err, { stdout, stderr }));
+    });
+    child.on("close", (code, signal) => {
+      if (code === 0) {
+        resolvePromise();
+        return;
+      }
+      const reason = signal ? `signal ${signal}` : `exit code ${code}`;
+      reject(Object.assign(new Error(`Hook exited with ${reason}`), { stdout, stderr }));
+    });
+  });
+}
+
+function appendOutputTail(current: string, chunk: string): string {
+  const next = current + chunk;
+  return next.length > HOOK_FAILURE_OUTPUT_LIMIT ? next.slice(-HOOK_FAILURE_OUTPUT_LIMIT) : next;
+}
+
 function formatHookFailureDetail(err: unknown): string {
   if (!err || typeof err !== "object") return "";
   const parts: string[] = [];
+  // Lead with the exit reason (e.g. "Hook exited with exit code 7" or a spawn
+  // error) so a hook that fails without writing to stderr still explains itself.
+  if ("message" in err && typeof err.message === "string" && err.message.trim()) {
+    parts.push(err.message.trim());
+  }
   if ("stdout" in err && typeof err.stdout === "string" && err.stdout.trim()) {
     parts.push(`stdout:\n${err.stdout.trim()}`);
   }
@@ -895,10 +934,10 @@ async function isLinkedGitWorktree(projectRoot: string): Promise<boolean> {
       execFileAsync("git", ["-C", projectRoot, "rev-parse", "--show-toplevel"]),
       execFileAsync("git", ["-C", projectRoot, "rev-parse", "--git-common-dir"]),
     ]);
-    const top = resolve(topStdout.trim());
+    const top = await realpath(resolve(topStdout.trim()));
     const commonDir = commonStdout.trim();
-    const commonAbs = resolve(top, commonDir);
-    const primaryClone = resolve(commonAbs, "..");
+    const commonAbs = await realpath(resolve(projectRoot, commonDir));
+    const primaryClone = await realpath(resolve(commonAbs, ".."));
     return top !== primaryClone;
   } catch {
     return false;

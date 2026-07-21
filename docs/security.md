@@ -55,6 +55,22 @@ Supported agent targets handle scripts differently:
 | Codex | May execute |
 | Generic MCP | Resources only (no execution) |
 
+## Project-Local Hooks
+
+Projects can declare `hooks.before_sync` in their own `skill-sync.yaml`. These
+hooks run as shell commands from the project root before a non-dry-run sync
+mutates local targets. This is intentional local policy execution: anyone who
+can edit a project's manifest can make that project run commands during sync.
+
+Source manifests and skill packages cannot inject hooks into a consuming
+project. skill-sync only reads hooks from the local project manifest being
+synced; source manifests are read for source metadata such as project registry
+policy, not for executable lifecycle hooks.
+
+Dry-run sync never executes hooks. Non-dry-run sync executes configured hooks
+even when the skill plan is otherwise unchanged, because sync may still update
+lock metadata or the downstream project registry.
+
 ## Validation Diagnostics
 
 `skill-sync validate` checks:
