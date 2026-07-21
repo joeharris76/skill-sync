@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
-import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
-import { formatOutput } from "../output.js";
 import { pruneOperation } from "../../core/operations.js";
+import { formatOutput } from "../output.js";
+import type { CliResult, OutputMode, ParsedArgs } from "../types.js";
 
 export async function pruneCommand(args: ParsedArgs): Promise<CliResult> {
   const mode: OutputMode = args.flags.json ? "json" : "text";
@@ -12,11 +12,7 @@ export async function pruneCommand(args: ParsedArgs): Promise<CliResult> {
     const result = await pruneOperation(projectRoot, dryRun);
 
     if (result.pruned.length === 0) {
-      const output = formatOutput(
-        { pruned: [] },
-        mode,
-        () => "Nothing to prune.",
-      );
+      const output = formatOutput({ pruned: [] }, mode, () => "Nothing to prune.");
       return { exitCode: 0, stdout: output };
     }
 

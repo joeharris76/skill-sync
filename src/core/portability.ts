@@ -1,16 +1,17 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { SkillPackage, InstallMode, ValidationDiagnostic } from "./types.js";
+import type { InstallMode, SkillPackage, ValidationDiagnostic } from "./types.js";
 
 // Patterns that indicate non-portable paths
 const NON_PORTABLE_PATTERNS = [
-  /~\//,                              // Home directory references
-  /\/Users\/[^/]+\//,                 // macOS absolute user paths
-  /\/home\/[^/]+\//,                  // Linux absolute user paths
-  /C:\\Users\\/i,                     // Windows user paths
-  /\/\.claude\/skills\//,             // Direct references to global Claude skill store
-  /\/\.codex\/skills\//,              // Direct references to global Codex skill store
-  /\/\.gemini\/skills\//,             // Direct references to global Gemini skill store
+  /~\//, // Home directory references
+  /\/Users\/[^/]+\//, // macOS absolute user paths
+  /\/home\/[^/]+\//, // Linux absolute user paths
+  /C:\\Users\\/i, // Windows user paths
+  /\/\.claude\/skills\//, // Direct references to global Claude skill store
+  /\/\.codex\/skills\//, // Direct references to global Codex skill store
+  /\/\.gemini\/skills\//, // Direct references to global Gemini skill store
+  /\/\.agents\/skills\//, // Direct references to global/local Agents skill store
 ];
 
 /**
@@ -20,9 +21,7 @@ const NON_PORTABLE_PATTERNS = [
  * home-directory references that would break in CI, web, or another
  * developer's machine.
  */
-export async function checkPortability(
-  pkg: SkillPackage,
-): Promise<ValidationDiagnostic[]> {
+export async function checkPortability(pkg: SkillPackage): Promise<ValidationDiagnostic[]> {
   const diagnostics: ValidationDiagnostic[] = [];
 
   // Check skill content files (skip sync engine metadata)
@@ -38,9 +37,13 @@ export async function checkPortability(
       continue;
     }
 
+    const allow = pkg.meta?.portabilityAllow ?? [];
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
+      // Remove author-certified documentary paths, then test what remains. A
+      // line is only cleared when EVERY non-portable token is allowlisted, so a
+      // genuine leak sharing a line with a documented path still fails.
+      const line = stripAllowed(lines[i]!, allow);
       for (const pattern of NON_PORTABLE_PATTERNS) {
         if (pattern.test(line)) {
           diagnostics.push({
@@ -95,4 +98,26 @@ export async function validatePortability(
 function isTextFile(relativePath: string): boolean {
   const textExtensions = [".md", ".yaml", ".yml", ".json", ".txt", ".sh"];
   return textExtensions.some((ext) => relativePath.endsWith(ext));
+}
+
+/**
+ * Remove occurrences of author-certified documentary paths from a line.
+ *
+ * Each allow entry is a literal path that may contain `*` wildcards (matching
+ * any run of non-whitespace, non-quote characters), e.g. `~/.gemini/*.json`.
+ * Stripping (rather than whole-line skipping) means a line is only cleared of a
+ * finding when every non-portable token on it is covered; a real leak left
+ * after stripping still trips the scanner.
+ */
+function stripAllowed(line: string, allow: string[]): string {
+  let result = line;
+  for (const entry of allow) {
+    if (!entry) continue;
+    const pattern = entry
+      .split("*")
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("[^\\s`'\"]*");
+    result = result.replace(new RegExp(pattern, "g"), "");
+  }
+  return result;
 }

@@ -1,12 +1,7 @@
 import { access, constants } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { homedir } from "node:os";
-import type {
-  SkillSource,
-  ResolvedSkill,
-  FetchedSkill,
-  SourceProvenance,
-} from "../core/types.js";
+import { expandTilde } from "../core/paths.js";
+import type { FetchedSkill, ResolvedSkill, SkillSource, SourceProvenance } from "../core/types.js";
 
 /** Source adapter for local filesystem skill directories. */
 export class LocalSource implements SkillSource {
@@ -17,7 +12,7 @@ export class LocalSource implements SkillSource {
   constructor(name: string, path: string) {
     this.name = name;
     // Expand ~ to home directory
-    this.basePath = resolve(path.replace(/^~/, homedir()));
+    this.basePath = resolve(expandTilde(path));
   }
 
   async resolve(skillName: string): Promise<ResolvedSkill | null> {

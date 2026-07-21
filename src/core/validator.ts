@@ -1,9 +1,10 @@
 import { readFile } from "node:fs/promises";
-import type { ValidationResult, ValidationDiagnostic, SkillPackage, Manifest } from "./types.js";
-import { loadSkillPackage } from "./parser.js";
-import { checkPortability } from "./portability.js";
+import { dirname } from "node:path";
 import { parseManifest } from "./manifest.js";
-import { isPortableMode } from "./portability.js";
+import { loadSkillPackage } from "./parser.js";
+import { relativeInside } from "./paths.js";
+import { checkPortability, isPortableMode } from "./portability.js";
+import type { Manifest, SkillPackage, ValidationDiagnostic, ValidationResult } from "./types.js";
 
 /**
  * Validate a skill package directory.
@@ -13,9 +14,7 @@ import { isPortableMode } from "./portability.js";
  * - No non-portable paths in content
  * - skill.yaml is valid if present
  */
-export async function validateSkillPackage(
-  skillDir: string,
-): Promise<ValidationResult> {
+export async function validateSkillPackage(skillDir: string): Promise<ValidationResult> {
   const diagnostics: ValidationDiagnostic[] = [];
 
   let pkg: SkillPackage;
@@ -24,11 +23,13 @@ export async function validateSkillPackage(
   } catch (err) {
     return {
       valid: false,
-      diagnostics: [{
-        rule: "load-error",
-        severity: "error",
-        message: `Failed to load skill package: ${err instanceof Error ? err.message : String(err)}`,
-      }],
+      diagnostics: [
+        {
+          rule: "load-error",
+          severity: "error",
+          message: `Failed to load skill package: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      ],
     };
   }
 
@@ -37,7 +38,7 @@ export async function validateSkillPackage(
     diagnostics.push({
       rule: "missing-frontmatter-name",
       severity: "error",
-      message: "SKILL.md is missing a \"name\" field in frontmatter",
+      message: 'SKILL.md is missing a "name" field in frontmatter',
       skill: pkg.name,
       file: "SKILL.md",
     });
@@ -46,7 +47,7 @@ export async function validateSkillPackage(
     diagnostics.push({
       rule: "missing-frontmatter-description",
       severity: "error",
-      message: "SKILL.md is missing a \"description\" field in frontmatter",
+      message: 'SKILL.md is missing a "description" field in frontmatter',
       skill: pkg.name,
       file: "SKILL.md",
     });
@@ -81,9 +82,7 @@ export async function validateSkillPackage(
  * - Skills list is non-empty
  * - Targets are defined
  */
-export async function validateManifest(
-  manifestPath: string,
-): Promise<ValidationResult> {
+export async function validateManifest(manifestPath: string): Promise<ValidationResult> {
   const diagnostics: ValidationDiagnostic[] = [];
 
   let content: string;
@@ -92,11 +91,13 @@ export async function validateManifest(
   } catch (err) {
     return {
       valid: false,
-      diagnostics: [{
-        rule: "manifest-read-error",
-        severity: "error",
-        message: `Cannot read manifest: ${err instanceof Error ? err.message : String(err)}`,
-      }],
+      diagnostics: [
+        {
+          rule: "manifest-read-error",
+          severity: "error",
+          message: `Cannot read manifest: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      ],
     };
   }
 
@@ -106,11 +107,13 @@ export async function validateManifest(
   } catch (err) {
     return {
       valid: false,
-      diagnostics: [{
-        rule: "manifest-parse-error",
-        severity: "error",
-        message: err instanceof Error ? err.message : String(err),
-      }],
+      diagnostics: [
+        {
+          rule: "manifest-parse-error",
+          severity: "error",
+          message: err instanceof Error ? err.message : String(err),
+        },
+      ],
     };
   }
 
@@ -148,6 +151,41 @@ export async function validateManifest(
       severity: "warning",
       message: `Default install mode "${manifest.installMode}" is not portable`,
     });
+  }
+
+  // Tracked-target guardrails: a committed snapshot must live inside the repo
+  // and be materialized with a portable (non-symlink) install mode.
+  const trackedTargets = Object.entries(manifest.targets).filter(([, cfg]) => cfg.tracked);
+  if (trackedTargets.length > 0) {
+    const projectRoot = dirname(manifestPath);
+    for (const [key, cfg] of trackedTargets) {
+      if (relativeInside(projectRoot, cfg.dir) === null) {
+        diagnostics.push({
+          rule: "tracked-target-outside-repo",
+          severity: "error",
+          message: `Tracked target "${key}" (${cfg.dir}) resolves outside the project and cannot be committed to git.`,
+        });
+      }
+    }
+    if (manifest.installMode === "symlink") {
+      diagnostics.push({
+        rule: "tracked-symlink-mode",
+        severity: "error",
+        message:
+          'Install mode "symlink" cannot be committed; a tracked target requires "copy" or "mirror".',
+      });
+    } else {
+      const symlinkSkills = Object.entries(manifest.overrides)
+        .filter(([, o]) => o.installMode === "symlink")
+        .map(([s]) => s);
+      if (symlinkSkills.length > 0) {
+        diagnostics.push({
+          rule: "tracked-symlink-mode",
+          severity: "warning",
+          message: `Skills pinned to symlink mode (${symlinkSkills.join(", ")}) cannot be committed in a tracked target.`,
+        });
+      }
+    }
   }
 
   const hasErrors = diagnostics.some((d) => d.severity === "error");

@@ -1,11 +1,11 @@
-import type { SkillPackage, ValidationDiagnostic } from "./types.js";
+import type { SkillPackage, TargetConfig, ValidationDiagnostic } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Agent Target Definitions
 // ---------------------------------------------------------------------------
 
 /** Known agent targets and their directory conventions. */
-export type AgentTarget = "claude" | "codex" | "gemini" | "generic-mcp";
+export type AgentTarget = "claude" | "codex" | "gemini" | "antigravity" | "generic-mcp";
 
 export interface AgentTargetConfig {
   /** Human-readable name. */
@@ -42,6 +42,13 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
     supportsAgentsMd: false,
     unsupportedFeatures: ["allowed-tools"],
   },
+  antigravity: {
+    label: "Antigravity CLI",
+    defaultSkillDir: ".agents/skills",
+    readsFrontmatter: true,
+    supportsAgentsMd: false,
+    unsupportedFeatures: ["allowed-tools"],
+  },
   "generic-mcp": {
     label: "Generic MCP Client",
     defaultSkillDir: ".agent/skills",
@@ -59,10 +66,7 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
  * Check a skill package's compatibility with a specific agent target.
  * Returns diagnostics for unsupported features or missing metadata.
  */
-export function checkCompatibility(
-  pkg: SkillPackage,
-  target: AgentTarget,
-): ValidationDiagnostic[] {
+export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): ValidationDiagnostic[] {
   const diagnostics: ValidationDiagnostic[] = [];
   const config = AGENT_TARGETS[target];
 
@@ -87,9 +91,7 @@ export function checkCompatibility(
       });
     }
     if (feature === "scripts/") {
-      const hasScripts = pkg.files.some((f) =>
-        f.relativePath.startsWith("scripts/"),
-      );
+      const hasScripts = pkg.files.some((f) => f.relativePath.startsWith("scripts/"));
       if (hasScripts) {
         diagnostics.push({
           rule: "unsupported-feature",
@@ -129,14 +131,12 @@ export function checkCompatibility(
  */
 export function checkAllTargetCompatibility(
   pkg: SkillPackage,
-  targets: Record<string, string>,
+  targets: Record<string, TargetConfig>,
 ): ValidationDiagnostic[] {
   const diagnostics: ValidationDiagnostic[] = [];
   for (const targetKey of Object.keys(targets)) {
     if (targetKey in AGENT_TARGETS) {
-      diagnostics.push(
-        ...checkCompatibility(pkg, targetKey as AgentTarget),
-      );
+      diagnostics.push(...checkCompatibility(pkg, targetKey as AgentTarget));
     }
   }
   return diagnostics;

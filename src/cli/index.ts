@@ -1,16 +1,20 @@
-import type { CliResult } from "./types.js";
-import { parseArgv } from "./parse.js";
-import { syncCommand } from "./commands/sync.js";
-import { statusCommand } from "./commands/status.js";
-import { validateCommand } from "./commands/validate.js";
+#!/usr/bin/env node
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { diffCommand } from "./commands/diff.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { pinCommand, unpinCommand } from "./commands/pin.js";
-import { pruneCommand } from "./commands/prune.js";
 import { promoteCommand } from "./commands/promote.js";
+import { pruneCommand } from "./commands/prune.js";
 import { settingsCommand } from "./commands/settings.js";
+import { statusCommand } from "./commands/status.js";
+import { syncCommand } from "./commands/sync.js";
+import { validateCommand } from "./commands/validate.js";
+import { verifyCommand } from "./commands/verify.js";
+import { parseArgv } from "./parse.js";
+import type { CliResult } from "./types.js";
 
-const VERSION = "0.0.1";
+const VERSION = "0.1.0";
 
 const COMMANDS: Record<string, { description: string; usage: string }> = {
   sync: {
@@ -24,6 +28,10 @@ const COMMANDS: Record<string, { description: string; usage: string }> = {
   validate: {
     description: "Check manifest, portability, and compatibility",
     usage: "skill-sync validate [--exit-code] [--json]",
+  },
+  verify: {
+    description: "Verify committed tracked snapshots match the lock + config (CI gate)",
+    usage: "skill-sync verify [--json]",
   },
   diff: {
     description: "Preview what sync would change (alias: sync --dry-run)",
@@ -51,7 +59,8 @@ const COMMANDS: Record<string, { description: string; usage: string }> = {
   },
   settings: {
     description: "Show required agent settings from installed skills",
-    usage: "skill-sync settings <subcommand> [--agent <name>] [--json]\n\nSubcommands:\n  generate   Print suggested settings fragment for installed skills",
+    usage:
+      "skill-sync settings <subcommand> [--agent <name>] [--json]\n\nSubcommands:\n  generate   Print suggested settings fragment for installed skills",
   },
 };
 
@@ -127,6 +136,8 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       return statusCommand(parsed);
     case "validate":
       return validateCommand(parsed);
+    case "verify":
+      return verifyCommand(parsed);
     case "diff":
       return diffCommand(parsed);
     case "doctor":
@@ -155,17 +166,26 @@ export async function runCli(argv: string[]): Promise<CliResult> {
  */
 export async function main(): Promise<void> {
   const result = await runCli(process.argv.slice(2));
-  if (result.stdout) process.stdout.write(result.stdout + "\n");
-  if (result.stderr) process.stderr.write(result.stderr + "\n");
+  if (result.stdout) process.stdout.write(`${result.stdout}\n`);
+  if (result.stderr) process.stderr.write(`${result.stderr}\n`);
   process.exitCode = result.exitCode;
 }
 
-// Auto-run when executed directly
-const isDirectExecution =
-  typeof process !== "undefined" &&
-  process.argv[1] &&
-  (process.argv[1].endsWith("/cli/index.js") || process.argv[1].endsWith("/cli/index.ts"));
+// Auto-run when this module is executed as a program — directly
+// (`node dist/cli/index.js`), via `tsx`, or via the installed `bin` (where
+// `npx`/npm invoke a `.bin/skill-sync` symlink, so argv[1] is the symlink, not
+// this file). Compare real paths so all three match, while staying false when
+// the module is merely IMPORTED (e.g. tests importing `runCli`).
+function isExecutedDirectly(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(entry) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+}
 
-if (isDirectExecution) {
+if (isExecutedDirectly()) {
   main();
 }

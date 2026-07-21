@@ -8,6 +8,7 @@ depends:
   - SHARED/debug-framework
   - SHARED/slicing-framework
   - SHARED/plan-deepening-framework
+  - SHARED/review-protocol
 config_inputs:
   - key: code.lint
     type: string

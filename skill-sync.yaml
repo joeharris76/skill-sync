@@ -21,9 +21,15 @@ skills:
   - SHARED/plan-deepening-framework
   - SHARED/slicing-framework
 targets:
-  claude: .claude/skills
-  codex: .codex/skills
-  gemini: .gemini/skills
+  claude:
+    dir: .claude/skills
+    tracked: true
+  codex:
+    dir: .codex/skills
+    tracked: true
+  gemini:
+    dir: .gemini/skills
+    tracked: true
 install_mode: mirror
 projects:
   - ~/Developer/letterops-mcp

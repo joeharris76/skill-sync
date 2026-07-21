@@ -1,5 +1,5 @@
-import type { CliResult, ParsedArgs, OutputMode } from "../types.js";
 import { formatOutput } from "../output.js";
+import type { CliResult, OutputMode, ParsedArgs } from "../types.js";
 
 /**
  * Promote command: v0 provides guidance for manual promotion.

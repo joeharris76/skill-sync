@@ -5,44 +5,43 @@
  * CLI and MCP are thin adapters over these operations.
  */
 
-import { resolve, join } from "node:path";
-import { writeFile, readFile, access, constants, realpath } from "node:fs/promises";
-import { homedir } from "node:os";
 import { execFile, spawn } from "node:child_process";
+import { access, constants, readFile, realpath, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { readManifest, serializeManifest } from "./manifest.js";
-import {
-  readLockFile,
-  writeLockFile,
-  createLockFile,
-  lockSkill,
-} from "./lock.js";
-import { resolveSkill } from "./resolver.js";
-import { planSync } from "./syncer.js";
-import type { PreparedSkill } from "./syncer.js";
-import { detectDrift } from "./drift.js";
-import { materialize, dematerialize } from "./materializer.js";
-import { loadSkillPackage } from "./parser.js";
+import { createSourcesFromConfigForSkill, isImplementedSourceType } from "../sources/factory.js";
 import { generateConfig, writeProjectConfig } from "./config-generator.js";
+import { detectDrift } from "./drift.js";
+import { applyGitTracking } from "./gitignore.js";
 import { auditInstructions } from "./instruction-audit.js";
 import { isInstructionAgent } from "./instruction-targets.js";
+import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
+import { createLockFile, lockSkill, readLockFile, writeLockFile } from "./lock.js";
+import { ManifestNotFoundError, readManifest, serializeManifest } from "./manifest.js";
+import { dematerialize, materialize } from "./materializer.js";
+import { loadSkillPackage } from "./parser.js";
+import { expandTilde, relativeInside, resolvePath, toTildePath } from "./paths.js";
 import { isPortableMode } from "./portability.js";
+import { resolveSkill } from "./resolver.js";
 import {
+  type AgentSettingsFile,
+  buildSuggestedPermissions,
   checkSettingsRequirements,
   collectRequiredAllows,
-  buildSuggestedPermissions,
-  type AgentSettingsFile,
   type SettingsGap,
 } from "./settings-checker.js";
-import { createSourcesFromConfigForSkill, isImplementedSourceType } from "../sources/factory.js";
+import type { PreparedSkill } from "./syncer.js";
+import { planSync } from "./syncer.js";
 import type {
-  SyncPlan,
-  SkippedEntry,
   ConflictEntry,
-  SkillSource,
+  LockFile,
+  Manifest,
   ResolvedSkill,
+  SkillSource,
+  SourceProvenance,
+  SyncPlan,
 } from "./types.js";
-import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
+import { type VerifyReport, verifyTrackedTargets } from "./verify.js";
 
 const execFileAsync = promisify(execFile);
 const HOOK_FAILURE_OUTPUT_LIMIT = 64 * 1024;
@@ -73,6 +72,15 @@ export interface SyncResult {
   conflicts?: ConflictEntry[];
 }
 
+/**
+ * Collapse a home-rooted provenance path to `~/...` before it is written to the
+ * (committable) lock file, so a tracked snapshot doesn't leak the maintainer's
+ * filesystem layout into every consumer repo.
+ */
+function normalizeProvenancePaths(source: SourceProvenance): SourceProvenance {
+  return source.path ? { ...source, path: toTildePath(source.path) } : source;
+}
+
 export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
   const { projectRoot, dryRun = false, force = false } = opts;
   const sources: SkillSource[] = [];
@@ -101,9 +109,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
       const resolvedSkill = await resolveSkill(skillName, skillSources);
       resolved.push(resolvedSkill);
 
-      const source = skillSources.find(
-        (s) => s.name === resolvedSkill.sourceName,
-      )!;
+      const source = skillSources.find((s) => s.name === resolvedSkill.sourceName)!;
       const fetched = await source.fetch(resolvedSkill);
       const pkg = await loadSkillPackage(fetched.path);
       prepared.push({
@@ -124,15 +130,15 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     }
 
     const driftReports = await Promise.all(
-      targetEntries.map(async ([targetName, targetPath]) => ({
-        targetName,
-        targetPath,
-        targetRoot: resolve(projectRoot, targetPath),
-        drift: await detectDrift(
-          resolve(projectRoot, targetPath),
-          lockFile,
-        ),
-      })),
+      targetEntries.map(async ([targetName, targetCfg]) => {
+        const targetRoot = resolvePath(projectRoot, targetCfg.dir);
+        return {
+          targetName,
+          targetPath: targetCfg.dir,
+          targetRoot,
+          drift: await detectDrift(targetRoot, lockFile),
+        };
+      }),
     );
 
     // Plan
@@ -159,6 +165,14 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     };
 
     if (dryRun) {
+      // Report (don't write) the git-tracking changes a real sync would make.
+      const dryGit = await applyGitTracking(projectRoot, manifest.targets, { dryRun: true });
+      if (dryGit.gitignoreChanged) emptySummary.warnings.push(".gitignore would be updated");
+      if (dryGit.gitattributesChanged)
+        emptySummary.warnings.push(".gitattributes would be updated");
+      for (const key of dryGit.outsideRepoTracked) {
+        emptySummary.warnings.push(`tracked target "${key}" resolves outside the repo`);
+      }
       return { plan, applied: false, summary: emptySummary };
     }
 
@@ -194,7 +208,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
       lockSkill(
         updatedLock,
         install.name,
-        install.source,
+        normalizeProvenancePaths(install.source),
         install.installMode,
         lockFiles,
       );
@@ -217,7 +231,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
       lockSkill(
         updatedLock,
         update.name,
-        update.source,
+        normalizeProvenancePaths(update.source),
         update.installMode,
         lockFiles,
       );
@@ -225,12 +239,9 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
 
     if (force) {
       for (const conflict of plan.conflicts) {
-        const sourceDir = resolved.find(
-          (r) => r.name === conflict.name,
-        )!.location;
+        const sourceDir = resolved.find((r) => r.name === conflict.name)!.location;
         const sourcePkg = prepared.find((p) => p.name === conflict.name)!;
-        const installMode =
-          manifest.overrides[conflict.name]?.installMode ?? manifest.installMode;
+        const installMode = manifest.overrides[conflict.name]?.installMode ?? manifest.installMode;
         let lockFiles = sourcePkg.files;
         for (const { targetRoot } of driftReports) {
           const result = await materialize({
@@ -245,7 +256,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
         lockSkill(
           updatedLock,
           conflict.name,
-          sourcePkg.source,
+          normalizeProvenancePaths(sourcePkg.source),
           installMode,
           lockFiles,
         );
@@ -255,12 +266,11 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     // Update lock for skipped skills (disk matches source, lock needs refresh)
     for (const skipped of plan.skipped) {
       const sourcePkg = prepared.find((p) => p.name === skipped.name)!;
-      const installMode =
-        manifest.overrides[skipped.name]?.installMode ?? manifest.installMode;
+      const installMode = manifest.overrides[skipped.name]?.installMode ?? manifest.installMode;
       lockSkill(
         updatedLock,
         skipped.name,
-        sourcePkg.source,
+        normalizeProvenancePaths(sourcePkg.source),
         installMode,
         sourcePkg.files,
       );
@@ -273,32 +283,47 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
       delete updatedLock.skills[name];
     }
 
-    // Generate skill-sync.config.yaml
-    if (Object.keys(manifest.config).length > 0) {
-      for (const { targetRoot } of driftReports) {
-        const installedPkgs = [];
-        for (const skillName of Object.keys(updatedLock.skills)) {
-          try {
-            const pkg = await loadSkillPackage(resolve(targetRoot, skillName));
-            installedPkgs.push(pkg);
-          } catch {
-            // Skip missing installs; drift will report them.
-          }
+    // Generate skill-sync.config.yaml per target. Exclusion-aware: a skill that
+    // is gitignored within a tracked target must not contribute to that target's
+    // committed config, so a fresh clone (which lacks it) regenerates the same
+    // file. Written only when the merged config is non-empty.
+    for (const { targetRoot, targetName } of driftReports) {
+      const exclusions = new Set(manifest.targets[targetName]?.ignore ?? []);
+      const installedPkgs = [];
+      for (const skillName of Object.keys(updatedLock.skills)) {
+        if (exclusions.has(skillName)) continue;
+        try {
+          const pkg = await loadSkillPackage(resolve(targetRoot, skillName));
+          installedPkgs.push(pkg);
+        } catch {
+          // Skip missing installs; drift will report them.
         }
-        const mergedConfig = generateConfig({
-          manifestConfig: manifest.config,
-          installedSkills: installedPkgs,
-        });
+      }
+      const manifestConfig = Object.fromEntries(
+        Object.entries(manifest.config).filter(([skill]) => !exclusions.has(skill)),
+      );
+      const mergedConfig = generateConfig({ manifestConfig, installedSkills: installedPkgs });
+      if (Object.keys(mergedConfig).length > 0) {
         await writeProjectConfig(targetRoot, mergedConfig);
       }
     }
 
+    // Maintain the managed .gitignore / .gitattributes blocks (no-op unless a
+    // target is tracked or a managed block already exists). Runs before the lock
+    // write, which is the commit point.
+    const gitTracking = await applyGitTracking(projectRoot, manifest.targets);
+
     await writeLockFile(projectRoot, updatedLock);
     await registerProjectInSources(projectRoot, manifest.sources);
 
+    const warnings = gitTracking.externalConflicts.map(
+      (rel) =>
+        `.gitignore has an entry outside the skill-sync block that ignores tracked path "${rel}"; remove it so the committed snapshot is visible to git.`,
+    );
     const summary = {
       ...emptySummary,
       forced: force ? plan.conflicts.map((c) => c.name) : [],
+      warnings,
     };
 
     return { plan, applied: true, summary };
@@ -306,13 +331,43 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     for (const source of sources) {
       if (
         "dispose" in source &&
-        typeof (source as { dispose: () => Promise<void> }).dispose ===
-          "function"
+        typeof (source as { dispose: () => Promise<void> }).dispose === "function"
       ) {
         await (source as { dispose: () => Promise<void> }).dispose();
       }
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Verify (tracked-snapshot integrity gate)
+// ---------------------------------------------------------------------------
+
+export interface VerifyOptions {
+  projectRoot: string;
+}
+
+/**
+ * Verify that the committed snapshot of every tracked target matches the lock +
+ * generated config. Offline (no source access) → safe to run in cloud/CI. When
+ * there is no lock file, there is nothing committed to verify (ok).
+ */
+export async function verifyOperation(opts: VerifyOptions): Promise<VerifyReport> {
+  const { projectRoot } = opts;
+  let manifest: Manifest;
+  try {
+    manifest = await readManifest(projectRoot);
+  } catch (err) {
+    if (err instanceof ManifestNotFoundError) {
+      return { ok: true, checkedTargets: [], issues: [] };
+    }
+    throw err;
+  }
+  const lockFile = await readLockFile(projectRoot);
+  if (!lockFile) {
+    return { ok: true, checkedTargets: [], issues: [] };
+  }
+  return verifyTrackedTargets(projectRoot, manifest, lockFile);
 }
 
 // ---------------------------------------------------------------------------
@@ -330,10 +385,7 @@ export interface PinResult {
  * Only writes `revision` and `sourceName` to the override — preserves
  * any existing `installMode` override.
  */
-export async function pinOperation(
-  projectRoot: string,
-  skillName: string,
-): Promise<PinResult> {
+export async function pinOperation(projectRoot: string, skillName: string): Promise<PinResult> {
   const manifest = await readManifest(projectRoot);
   const lockFile = await readLockFile(projectRoot);
 
@@ -358,11 +410,7 @@ export async function pinOperation(
   manifest.overrides[skillName]!.sourceName = locked.source.name;
   manifest.overrides[skillName]!.revision = locked.source.revision;
 
-  await writeFile(
-    join(projectRoot, "skill-sync.yaml"),
-    serializeManifest(manifest),
-    "utf-8",
-  );
+  await writeFile(join(projectRoot, "skill-sync.yaml"), serializeManifest(manifest), "utf-8");
 
   return {
     pinned: skillName,
@@ -387,14 +435,11 @@ export interface UnpinResult {
  * any existing `installMode` override. Removes the override entirely if
  * no fields remain.
  */
-export async function unpinOperation(
-  projectRoot: string,
-  skillName: string,
-): Promise<UnpinResult> {
+export async function unpinOperation(projectRoot: string, skillName: string): Promise<UnpinResult> {
   const manifest = await readManifest(projectRoot);
 
   const override = manifest.overrides[skillName];
-  if (!override || !override.revision) {
+  if (!override?.revision) {
     return {
       unpinned: false,
       message: `Skill "${skillName}" is not pinned.`,
@@ -409,11 +454,7 @@ export async function unpinOperation(
     delete manifest.overrides[skillName];
   }
 
-  await writeFile(
-    join(projectRoot, "skill-sync.yaml"),
-    serializeManifest(manifest),
-    "utf-8",
-  );
+  await writeFile(join(projectRoot, "skill-sync.yaml"), serializeManifest(manifest), "utf-8");
 
   return { unpinned: skillName };
 }
@@ -429,10 +470,7 @@ export interface PruneResult {
   dryRun: boolean;
 }
 
-export async function pruneOperation(
-  projectRoot: string,
-  dryRun = false,
-): Promise<PruneResult> {
+export async function pruneOperation(projectRoot: string, dryRun = false): Promise<PruneResult> {
   const manifest = await readManifest(projectRoot);
   const lockFile = await readLockFile(projectRoot);
 
@@ -446,11 +484,9 @@ export async function pruneOperation(
     throw new Error("No targets defined in skill-sync.yaml");
   }
 
-  const drift = await detectDrift(resolve(projectRoot, primaryTarget), lockFile);
+  const drift = await detectDrift(resolvePath(projectRoot, primaryTarget.dir), lockFile);
   const manifestSkills = new Set(manifest.skills);
-  const lockOnly = Object.keys(lockFile.skills).filter(
-    (name) => !manifestSkills.has(name),
-  );
+  const lockOnly = Object.keys(lockFile.skills).filter((name) => !manifestSkills.has(name));
   const toPrune = [...lockOnly, ...drift.extra];
 
   if (toPrune.length === 0 || dryRun) {
@@ -458,11 +494,14 @@ export async function pruneOperation(
   }
 
   for (const name of toPrune) {
-    for (const [, targetPath] of targetEntries) {
-      await dematerialize(name, resolve(projectRoot, targetPath));
+    for (const [, targetCfg] of targetEntries) {
+      await dematerialize(name, resolvePath(projectRoot, targetCfg.dir));
     }
     delete lockFile.skills[name];
   }
+  // Keep the managed .gitignore/.gitattributes blocks consistent (no-op unless a
+  // target is tracked or a block already exists).
+  await applyGitTracking(projectRoot, manifest.targets);
   await writeLockFile(projectRoot, lockFile);
 
   return { pruned: toPrune, dryRun };
@@ -507,13 +546,11 @@ export interface DoctorResult {
   checks: DoctorCheck[];
 }
 
-export async function doctorOperation(
-  projectRoot: string,
-): Promise<DoctorResult> {
+export async function doctorOperation(projectRoot: string): Promise<DoctorResult> {
   const checks: DoctorCheck[] = [];
 
   // Check 1: Manifest exists and parses
-  let manifest;
+  let manifest: Manifest | undefined;
   try {
     manifest = await readManifest(projectRoot);
     checks.push({ check: "manifest", status: "ok", message: "skill-sync.yaml found and valid" });
@@ -528,57 +565,141 @@ export async function doctorOperation(
   // Check 2: Lock file exists
   const lockFile = await readLockFile(projectRoot);
   if (lockFile) {
-    checks.push({ check: "lockfile", status: "ok", message: `Lock file has ${Object.keys(lockFile.skills).length} skill(s)` });
+    checks.push({
+      check: "lockfile",
+      status: "ok",
+      message: `Lock file has ${Object.keys(lockFile.skills).length} skill(s)`,
+    });
   } else {
-    checks.push({ check: "lockfile", status: "warn", message: "No lock file. Run `skill-sync sync` to create one." });
+    checks.push({
+      check: "lockfile",
+      status: "warn",
+      message: "No lock file. Run `skill-sync sync` to create one.",
+    });
   }
 
   // Check 3: Sources and target directories
   if (manifest) {
     for (const source of manifest.sources) {
       if (isImplementedSourceType(source.type)) {
-        checks.push({ check: `source:${source.name}`, status: "ok", message: `Source type "${source.type}" is supported` });
+        checks.push({
+          check: `source:${source.name}`,
+          status: "ok",
+          message: `Source type "${source.type}" is supported`,
+        });
       } else {
-        checks.push({ check: `source:${source.name}`, status: "warn", message: `Source type "${source.type}" is not implemented yet` });
+        checks.push({
+          check: `source:${source.name}`,
+          status: "warn",
+          message: `Source type "${source.type}" is not implemented yet`,
+        });
       }
     }
 
-    for (const [target, dir] of Object.entries(manifest.targets)) {
-      const targetPath = resolve(projectRoot, dir);
+    for (const [target, cfg] of Object.entries(manifest.targets)) {
+      const targetPath = resolvePath(projectRoot, cfg.dir);
       try {
         await access(targetPath, constants.R_OK);
-        checks.push({ check: `target:${target}`, status: "ok", message: `${dir} exists` });
+        checks.push({ check: `target:${target}`, status: "ok", message: `${cfg.dir} exists` });
       } catch {
-        checks.push({ check: `target:${target}`, status: "warn", message: `${dir} does not exist yet` });
+        checks.push({
+          check: `target:${target}`,
+          status: "warn",
+          message: `${cfg.dir} does not exist yet`,
+        });
       }
     }
   }
 
   // Check 4: Drift detection
   if (manifest && lockFile) {
-    for (const [target, dir] of Object.entries(manifest.targets)) {
-      const targetRoot = resolve(projectRoot, dir);
+    for (const [target, cfg] of Object.entries(manifest.targets)) {
+      const targetRoot = resolvePath(projectRoot, cfg.dir);
       const drift = await detectDrift(targetRoot, lockFile);
       if (drift.modified.length === 0 && drift.missing.length === 0) {
-        checks.push({ check: `drift:${target}`, status: "ok", message: "All installed skills match lock file" });
+        checks.push({
+          check: `drift:${target}`,
+          status: "ok",
+          message: "All installed skills match lock file",
+        });
       } else {
         const issues: string[] = [];
         if (drift.modified.length > 0) issues.push(`${drift.modified.length} modified file(s)`);
         if (drift.missing.length > 0) issues.push(`${drift.missing.length} missing skill(s)`);
-        checks.push({ check: `drift:${target}`, status: "warn", message: `Drift detected: ${issues.join(", ")}` });
+        checks.push({
+          check: `drift:${target}`,
+          status: "warn",
+          message: `Drift detected: ${issues.join(", ")}`,
+        });
       }
       if (drift.extra.length > 0) {
-        checks.push({ check: `extra:${target}`, status: "warn", message: `${drift.extra.length} untracked skill(s): ${drift.extra.join(", ")}` });
+        checks.push({
+          check: `extra:${target}`,
+          status: "warn",
+          message: `${drift.extra.length} untracked skill(s): ${drift.extra.join(", ")}`,
+        });
       }
+    }
+  }
+
+  // Check: tracked-target health (committed snapshots)
+  if (manifest) {
+    const trackedTargets = Object.entries(manifest.targets).filter(([, cfg]) => cfg.tracked);
+    for (const [target, cfg] of trackedTargets) {
+      if (relativeInside(projectRoot, cfg.dir) === null) {
+        checks.push({
+          check: `tracked:${target}`,
+          status: "error",
+          message: `${cfg.dir} is tracked but resolves outside the repo and cannot be committed`,
+        });
+        continue;
+      }
+      // `git check-ignore -q` exits 0 when the path IS ignored.
+      let ignored = false;
+      try {
+        await execFileAsync("git", ["check-ignore", "-q", cfg.dir], { cwd: projectRoot });
+        ignored = true;
+      } catch {
+        ignored = false;
+      }
+      checks.push(
+        ignored
+          ? {
+              check: `tracked:${target}`,
+              status: "warn",
+              message: `${cfg.dir} is tracked but git-ignored (an entry outside the skill-sync block shadows it); the committed snapshot won't reach git`,
+            }
+          : {
+              check: `tracked:${target}`,
+              status: "ok",
+              message: `${cfg.dir} is tracked and visible to git`,
+            },
+      );
+    }
+    if (trackedTargets.length > 0 && manifest.installMode === "symlink") {
+      checks.push({
+        check: "tracked:install-mode",
+        status: "error",
+        message:
+          'Install mode "symlink" cannot be committed; tracked targets require copy or mirror',
+      });
     }
   }
 
   // Check 5: Portability
   if (manifest) {
     if (isPortableMode(manifest.installMode)) {
-      checks.push({ check: "portability", status: "ok", message: `Install mode "${manifest.installMode}" is portable` });
+      checks.push({
+        check: "portability",
+        status: "ok",
+        message: `Install mode "${manifest.installMode}" is portable`,
+      });
     } else {
-      checks.push({ check: "portability", status: "warn", message: `Install mode "${manifest.installMode}" is not portable (CI/web won't work)` });
+      checks.push({
+        check: "portability",
+        status: "warn",
+        message: `Install mode "${manifest.installMode}" is not portable (CI/web won't work)`,
+      });
     }
 
     const instructionReport = await instructionAuditOperation({ projectRoot });
@@ -587,12 +708,15 @@ export async function doctorOperation(
 
   // Check 6: Settings requirements (claude only in v0)
   if (manifest && lockFile) {
-    const claudeTarget = manifest.targets["claude"];
+    const claudeTarget = manifest.targets.claude?.dir;
     if (claudeTarget) {
-      const targetRoot = resolve(projectRoot, claudeTarget);
+      const targetRoot = resolvePath(projectRoot, claudeTarget);
       const settingsPath = join(projectRoot, ".claude", "settings.json");
       const settingsFile = await readAgentSettingsFile(settingsPath);
-      const installedPkgs: Array<{ name: string; meta: import("./types.js").SkillSyncMeta | null }> = [];
+      const installedPkgs: Array<{
+        name: string;
+        meta: import("./types.js").SkillSyncMeta | null;
+      }> = [];
       for (const skillName of Object.keys(lockFile.skills)) {
         try {
           const pkg = await loadSkillPackage(resolve(targetRoot, skillName));
@@ -610,7 +734,7 @@ export async function doctorOperation(
             message: `Skill "${gap.skillName}" requires claude permissions not in settings.json: ${gap.missingAllows.join(", ")}. Run \`skill-sync settings generate\` to see suggested additions.`,
           });
         }
-      } else if (installedPkgs.some((p) => p.meta?.settingsRequirements?.["claude"])) {
+      } else if (installedPkgs.some((p) => p.meta?.settingsRequirements?.claude)) {
         checks.push({
           check: "settings-requirements:claude",
           status: "ok",
@@ -651,8 +775,8 @@ export async function settingsGenerateOperation(
 ): Promise<SettingsGenerateResult> {
   const { projectRoot, agent = "claude" } = opts;
 
-  let lockFile;
-  let manifest;
+  let lockFile: LockFile | null = null;
+  let manifest: Manifest | undefined;
   try {
     manifest = await readManifest(projectRoot);
     lockFile = await readLockFile(projectRoot);
@@ -664,16 +788,17 @@ export async function settingsGenerateOperation(
     return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };
   }
 
-  const agentTarget = manifest.targets[agent];
+  const agentTarget = manifest.targets[agent]?.dir;
   if (!agentTarget) {
     return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };
   }
 
-  const targetRoot = resolve(projectRoot, agentTarget);
+  const targetRoot = resolvePath(projectRoot, agentTarget);
   const settingsPath = join(projectRoot, `.${agent}`, "settings.json");
   const settingsFile = await readAgentSettingsFile(settingsPath);
 
-  const installedPkgs: Array<{ name: string; meta: import("./types.js").SkillSyncMeta | null }> = [];
+  const installedPkgs: Array<{ name: string; meta: import("./types.js").SkillSyncMeta | null }> =
+    [];
   for (const skillName of Object.keys(lockFile.skills)) {
     try {
       const pkg = await loadSkillPackage(resolve(targetRoot, skillName));
@@ -710,13 +835,14 @@ async function registerProjectInSources(
   projectRoot: string,
   sources: import("./types.js").SourceConfig[],
 ): Promise<void> {
-  const expandHome = (p: string) => p.replace(/^~/, homedir());
   const isLinkedWorktree = await isLinkedGitWorktree(projectRoot);
   for (const source of sources) {
     if (source.type !== "local" || !source.path) continue;
-    const sourcePath = expandHome(source.path);
+    const sourcePath = expandTilde(source.path);
     // The source path points to the skills directory; the manifest lives one level up
     const sourceRoot = resolve(sourcePath, "..");
+    // Never register a source's own repo as a downstream project of itself.
+    if (resolve(sourceRoot) === resolve(projectRoot)) continue;
     const sourceManifestPath = join(sourceRoot, "skill-sync.yaml");
     try {
       const sourceManifest = await readManifest(sourceRoot);
@@ -726,11 +852,7 @@ async function registerProjectInSources(
       }
       const existing = sourceManifest.projects ?? [];
       // Normalize projectRoot to use ~ when it's under the home directory
-      const homeDir = homedir();
-      const normalized =
-        projectRoot === homeDir || projectRoot.startsWith(homeDir + "/")
-          ? `~${projectRoot.slice(homeDir.length)}`
-          : projectRoot;
+      const normalized = toTildePath(projectRoot);
       if (!existing.includes(normalized)) {
         sourceManifest.projects = [...existing, normalized];
         await writeFile(sourceManifestPath, serializeManifest(sourceManifest), "utf-8");
@@ -741,18 +863,13 @@ async function registerProjectInSources(
   }
 }
 
-async function runBeforeSyncHooks(
-  projectRoot: string,
-  commands: string[],
-): Promise<void> {
+async function runBeforeSyncHooks(projectRoot: string, commands: string[]): Promise<void> {
   for (const command of commands) {
     try {
       await runShellHook(command, projectRoot);
     } catch (err) {
       const detail = formatHookFailureDetail(err);
-      throw new Error(
-        `before_sync hook failed: ${command}${detail ? `\n${detail}` : ""}`,
-      );
+      throw new Error(`before_sync hook failed: ${command}${detail ? `\n${detail}` : ""}`);
     }
   }
 }
@@ -791,9 +908,7 @@ async function runShellHook(command: string, cwd: string): Promise<void> {
 
 function appendOutputTail(current: string, chunk: string): string {
   const next = current + chunk;
-  return next.length > HOOK_FAILURE_OUTPUT_LIMIT
-    ? next.slice(-HOOK_FAILURE_OUTPUT_LIMIT)
-    : next;
+  return next.length > HOOK_FAILURE_OUTPUT_LIMIT ? next.slice(-HOOK_FAILURE_OUTPUT_LIMIT) : next;
 }
 
 function formatHookFailureDetail(err: unknown): string {

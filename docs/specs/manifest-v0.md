@@ -80,6 +80,15 @@ targets:
   codex: true        # Compatible with OpenAI Codex
   generic-mcp: true  # Usable via MCP by any client
 
+# Paths the author certifies as DOCUMENTARY (not runtime), exempt from the
+# non-portable-path scanner. Globs allowed. A finding is suppressed only when
+# EVERY non-portable token on a line is covered, so a real leak sharing a line
+# with a documented path still fails. Use sparingly — for prose/tables that
+# document where a CLI stores global config, not to silence genuine ~/ leaks.
+portability_allow:
+  - "~/.codex/config.toml"
+  - "~/.gemini/*.json"
+
 # Source provenance (set by sync engine during install/sync — not authorable)
 # This field is ignored if present in an authored file.
 # source:
@@ -88,7 +97,7 @@ targets:
 #   fetchedAt: "2026-03-06T10:00:00Z"
 ```
 
-**Author-controlled fields:** `tags`, `category`, `depends`, `config_inputs`, `targets`
+**Author-controlled fields:** `tags`, `category`, `depends`, `config_inputs`, `targets`, `portability_allow`
 
 **Sync-engine-controlled fields:** `source` (written during install/sync, never hand-edited)
 
@@ -170,9 +179,27 @@ skills:
 
 # Where to materialize skills in this project.
 # Supports multiple targets for multi-agent setups.
+#
+# A target value is either:
+#   - a bare string: the directory path; the materialized mirror is gitignored
+#     (default — today's behavior, single source of truth, no committed churn).
+#   - an object: { dir, tracked?, ignore? } to opt into committing the snapshot.
+#       dir      Directory path (required).
+#       tracked  When true, the materialized skills + injected config under `dir`
+#                are committed to git (reach cloud/CI/fresh clones). skill-sync
+#                manages a .gitignore / .gitattributes block accordingly and the
+#                snapshot is provable against the lock via `skill-sync verify`.
+#                A tracked target must be inside the repo and use a non-symlink
+#                install mode. Default: false.
+#       ignore   Skill names kept gitignored within an otherwise-tracked target
+#                (e.g. personal skills), excluded from the committed snapshot and
+#                from that target's generated config.
 targets:
-  claude: .claude/skills       # Claude Code reads from here
-  codex: .codex/skills         # OpenAI Codex reads from here
+  claude:                      # object form: committed snapshot
+    dir: .claude/skills
+    tracked: true
+    ignore: [blog, substack]
+  codex: .codex/skills         # string form: untracked mirror (gitignored)
   # generic: .agent/skills     # Generic agent path
 
 # Default install mode for this project.
@@ -432,6 +459,8 @@ Additionally, `validateManifest()` enforces:
 | `no-skills` | Warning | At least one skill should be listed |
 | `no-targets` | Error | At least one target must be defined |
 | `non-portable-install-mode` | Warning | Default install mode should be portable (copy or mirror) |
+| `tracked-target-outside-repo` | Error | A `tracked` target must resolve inside the repo to be committable |
+| `tracked-symlink-mode` | Error/Warning | `symlink` install mode cannot be committed in a tracked target (error if global, warning if a per-skill override) |
 
 ---
 

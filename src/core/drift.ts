@@ -1,17 +1,14 @@
-import { join, relative } from "node:path";
-import { access, constants, readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
-import type { LockFile, DriftReport, DriftEntry } from "./types.js";
+import { access, constants, readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { sha256File } from "./hasher.js";
+import type { DriftReport, LockFile } from "./types.js";
 
 /**
  * Check the installed store against the lock file.
  * Reports clean skills, modified files, missing skills, and extra skills.
  */
-export async function detectDrift(
-  targetRoot: string,
-  lockFile: LockFile,
-): Promise<DriftReport> {
+export async function detectDrift(targetRoot: string, lockFile: LockFile): Promise<DriftReport> {
   const report: DriftReport = {
     clean: [],
     modified: [],
@@ -21,7 +18,7 @@ export async function detectDrift(
 
   const lockedNames = new Set(Object.keys(lockFile.skills));
   const installedNames = await listInstalledSkillNames(targetRoot);
-  const installedSet = new Set(installedNames);
+  const _installedSet = new Set(installedNames);
 
   // Check each locked skill
   for (const [skillName, locked] of Object.entries(lockFile.skills)) {
@@ -87,10 +84,7 @@ export async function detectDrift(
  * Supports nested paths like SHARED/commit-framework by recursing into
  * subdirectories that don't contain SKILL.md themselves.
  */
-async function listInstalledSkillNames(
-  targetRoot: string,
-  prefix = "",
-): Promise<string[]> {
+async function listInstalledSkillNames(targetRoot: string, prefix = ""): Promise<string[]> {
   const names: string[] = [];
   let entries: Dirent[];
   try {

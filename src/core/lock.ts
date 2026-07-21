@@ -1,12 +1,6 @@
-import { readFile, writeFile, rename } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-  LockFile,
-  LockedSkill,
-  SkillFile,
-  SourceProvenance,
-  InstallMode,
-} from "./types.js";
+import type { InstallMode, LockedSkill, LockFile, SkillFile, SourceProvenance } from "./types.js";
 
 const LOCK_VERSION = 1;
 const LOCK_FILENAME = "skill-sync.lock";
@@ -21,9 +15,7 @@ export function createLockFile(): LockFile {
 }
 
 /** Read a lock file from the project root. Returns null if not found. */
-export async function readLockFile(
-  projectRoot: string,
-): Promise<LockFile | null> {
+export async function readLockFile(projectRoot: string): Promise<LockFile | null> {
   try {
     const content = await readFile(join(projectRoot, LOCK_FILENAME), "utf-8");
     const parsed = JSON.parse(content) as LockFile;
@@ -43,15 +35,12 @@ export async function readLockFile(
  * Write a lock file atomically to the project root.
  * Writes to a temporary file first, then renames.
  */
-export async function writeLockFile(
-  projectRoot: string,
-  lockFile: LockFile,
-): Promise<void> {
+export async function writeLockFile(projectRoot: string, lockFile: LockFile): Promise<void> {
   const lockPath = join(projectRoot, LOCK_FILENAME);
-  const tmpPath = lockPath + ".tmp";
+  const tmpPath = `${lockPath}.tmp`;
 
   lockFile.lockedAt = new Date().toISOString();
-  const content = JSON.stringify(lockFile, null, 2) + "\n";
+  const content = `${JSON.stringify(lockFile, null, 2)}\n`;
 
   await writeFile(tmpPath, content, "utf-8");
   await rename(tmpPath, lockPath);
@@ -83,10 +72,7 @@ export function unlockSkill(lockFile: LockFile, skillName: string): void {
 }
 
 /** Get a locked skill entry, or null if not locked. */
-export function getLockedSkill(
-  lockFile: LockFile,
-  skillName: string,
-): LockedSkill | null {
+export function getLockedSkill(lockFile: LockFile, skillName: string): LockedSkill | null {
   return lockFile.skills[skillName] ?? null;
 }
 
@@ -94,14 +80,12 @@ export function getLockedSkill(
 export function parseLockFile(content: string): LockFile {
   const parsed = JSON.parse(content) as LockFile;
   if (parsed.version !== LOCK_VERSION) {
-    throw new Error(
-      `Unsupported lock file version: ${parsed.version} (expected ${LOCK_VERSION})`,
-    );
+    throw new Error(`Unsupported lock file version: ${parsed.version} (expected ${LOCK_VERSION})`);
   }
   return parsed;
 }
 
 /** Serialize a LockFile to a JSON string. */
 export function serializeLockFile(lockFile: LockFile): string {
-  return JSON.stringify(lockFile, null, 2) + "\n";
+  return `${JSON.stringify(lockFile, null, 2)}\n`;
 }

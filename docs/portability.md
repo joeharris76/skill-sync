@@ -65,6 +65,21 @@ rewrites.
 Unsupported features should be surfaced explicitly as validation or compatibility
 warnings.
 
+## Committed Snapshots for Cloud/CI
+
+Repo-local materialization alone is not enough for environments that clone only
+the consumer's git repo (claude.ai/code, CI, a fresh machine): the materialized
+mirrors are gitignored by default, and re-running sync there is impossible (the
+source may be private and the CLI may be absent). To fulfill the "web-based agent
+environments" goal, a consumer can opt a target into committing its materialized
+skills + injected config to git via `tracked: true` (see `sync-model.md`).
+
+This sidesteps secrets entirely — nothing is re-fetched in cloud — while keeping
+the single-source-of-truth and drift-detection guarantees: a committed snapshot
+is still regenerated (never hand-edited) and is provable against the lock with
+`skill-sync verify`. The portability scanner (non-portable absolute paths) is
+exactly the guarantee that makes a committed snapshot work in CI.
+
 ## Desired Outcome
 
 The release-state experience should be:
@@ -73,3 +88,4 @@ The release-state experience should be:
 - multiple compatible materialization targets
 - minimal duplication
 - explicit visibility into what is portable and what is not
+- optional per-target committed snapshots for cloud/CI parity

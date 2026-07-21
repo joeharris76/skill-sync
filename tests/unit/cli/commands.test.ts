@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { runCli } from "../../../src/cli/index.js";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sha256 } from "../../../src/core/hasher.js";
@@ -341,6 +342,106 @@ describe("runCli", () => {
     expect(await readFile(join(projectRoot, ".codex/skills/code/SKILL.md"), "utf8")).toContain("name: code");
     expect(await readFile(join(projectRoot, ".claude/skills/skill-sync.config.yaml"), "utf8")).toContain("verify: npm run test:run");
     expect(await readFile(join(projectRoot, ".codex/skills/skill-sync.config.yaml"), "utf8")).toContain("verify: npm run test:run");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync manages .gitignore/.gitattributes for tracked targets", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-tracked-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(
+      join(skillRoot, "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "", "# Code"].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(skillRoot, "skill.yaml"),
+      "targets:\n  claude: true\n  codex: true\n",
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude:",
+        "    dir: .claude/skills",
+        "    tracked: true",
+        "  codex: .codex/skills",
+        "install_mode: mirror",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runCli(["sync", "--project", projectRoot]);
+    expect(result.exitCode).toBe(0);
+
+    const gitignore = await readFile(join(projectRoot, ".gitignore"), "utf8");
+    // Tracked target is NOT ignored; untracked sibling IS ignored.
+    expect(gitignore).not.toContain("/.claude/skills/\n");
+    expect(gitignore).toContain("/.codex/skills/");
+    // Tracked tree gets -text so committed bytes survive EOL normalization.
+    const gitattributes = await readFile(join(projectRoot, ".gitattributes"), "utf8");
+    expect(gitattributes).toContain("/.claude/skills/** -text");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("verify passes after a tracked sync and fails after a hand-edit", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-verify-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(
+      join(skillRoot, "SKILL.md"),
+      ["---", "name: code", "description: Code skill", "---", "", "# Code"].join("\n"),
+      "utf8",
+    );
+    await writeFile(join(skillRoot, "skill.yaml"), "targets:\n  claude: true\n", "utf8");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - code",
+        "targets:",
+        "  claude:",
+        "    dir: .claude/skills",
+        "    tracked: true",
+        "install_mode: mirror",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    expect((await runCli(["sync", "--project", projectRoot])).exitCode).toBe(0);
+
+    // Clean snapshot → verify passes.
+    const pass = await runCli(["verify", "--project", projectRoot]);
+    expect(pass.exitCode).toBe(0);
+
+    // Hand-edit a committed skill file → verify fails (non-zero, CI gate).
+    await writeFile(join(projectRoot, ".claude/skills/code/SKILL.md"), "TAMPERED", "utf8");
+    const fail = await runCli(["verify", "--project", projectRoot]);
+    expect(fail.exitCode).toBe(1);
+
+    const failJson = await runCli(["verify", "--project", projectRoot, "--json"]);
+    const parsed = JSON.parse(failJson.stdout ?? "{}");
+    expect(parsed.ok).toBe(false);
+    expect(parsed.issues.length).toBeGreaterThan(0);
 
     await rm(projectRoot, { recursive: true, force: true });
   });
@@ -1250,6 +1351,61 @@ describe("skill-sync settings", () => {
       expect(parsed.agent).toBe("codex");
     } finally {
       await rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("skill-sync sync/status — tilde target resolution", () => {
+  it("expands a ~-rooted target so status reports clean (not missing) after sync", async () => {
+    const originalHome = process.env.HOME;
+    const base = await mkdtemp(join(tmpdir(), "skill-sync-tilde-cli-"));
+    const home = join(base, "home");
+    const sourceRoot = join(base, "src");
+    const projectRoot = join(base, "project");
+    await mkdir(join(sourceRoot, "demo"), { recursive: true });
+    await mkdir(projectRoot, { recursive: true });
+    await writeFile(
+      join(sourceRoot, "demo", "SKILL.md"),
+      "---\nname: demo\ndescription: demo skill\n---\n# demo\n",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills:",
+        "  - demo",
+        "targets:",
+        "  claude: ~/.claude/skills",
+        "install_mode: mirror",
+      ].join("\n"),
+    );
+
+    try {
+      // os.homedir() honors $HOME on POSIX; point it at a temp dir.
+      process.env.HOME = home;
+
+      const sync = await runCli(["sync", "--project", projectRoot]);
+      expect(sync.exitCode).toBe(0);
+      // Materialized under the home dir, never into a literal "~" dir.
+      expect(existsSync(join(home, ".claude", "skills", "demo", "SKILL.md"))).toBe(true);
+      expect(existsSync(join(projectRoot, "~"))).toBe(false);
+
+      const status = await runCli(["status", "--json", "--project", projectRoot]);
+      expect(status.exitCode).toBe(0);
+      const parsed = JSON.parse(status.stdout!);
+      const claude = parsed.targets.find(
+        (t: { target: string }) => t.target === "claude",
+      );
+      expect(claude.summary.missing).toBe(0);
+      expect(claude.summary.clean).toBeGreaterThanOrEqual(1);
+    } finally {
+      if (originalHome === undefined) delete process.env.HOME;
+      else process.env.HOME = originalHome;
+      await rm(base, { recursive: true, force: true });
     }
   });
 });

@@ -5,3 +5,4 @@ coverage/
 tests/.tmp/
 *.tsbuildinfo
 .claude/settings.local.json
+/.antigravitycli

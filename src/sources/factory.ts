@@ -1,6 +1,6 @@
-import type { SourceConfig, SkillOverride, SkillSource } from "../core/types.js";
-import { LocalSource } from "./local.js";
+import type { SkillOverride, SkillSource, SourceConfig } from "../core/types.js";
 import { GitSource } from "./git.js";
+import { LocalSource } from "./local.js";
 
 const IMPLEMENTED_SOURCE_TYPES = new Set(["local", "git"]);
 

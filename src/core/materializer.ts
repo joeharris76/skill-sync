@@ -1,7 +1,7 @@
-import { copyFile, mkdir, symlink, readlink, rm } from "node:fs/promises";
-import { join, dirname, relative, resolve } from "node:path";
-import type { InstallMode, SkillFile } from "./types.js";
+import { copyFile, mkdir, rm, symlink } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { hashSkillDirectory } from "./hasher.js";
+import type { InstallMode, SkillFile } from "./types.js";
 
 export interface MaterializeOptions {
   /** Skill name (used for the target subdirectory). */
@@ -32,9 +32,7 @@ export interface MaterializeResult {
  * - **symlink**: Create a symlink from target to source. Fast, not portable.
  * - **mirror**: File copy with full hash tracking in the lock file.
  */
-export async function materialize(
-  opts: MaterializeOptions,
-): Promise<MaterializeResult> {
+export async function materialize(opts: MaterializeOptions): Promise<MaterializeResult> {
   const targetDir = join(opts.targetRoot, opts.skillName);
 
   switch (opts.mode) {
@@ -94,10 +92,7 @@ async function materializeSymlink(
 /**
  * Remove a materialized skill from a target directory.
  */
-export async function dematerialize(
-  skillName: string,
-  targetRoot: string,
-): Promise<void> {
+export async function dematerialize(skillName: string, targetRoot: string): Promise<void> {
   const targetDir = join(targetRoot, skillName);
   await rm(targetDir, { recursive: true, force: true });
 }

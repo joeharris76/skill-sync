@@ -1,6 +1,6 @@
 {
   "name": "skill-sync",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Local-first skill distribution system for AI agents",
   "type": "module",
   "bin": {
@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "prepare": "tsup",
     "dev": "tsx src/cli/index.ts",
     "test": "vitest",
     "test:run": "vitest run",
@@ -38,6 +39,7 @@
     "gemini"
   ],
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@types/node": "^25.3.5",
     "@vitest/coverage-v8": "^3.2.4",
     "tsup": "^8.5.1",

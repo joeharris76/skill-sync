@@ -1,7 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import type { Manifest, SourceConfig, InstallMode, ManifestHooks, ProjectRegistryConfig } from "./types.js";
+import type {
+  InstallMode,
+  Manifest,
+  ManifestHooks,
+  ProjectRegistryConfig,
+  SourceConfig,
+  TargetConfig,
+} from "./types.js";
 
 const MANIFEST_FILENAME = "skill-sync.yaml";
 const SUPPORTED_VERSION = 1;
@@ -44,9 +51,7 @@ export function parseManifest(content: string): Manifest {
 
   const version = raw.version;
   if (version !== SUPPORTED_VERSION) {
-    throw new Error(
-      `Unsupported manifest version: ${version} (expected ${SUPPORTED_VERSION})`,
-    );
+    throw new Error(`Unsupported manifest version: ${version} (expected ${SUPPORTED_VERSION})`);
   }
 
   const sources = parseSources(raw.sources);
@@ -55,8 +60,7 @@ export function parseManifest(content: string): Manifest {
   const installMode = parseInstallMode(raw.install_mode);
   const config = parseConfig(raw.config);
   const overrides = parseOverrides(raw.overrides);
-  const profile =
-    typeof raw.profile === "string" ? raw.profile : undefined;
+  const profile = typeof raw.profile === "string" ? raw.profile : undefined;
   const projects = parseProjects(raw.projects);
   const hooks = parseHooks(raw.hooks);
   const projectRegistry = parseProjectRegistry(raw.project_registry);
@@ -115,14 +119,31 @@ function parseSkills(raw: unknown): string[] {
   return raw.filter((s): s is string => typeof s === "string");
 }
 
-function parseTargets(raw: unknown): Record<string, string> {
+function parseTargets(raw: unknown): Record<string, TargetConfig> {
   if (!raw || typeof raw !== "object") {
-    return { claude: ".claude/skills" };
+    return { claude: { dir: ".claude/skills" } };
   }
-  const result: Record<string, string> = {};
+  const result: Record<string, TargetConfig> = {};
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    // Back-compat: a bare string is the directory path (untracked mirror).
     if (typeof val === "string") {
-      result[key] = val;
+      result[key] = { dir: val };
+      continue;
+    }
+    if (val && typeof val === "object") {
+      const o = val as Record<string, unknown>;
+      if (typeof o.dir !== "string") {
+        throw new Error(`Target "${key}" must have a string "dir" field`);
+      }
+      const cfg: TargetConfig = { dir: o.dir };
+      if (o.tracked === true) cfg.tracked = true;
+      if (Array.isArray(o.ignore)) {
+        const ignore = o.ignore.filter(
+          (s): s is string => typeof s === "string" && s.trim().length > 0,
+        );
+        if (ignore.length > 0) cfg.ignore = ignore;
+      }
+      result[key] = cfg;
     }
   }
   return result;
@@ -143,8 +164,7 @@ function parseHooks(raw: unknown): ManifestHooks {
   if (Array.isArray(beforeSync)) {
     return {
       beforeSync: beforeSync.filter(
-        (command): command is string =>
-          typeof command === "string" && command.trim().length > 0,
+        (command): command is string => typeof command === "string" && command.trim().length > 0,
       ),
     };
   }
@@ -169,9 +189,7 @@ function parseInstallMode(raw: unknown): InstallMode {
   return "mirror";
 }
 
-function parseConfig(
-  raw: unknown,
-): Record<string, Record<string, unknown>> {
+function parseConfig(raw: unknown): Record<string, Record<string, unknown>> {
   if (!raw || typeof raw !== "object") return {};
   const result: Record<string, Record<string, unknown>> = {};
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
@@ -222,7 +240,21 @@ export function serializeManifest(manifest: Manifest): string {
     skills: manifest.skills,
   };
   if (manifest.profile) raw.profile = manifest.profile;
-  raw.targets = manifest.targets;
+  // Emit the compact string form for default (untracked, no exclusions) targets
+  // so existing manifests round-trip byte-stable through pin/unpin; only opted-in
+  // targets serialize as objects.
+  const targetsRaw: Record<string, unknown> = {};
+  for (const [key, cfg] of Object.entries(manifest.targets)) {
+    if (!cfg.tracked && (!cfg.ignore || cfg.ignore.length === 0)) {
+      targetsRaw[key] = cfg.dir;
+    } else {
+      const entry: Record<string, unknown> = { dir: cfg.dir };
+      if (cfg.tracked) entry.tracked = true;
+      if (cfg.ignore && cfg.ignore.length > 0) entry.ignore = cfg.ignore;
+      targetsRaw[key] = entry;
+    }
+  }
+  raw.targets = targetsRaw;
   raw.install_mode = manifest.installMode;
   if (manifest.hooks.beforeSync.length > 0) {
     raw.hooks = {
@@ -232,10 +264,7 @@ export function serializeManifest(manifest: Manifest): string {
           : manifest.hooks.beforeSync,
     };
   }
-  if (
-    !manifest.projectRegistry.autoRegister ||
-    manifest.projectRegistry.includeWorktrees
-  ) {
+  if (!manifest.projectRegistry.autoRegister || manifest.projectRegistry.includeWorktrees) {
     raw.project_registry = {
       auto_register: manifest.projectRegistry.autoRegister,
       include_worktrees: manifest.projectRegistry.includeWorktrees,
