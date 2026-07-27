@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { detectDrift } from "../../../src/core/drift.js";
+import { detectDrift, detectTargetReadiness } from "../../../src/core/drift.js";
 import type { LockFile } from "../../../src/core/types.js";
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -95,6 +95,28 @@ describe("detectDrift", () => {
 
     const report = await detectDrift(targetRoot, lockFile);
     expect(report.missing).toContain("gone");
+  });
+
+  it("separates ignored snapshot state from local materialization state", async () => {
+    const targetRoot = join(tmpBase, "ignored-missing");
+    await mkdir(targetRoot, { recursive: true });
+    const lockFile: LockFile = {
+      version: 1,
+      lockedAt: "",
+      skills: {
+        blog: {
+          source: { type: "local", name: "test", fetchedAt: "" },
+          installMode: "mirror",
+          files: { "SKILL.md": { sha256: "abc", size: 5 } },
+        },
+      },
+    };
+
+    const readiness = await detectTargetReadiness(targetRoot, lockFile, ["blog"]);
+
+    expect(readiness.ignored).toEqual(["blog"]);
+    expect(readiness.drift.missing).toEqual([]);
+    expect(readiness.materialization.missing).toEqual(["blog"]);
   });
 
   afterAll(async () => {

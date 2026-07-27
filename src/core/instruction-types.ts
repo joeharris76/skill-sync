@@ -36,7 +36,12 @@ export interface InstructionTargetConfig {
 export interface InstructionAgentAudit {
   agent: InstructionAgent;
   label: string;
+  /** Any project instruction surface or matching skill target is configured. */
   configured: boolean;
+  /** The manifest contains a skills target for this agent. */
+  targetConfigured: boolean;
+  /** At least one supported project instruction file is present. */
+  instructionConfigured: boolean;
   globalAvailableRemotely: boolean;
   expectedGlobalFiles: string[];
   expectedProjectFiles: string[];

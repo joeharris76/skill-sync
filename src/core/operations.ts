@@ -11,7 +11,7 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { createSourcesFromConfigForSkill, isImplementedSourceType } from "../sources/factory.js";
 import { generateConfig, writeProjectConfig } from "./config-generator.js";
-import { detectDrift } from "./drift.js";
+import { detectDrift, detectTargetReadiness } from "./drift.js";
 import { applyGitTracking } from "./gitignore.js";
 import { auditInstructions } from "./instruction-audit.js";
 import { isInstructionAgent } from "./instruction-targets.js";
@@ -543,6 +543,11 @@ export interface DoctorCheck {
 
 export interface DoctorResult {
   healthy: boolean;
+  readiness: {
+    trackedSnapshots: "clean" | "drift" | "not-configured";
+    localMaterialization: "ready" | "incomplete";
+    instructions: "ready" | "incomplete";
+  };
   checks: DoctorCheck[];
 }
 
@@ -615,12 +620,16 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
   if (manifest && lockFile) {
     for (const [target, cfg] of Object.entries(manifest.targets)) {
       const targetRoot = resolvePath(projectRoot, cfg.dir);
-      const drift = await detectDrift(targetRoot, lockFile);
+      const readiness = await detectTargetReadiness(targetRoot, lockFile, cfg.ignore);
+      const { drift, materialization } = readiness;
       if (drift.modified.length === 0 && drift.missing.length === 0) {
         checks.push({
           check: `drift:${target}`,
           status: "ok",
-          message: "All installed skills match lock file",
+          message:
+            readiness.ignored.length > 0
+              ? `All tracked skills match lock file (${readiness.ignored.length} ignored by target policy)`
+              : "All installed skills match lock file",
         });
       } else {
         const issues: string[] = [];
@@ -639,6 +648,17 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
           message: `${drift.extra.length} untracked skill(s): ${drift.extra.join(", ")}`,
         });
       }
+      checks.push({
+        check: `materialization:${target}`,
+        status:
+          materialization.modified.length === 0 && materialization.missing.length === 0
+            ? "ok"
+            : "warn",
+        message:
+          materialization.modified.length === 0 && materialization.missing.length === 0
+            ? "All configured skills are materialized locally"
+            : `Local materialization incomplete: ${materialization.missing.length} missing skill(s), ${materialization.modified.length} modified file(s)`,
+      });
     }
   }
 
@@ -745,7 +765,40 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
   }
 
   const healthy = !checks.some((c) => c.status === "error");
-  return { healthy, checks };
+  const trackedTargetNames = new Set(
+    Object.entries(manifest?.targets ?? {})
+      .filter(([, cfg]) => cfg.tracked)
+      .map(([target]) => target),
+  );
+  const trackedChecks = checks.filter(
+    (check) =>
+      (check.check.startsWith("drift:") &&
+        trackedTargetNames.has(check.check.slice("drift:".length))) ||
+      (check.check.startsWith("extra:") &&
+        trackedTargetNames.has(check.check.slice("extra:".length))),
+  );
+  const materializationChecks = checks.filter((check) =>
+    check.check.startsWith("materialization:"),
+  );
+  const instructionChecks = checks.filter((check) => check.check.startsWith("instruction:"));
+  return {
+    healthy,
+    readiness: {
+      trackedSnapshots:
+        trackedChecks.length === 0
+          ? "not-configured"
+          : trackedChecks.some((check) => check.status !== "ok")
+            ? "drift"
+            : "clean",
+      localMaterialization: materializationChecks.some((check) => check.status !== "ok")
+        ? "incomplete"
+        : "ready",
+      instructions: instructionChecks.some((check) => check.status !== "ok")
+        ? "incomplete"
+        : "ready",
+    },
+    checks,
+  };
 }
 
 // ---------------------------------------------------------------------------

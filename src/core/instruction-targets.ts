@@ -36,7 +36,7 @@ export const INSTRUCTION_TARGETS: Record<InstructionAgent, InstructionTargetConf
   copilot: {
     label: "GitHub Copilot",
     globalFiles: [],
-    projectFiles: [".github/copilot-instructions.md"],
+    projectFiles: [".github/copilot-instructions.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md"],
     overrideFiles: [],
     globalAvailableRemotely: true,
     agentTargetKey: "copilot",

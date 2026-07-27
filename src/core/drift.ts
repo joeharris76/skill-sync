@@ -4,6 +4,45 @@ import { join } from "node:path";
 import { sha256File } from "./hasher.js";
 import type { DriftReport, LockFile } from "./types.js";
 
+export interface TargetReadiness {
+  /** Drift relevant to the target's tracking policy. */
+  drift: DriftReport;
+  /** Raw on-disk state, including intentionally untracked skills. */
+  materialization: DriftReport;
+  /** Skills excluded from tracked-snapshot integrity for this target. */
+  ignored: string[];
+}
+
+/**
+ * Apply a target's tracking exclusions without hiding local materialization gaps.
+ *
+ * A tracked target may intentionally ignore selected skills so they are absent in
+ * a fresh clone. Those skills must not be called snapshot drift, but an absent
+ * local copy is still useful readiness information.
+ */
+export async function detectTargetReadiness(
+  targetRoot: string,
+  lockFile: LockFile,
+  ignoredSkills: string[] = [],
+): Promise<TargetReadiness> {
+  const materialization = await detectDrift(targetRoot, lockFile);
+  const ignoredSet = new Set(ignoredSkills);
+  const ignored = Object.keys(lockFile.skills)
+    .filter((name) => ignoredSet.has(name))
+    .sort();
+
+  return {
+    materialization,
+    ignored,
+    drift: {
+      clean: materialization.clean.filter((name) => !ignoredSet.has(name)),
+      modified: materialization.modified.filter((entry) => !ignoredSet.has(entry.skill)),
+      missing: materialization.missing.filter((name) => !ignoredSet.has(name)),
+      extra: [...materialization.extra],
+    },
+  };
+}
+
 /**
  * Check the installed store against the lock file.
  * Reports clean skills, modified files, missing skills, and extra skills.

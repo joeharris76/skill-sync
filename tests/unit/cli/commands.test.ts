@@ -157,6 +157,8 @@ describe("runCli", () => {
     const result = await runCli(["status", "--json"]);
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(result.stdout!);
+    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed).toHaveProperty("readiness.instructions");
     expect(parsed).toHaveProperty("targets");
   });
 
@@ -748,6 +750,53 @@ describe("runCli", () => {
     await rm(projectRoot, { recursive: true, force: true });
   });
 
+  it("status and doctor distinguish ignored snapshots from missing local materialization", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-readiness-"));
+    await mkdir(join(projectRoot, ".claude/skills"), { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1", "sources: []", "skills:", "  - blog", "targets:",
+        "  claude:", "    dir: .claude/skills", "    tracked: true",
+        "    ignore: [blog]", "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({
+        version: 1,
+        lockedAt: "2026-07-27T10:00:00Z",
+        skills: {
+          blog: {
+            source: { type: "local", name: "local", fetchedAt: "2026-07-27T10:00:00Z" },
+            installMode: "mirror",
+            files: { "SKILL.md": { sha256: "abc", size: 5 } },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const status = JSON.parse((await runCli(["status", "--json", "--project", projectRoot])).stdout ?? "{}");
+    const doctor = JSON.parse((await runCli(["doctor", "--json", "--project", projectRoot])).stdout ?? "{}");
+
+    expect(status.schemaVersion).toBe(2);
+    expect(status.targets[0].skills[0]).toMatchObject({
+      name: "blog", state: "ignored", materializationState: "missing",
+    });
+    expect(status.targets[0].summary).toMatchObject({ missing: 0, ignored: 1 });
+    expect(status.readiness.trackedSnapshots.status).toBe("clean");
+    expect(status.readiness.localMaterialization.status).toBe("incomplete");
+    expect(doctor.readiness).toMatchObject({
+      trackedSnapshots: "clean", localMaterialization: "incomplete",
+    });
+    expect(doctor.checks.find((check: { check: string }) => check.check === "drift:claude").status).toBe("ok");
+    expect(doctor.checks.find((check: { check: string }) => check.check === "materialization:claude").status).toBe("warn");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
   it("status includes instruction audit data in JSON and text output", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-status-instructions-"));
     await mkdir(join(projectRoot, ".claude/skills"), { recursive: true });
@@ -779,6 +828,26 @@ describe("runCli", () => {
     expect(parsed.instructions.some((item: { agent: string }) => item.agent === "claude")).toBe(true);
     expect(textResult.stdout).toContain("Instruction Files");
     expect(textResult.stdout).toContain("CLAUDE.md");
+
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("recognizes AGENTS.md as a supported Copilot instruction surface", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-copilot-agents-"));
+    await writeFile(join(projectRoot, "AGENTS.md"), "# Shared agent policy\n", "utf8");
+
+    const result = await runCli(["status", "--json", "--project", projectRoot]);
+    const parsed = JSON.parse(result.stdout ?? "{}");
+    const copilot = parsed.instructions.find((agent: { agent: string }) => agent.agent === "copilot");
+
+    expect(copilot).toMatchObject({
+      configured: true,
+      targetConfigured: false,
+      instructionConfigured: true,
+    });
+    expect(copilot.projectFiles.some(
+      (entry: { path: string; state: string }) => entry.path === "AGENTS.md" && entry.state === "present",
+    )).toBe(true);
 
     await rm(projectRoot, { recursive: true, force: true });
   });

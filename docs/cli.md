@@ -45,8 +45,17 @@ Report the current health of the installed skill store per target.
 
 Shows:
 - Installed skills and their install mode
-- Lockfile alignment (clean, modified, missing, extra)
+- Tracked-snapshot alignment (clean, modified, missing, ignored, extra)
+- Local materialization readiness, reported separately from snapshot integrity
+- Instruction readiness for every discovered or configured agent surface
 - File-level drift details
+
+JSON output is additive and versioned with `schemaVersion: 2`. Existing
+`locked`, `targets`, and `instructions` fields remain available; `readiness`
+names the independent `trackedSnapshots`, `localMaterialization`, and
+`instructions` dimensions. A skill excluded by a tracked target's `ignore`
+policy has `state: "ignored"` and a separate `materializationState`, so an
+intentionally absent snapshot is not mislabeled as tracked drift.
 
 ### `skill-sync validate`
 
@@ -76,9 +85,13 @@ Checks:
 1. Manifest validity
 2. Lock file presence and structure
 3. Target directory existence
-4. Drift detection across all targets
+4. Tracked-snapshot drift and local materialization readiness across all targets
 5. Portability validation
-6. Instruction file audit (CLAUDE.md, AGENTS.md, GEMINI.md presence per configured target)
+6. Instruction file audit, including shared `AGENTS.md` discovery for Copilot
+
+`healthy` remains the compatibility signal for absence of hard configuration
+errors. Consult the separate `readiness` object before claiming that local
+mirrors or instruction surfaces are complete.
 
 ### `skill-sync pin <skill>`
 

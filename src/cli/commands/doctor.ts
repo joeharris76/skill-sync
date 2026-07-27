@@ -7,9 +7,9 @@ export async function doctorCommand(args: ParsedArgs): Promise<CliResult> {
   const mode: OutputMode = args.flags.json ? "json" : "text";
   const projectRoot = resolve(String(args.flags.project ?? "."));
 
-  const { healthy, checks } = await doctorOperation(projectRoot);
+  const { healthy, readiness, checks } = await doctorOperation(projectRoot);
 
-  const output = formatOutput({ healthy, checks }, mode, () =>
+  const output = formatOutput({ schemaVersion: 2, healthy, readiness, checks }, mode, () =>
     checks
       .map((c) => {
         const icon = c.status === "ok" ? "OK" : c.status === "warn" ? "!!" : "XX";
