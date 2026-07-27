@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { detectDrift } from "../../core/drift.js";
+import { detectTargetReadiness } from "../../core/drift.js";
 import type { InstructionAgentAudit } from "../../core/instruction-types.js";
 import { readLockFile } from "../../core/lock.js";
 import { readManifest } from "../../core/manifest.js";
@@ -20,9 +20,11 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
       manifest = await readManifest(projectRoot);
     } catch {
       const data = {
+        schemaVersion: 2,
         locked: false,
         targets: [],
         instructions: instructionReport.agents,
+        readiness: summarizeReadiness([], instructionReport.agents),
         message: "No skill-sync.yaml found.",
       };
       return {
@@ -37,9 +39,11 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
     if (!lockFile) {
       const msg = "No lock file found. Run `skill-sync sync` first.";
       const data = {
+        schemaVersion: 2,
         locked: false,
         targets: [],
         instructions: instructionReport.agents,
+        readiness: summarizeReadiness([], instructionReport.agents),
         message: msg,
       };
       return {
@@ -55,21 +59,28 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
     }
     const perTarget = await Promise.all(
       targetEntries.map(async ([targetName, targetCfg]) => {
-        const drift = await detectDrift(resolvePath(projectRoot, targetCfg.dir), lockFile);
+        const readiness = await detectTargetReadiness(
+          resolvePath(projectRoot, targetCfg.dir),
+          lockFile,
+          targetCfg.ignore,
+        );
+        const { drift, materialization } = readiness;
+        const ignoredSet = new Set(readiness.ignored);
         const skills = Object.entries(lockFile.skills).map(([name, locked]) => {
-          let state: string;
-          if (drift.missing.includes(name)) {
-            state = "missing";
-          } else if (drift.modified.some((d) => d.skill === name)) {
-            state = "modified";
+          let materializationState: string;
+          if (materialization.missing.includes(name)) {
+            materializationState = "missing";
+          } else if (materialization.modified.some((d) => d.skill === name)) {
+            materializationState = "modified";
           } else {
-            state = "clean";
+            materializationState = "clean";
           }
           return {
             name,
             source: locked.source.name,
             mode: locked.installMode,
-            state,
+            state: ignoredSet.has(name) ? "ignored" : materializationState,
+            materializationState,
             files: Object.keys(locked.files).length,
           };
         });
@@ -80,6 +91,7 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
             source: "<untracked>",
             mode: "unknown" as never,
             state: "extra",
+            materializationState: "extra",
             files: 0,
           });
         }
@@ -87,6 +99,8 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
         return {
           target: targetName,
           path: targetCfg.dir,
+          tracked: targetCfg.tracked ?? false,
+          ignoredSkills: readiness.ignored,
           skills,
           summary: {
             clean: drift.clean.length,
@@ -95,15 +109,40 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
                 ? [...new Set(drift.modified.map((d) => d.skill))].length
                 : 0,
             missing: drift.missing.length,
+            ignored: readiness.ignored.length,
             extra: drift.extra.length,
+          },
+          readiness: {
+            trackedSnapshot: targetCfg.tracked
+              ? {
+                  status:
+                    drift.modified.length === 0 &&
+                    drift.missing.length === 0 &&
+                    drift.extra.length === 0
+                      ? "clean"
+                      : "drift",
+                  ignored: readiness.ignored.length,
+                }
+              : { status: "not-tracked", ignored: 0 },
+            localMaterialization: {
+              status:
+                materialization.modified.length === 0 && materialization.missing.length === 0
+                  ? "ready"
+                  : "incomplete",
+              modified: materialization.modified.length,
+              missing: materialization.missing.length,
+              extra: materialization.extra.length,
+            },
           },
         };
       }),
     );
     const data = {
+      schemaVersion: 2,
       locked: true,
       targets: perTarget,
       instructions: instructionReport.agents,
+      readiness: summarizeReadiness(perTarget, instructionReport.agents),
     };
 
     const output = formatOutput(data, mode, () =>
@@ -126,13 +165,24 @@ function renderStatusText(
       source: string;
       mode: string;
       state: string;
+      materializationState: string;
       files: number;
     }>;
     summary: {
       clean: number;
       modified: number;
       missing: number;
+      ignored: number;
       extra: number;
+    };
+    readiness: {
+      trackedSnapshot: { status: string; ignored: number };
+      localMaterialization: {
+        status: string;
+        modified: number;
+        missing: number;
+        extra: number;
+      };
     };
   }>,
   agents: InstructionAgentAudit[],
@@ -163,7 +213,7 @@ function renderStatusText(
       );
       lines.push("");
       lines.push(
-        `${target.summary.clean} clean, ${target.summary.modified} modified, ${target.summary.missing} missing, ${target.summary.extra} extra`,
+        `${target.summary.clean} clean, ${target.summary.modified} modified, ${target.summary.missing} missing, ${target.summary.ignored} ignored, ${target.summary.extra} extra`,
       );
     }
     lines.push("");
@@ -176,6 +226,48 @@ function renderStatusText(
   }
 
   return lines.join("\n").trimEnd();
+}
+
+function summarizeReadiness(
+  targets: Array<{
+    target: string;
+    readiness: {
+      trackedSnapshot: { status: string };
+      localMaterialization: { status: string };
+    };
+  }>,
+  agents: InstructionAgentAudit[],
+) {
+  const trackedTargets = targets.filter(
+    (target) => target.readiness.trackedSnapshot.status !== "not-tracked",
+  );
+  const incompleteTargets = targets
+    .filter((target) => target.readiness.localMaterialization.status !== "ready")
+    .map((target) => target.target);
+  const configuredAgents = agents.filter((agent) => agent.configured);
+  const missingInstructionAgents = configuredAgents
+    .filter((agent) => !agent.instructionConfigured)
+    .map((agent) => agent.agent);
+
+  return {
+    trackedSnapshots: {
+      status: trackedTargets.some((target) => target.readiness.trackedSnapshot.status === "drift")
+        ? "drift"
+        : trackedTargets.length > 0
+          ? "clean"
+          : "not-configured",
+      targets: trackedTargets.map((target) => target.target),
+    },
+    localMaterialization: {
+      status: incompleteTargets.length > 0 ? "incomplete" : "ready",
+      incompleteTargets,
+    },
+    instructions: {
+      status: missingInstructionAgents.length > 0 ? "incomplete" : "ready",
+      configuredAgents: configuredAgents.map((agent) => agent.agent),
+      missingAgents: missingInstructionAgents,
+    },
+  };
 }
 
 function shouldShowInstructionSection(agents: InstructionAgentAudit[]): boolean {

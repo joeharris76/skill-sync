@@ -475,8 +475,15 @@ skill-sync prune
 All commands support `--json` for machine-readable output:
 
 ```bash
-skill-sync status --json | jq '.targets.claude.skills[] | select(.state != "clean")'
+skill-sync status --json | jq '.targets[] | {target, readiness}'
+skill-sync status --json | jq '.targets[].skills[] | select(.state != "clean")'
 ```
+
+`status` and `doctor` deliberately report three independent readiness
+dimensions. A clean tracked snapshot proves committed bytes match policy; it
+does not prove every untracked local mirror is materialized. Likewise,
+`verify` remains the offline committed-snapshot gate and does not claim
+whole-project local readiness.
 
 ### Per-Skill Install Mode Overrides
 

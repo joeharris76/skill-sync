@@ -72,10 +72,16 @@ export async function auditAgentInstructions(
     );
   }
 
+  const instructionConfigured = [...projectFiles, ...overrideFiles].some(
+    (entry) => entry.state !== "missing",
+  );
+
   return {
     agent,
     label: target.label,
-    configured: isConfiguredTarget,
+    configured: isConfiguredTarget || instructionConfigured,
+    targetConfigured: isConfiguredTarget,
+    instructionConfigured,
     globalAvailableRemotely: target.globalAvailableRemotely,
     expectedGlobalFiles: [...target.globalFiles],
     expectedProjectFiles: [...target.projectFiles],
