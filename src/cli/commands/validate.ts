@@ -5,6 +5,7 @@ import { readLockFile } from "../../core/lock.js";
 import { readManifest } from "../../core/manifest.js";
 import { instructionAuditOperation } from "../../core/operations.js";
 import { loadSkillPackage } from "../../core/parser.js";
+import { resolvePath } from "../../core/paths.js";
 import { validatePortability } from "../../core/portability.js";
 import { checkScriptSafety } from "../../core/security.js";
 import {
@@ -86,9 +87,10 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
       for (const [skillName, locked] of Object.entries(lockFile.skills)) {
         let primaryPkgLoaded = false;
         for (const [targetName, targetCfg] of targetEntries) {
-          const skillPath = resolve(projectRoot, targetCfg.dir, skillName);
+          const skillPath = resolvePath(projectRoot, targetCfg.dir);
+          const installedSkillPath = resolve(skillPath, skillName);
           try {
-            const pkg = await loadSkillPackage(skillPath);
+            const pkg = await loadSkillPackage(installedSkillPath);
             if (!primaryPkgLoaded) {
               installedPkgs.push(pkg);
               primaryPkgLoaded = true;
@@ -107,7 +109,7 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
             diagnostics.push({
               rule: "skill-not-found",
               severity: "error",
-              message: `Locked skill "${skillName}" not found at ${skillPath}`,
+              message: `Locked skill "${skillName}" not found at ${installedSkillPath}`,
               skill: skillName,
             });
           }
