@@ -1471,6 +1471,10 @@ describe("skill-sync sync/status — tilde target resolution", () => {
       );
       expect(claude.summary.missing).toBe(0);
       expect(claude.summary.clean).toBeGreaterThanOrEqual(1);
+
+      const validate = await runCli(["validate", "--exit-code", "--project", projectRoot]);
+      expect(validate.exitCode).toBe(0);
+      expect(existsSync(join(projectRoot, "~"))).toBe(false);
     } finally {
       if (originalHome === undefined) delete process.env.HOME;
       else process.env.HOME = originalHome;
