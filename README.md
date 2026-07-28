@@ -66,7 +66,7 @@ Core capabilities:
 - a primary `SKILL.md`
 - package metadata and compatibility declarations
 - references, assets, helper scripts, and examples
-- source and revision information
+- source, revision, and optional repository-subdirectory information
 - optional local override layers or project-specific configuration inputs
 
 Internally, the library uses a canonical skill model so that one skill can

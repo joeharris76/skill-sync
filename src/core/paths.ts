@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 
 /**
  * Expand a leading `~` (home) in a manifest-supplied path.
@@ -58,4 +58,22 @@ export function relativeInside(projectRoot: string, target: string): string | nu
   const rel = relative(root, abs);
   if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) return null;
   return rel.split(sep).join("/");
+}
+
+/** Validate and normalize a repository-relative directory from a manifest. */
+export function normalizeRepositorySubdir(subdir: string): string {
+  if (!subdir || subdir !== subdir.trim()) {
+    throw new Error("Git source subdir must be a non-empty repository-relative path");
+  }
+  if (subdir.includes("\\") || posix.isAbsolute(subdir) || /^[A-Za-z]:\//.test(subdir)) {
+    throw new Error(`Git source subdir must be repository-relative: "${subdir}"`);
+  }
+  if (subdir.split("/").some((segment) => segment === "..")) {
+    throw new Error(`Git source subdir must not contain traversal segments: "${subdir}"`);
+  }
+  const normalized = posix.normalize(subdir).replace(/\/$/, "");
+  if (normalized === ".") {
+    throw new Error("Git source subdir must name a directory below the repository root");
+  }
+  return normalized;
 }

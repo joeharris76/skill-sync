@@ -18,10 +18,19 @@ describe("createSourcesFromConfig", () => {
   });
 
   it("creates a GitSource for git type", () => {
-    const sources = createSourcesFromConfig([{ name: "repo", type: "git", url: "https://example.com/skills.git", ref: "main" }]);
+    const sources = createSourcesFromConfig([
+      { name: "repo", type: "git", url: "https://example.com/skills.git", ref: "main", subdir: "skills" },
+    ]);
     expect(sources).toHaveLength(1);
     expect(sources[0]).toBeInstanceOf(GitSource);
     expect(sources[0]!.name).toBe("repo");
+    const provenance = sources[0]!.provenance({
+      name: "skill",
+      sourceName: "repo",
+      sourceType: "git",
+      location: "/tmp",
+    });
+    expect(provenance.subdir).toBe("skills");
   });
 
   it("throws for registry type", () => {

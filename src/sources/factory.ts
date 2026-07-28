@@ -39,6 +39,7 @@ export function createSourcesFromConfigForSkill(
           config.name === override?.sourceName && override.revision
             ? override.revision
             : config.ref,
+          config.subdir,
         );
       case "registry":
         throw new Error(

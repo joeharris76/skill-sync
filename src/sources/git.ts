@@ -3,6 +3,7 @@ import { access, constants, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { normalizeRepositorySubdir } from "../core/paths.js";
 import type { FetchedSkill, ResolvedSkill, SkillSource, SourceProvenance } from "../core/types.js";
 
 const exec = promisify(execFile);
@@ -18,18 +19,20 @@ export class GitSource implements SkillSource {
   readonly type = "git" as const;
   private readonly url: string;
   private readonly ref: string;
+  private readonly subdir: string | undefined;
   private clonePath: string | null = null;
   private resolvedRevision: string | null = null;
 
-  constructor(name: string, url: string, ref = "main") {
+  constructor(name: string, url: string, ref = "main", subdir?: string) {
     this.name = name;
     this.url = url;
     this.ref = ref;
+    this.subdir = subdir === undefined ? undefined : normalizeRepositorySubdir(subdir);
   }
 
   async resolve(skillName: string): Promise<ResolvedSkill | null> {
     await this.ensureCloned();
-    const skillDir = join(this.clonePath!, skillName);
+    const skillDir = join(this.clonePath!, this.subdir ?? "", skillName);
     const skillMdPath = join(skillDir, "SKILL.md");
 
     try {
@@ -60,6 +63,7 @@ export class GitSource implements SkillSource {
       name: this.name,
       url: this.url,
       ref: this.ref,
+      subdir: this.subdir,
       revision: this.resolvedRevision ?? undefined,
       fetchedAt: new Date().toISOString(),
     };

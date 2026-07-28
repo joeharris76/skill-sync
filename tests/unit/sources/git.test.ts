@@ -22,6 +22,13 @@ async function initLocalRepo(dir: string): Promise<void> {
   await mkdir(skillDir, { recursive: true });
   await writeFile(join(skillDir, "SKILL.md"), "---\nname: code\ndescription: Code skill\n---\n# Code\n");
 
+  const nestedSkillDir = join(dir, "skills", "docs");
+  await mkdir(nestedSkillDir, { recursive: true });
+  await writeFile(
+    join(nestedSkillDir, "SKILL.md"),
+    "---\nname: docs\ndescription: Docs skill\n---\n# Docs\n",
+  );
+
   await exec("git", ["add", "."], { cwd: dir });
   await exec("git", ["commit", "-m", "initial"], { cwd: dir });
 }
@@ -61,6 +68,24 @@ describe("GitSource.resolve()", () => {
       await source.dispose();
     }
   });
+
+  it("resolves skills below a configured repository subdirectory", async () => {
+    const source = new GitSource("test", `file://${repoDir}`, "main", "skills");
+    try {
+      const result = await source.resolve("docs");
+      expect(result?.location).toMatch(/\/skills\/docs$/);
+      expect(await source.resolve("code")).toBeNull();
+    } finally {
+      await source.dispose();
+    }
+  });
+
+  it.each(["../skills", "skills/../other", "/skills", "C:/skills", "skills\\nested", " "])(
+    "rejects unsafe repository subdir %j",
+    (subdir) => {
+      expect(() => new GitSource("test", `file://${repoDir}`, "main", subdir)).toThrow(/subdir/);
+    },
+  );
 
   it("reuses the clone on repeated calls (does not clone twice)", async () => {
     const source = new GitSource("test", `file://${repoDir}`, "main");
@@ -102,8 +127,19 @@ describe("GitSource.provenance()", () => {
       expect(prov.name).toBe("test");
       expect(prov.url).toBe(`file://${repoDir}`);
       expect(prov.ref).toBe("main");
+      expect(prov.subdir).toBeUndefined();
       expect(prov.revision).toMatch(/^[0-9a-f]{40}$/); // Full SHA
       expect(prov.fetchedAt).toBeTruthy();
+    } finally {
+      await source.dispose();
+    }
+  });
+
+  it("records the normalized repository subdirectory", async () => {
+    const source = new GitSource("test", `file://${repoDir}`, "main", "skills/");
+    try {
+      const resolved = await source.resolve("docs");
+      expect(source.provenance(resolved!).subdir).toBe("skills");
     } finally {
       await source.dispose();
     }
