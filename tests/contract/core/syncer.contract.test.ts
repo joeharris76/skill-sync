@@ -36,16 +36,19 @@ describeSyncer("core/syncer contract", () => {
         version: 1,
         skills: {
           code: {
+            source: { type: "local", name: "personal", fetchedAt: "2026-03-05T10:00:00Z" },
             installMode: "mirror",
             files: {
               "SKILL.md": { sha256: "old", size: 10 },
             },
           },
           stale: {
+            source: { type: "local", name: "personal", fetchedAt: "2026-03-05T10:00:00Z" },
             installMode: "mirror",
             files: {},
           },
           test: {
+            source: { type: "local", name: "personal", fetchedAt: "2026-03-05T10:00:00Z" },
             installMode: "mirror",
             files: {
               "SKILL.md": { sha256: "same", size: 10 },

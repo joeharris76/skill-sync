@@ -177,6 +177,10 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
           continue;
         }
       }
+      if (locked.installMode !== installMode || !sameSourceIdentity(locked.source, skill.source)) {
+        plan.skipped.push({ name: skill.name, reason: "lock-metadata-changed" });
+        continue;
+      }
       plan.unchanged.push(skill.name);
       continue;
     }
@@ -213,6 +217,18 @@ export async function planSync(input: PlanSyncInput): Promise<SyncPlan> {
   }
 
   return plan;
+}
+
+function sameSourceIdentity(left: SourceProvenance, right: SourceProvenance): boolean {
+  return (
+    left.type === right.type &&
+    left.name === right.name &&
+    left.path === right.path &&
+    left.url === right.url &&
+    left.ref === right.ref &&
+    left.subdir === right.subdir &&
+    left.revision === right.revision
+  );
 }
 
 // ---------------------------------------------------------------------------

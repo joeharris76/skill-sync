@@ -6,6 +6,67 @@ import { planSync, applySync } from "../../../src/core/syncer.js";
 import { sha256 } from "../../../src/core/hasher.js";
 
 describe("planSync", () => {
+  it("refreshes lock metadata when source identity changes but content does not", async () => {
+    const content = "# Code Skill\n";
+    const contentHash = sha256(content);
+    const commonFiles = [
+      { relativePath: "SKILL.md", sha256: contentHash, size: Buffer.byteLength(content) },
+    ];
+    const base = {
+      manifest: { skills: ["code"], installMode: "mirror" as const },
+      lockFile: {
+        version: 1,
+        lockedAt: "2026-03-07T10:00:00Z",
+        skills: {
+          code: {
+            source: {
+              type: "local" as const,
+              name: "personal",
+              path: "~/.skill-sync/skills/code",
+              fetchedAt: "2026-03-06T10:00:00Z",
+            },
+            installMode: "mirror" as const,
+            files: { "SKILL.md": { sha256: contentHash, size: Buffer.byteLength(content) } },
+          },
+        },
+      },
+      resolvedSkills: [
+        {
+          name: "code",
+          source: {
+            type: "git" as const,
+            name: "canonical",
+            url: "https://example.com/skills.git",
+            ref: "abc123",
+            subdir: "skills",
+            revision: "abc123",
+            fetchedAt: "2026-03-07T10:00:00Z",
+          },
+          files: commonFiles,
+        },
+      ],
+    };
+
+    const changed = await planSync(base);
+    expect(changed.skipped).toEqual([{ name: "code", reason: "lock-metadata-changed" }]);
+    expect(changed.unchanged).toEqual([]);
+
+    const sameIdentity = await planSync({
+      ...base,
+      lockFile: {
+        ...base.lockFile,
+        skills: {
+          code: {
+            ...base.lockFile.skills.code,
+            source: { ...base.resolvedSkills[0]!.source, fetchedAt: "earlier" },
+          },
+        },
+      },
+    });
+    expect(sameIdentity.skipped).toEqual([]);
+    expect(sameIdentity.unchanged).toEqual(["code"]);
+  });
+
   it("skips update when on-disk content matches source (disk-matches-source)", async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-syncer-disk-"));
     const skillDir = join(tmpDir, "code");
