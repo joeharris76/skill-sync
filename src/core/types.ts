@@ -223,7 +223,7 @@ export interface SyncPlan {
 
 export interface SkippedEntry {
   name: string;
-  reason: "disk-matches-source";
+  reason: "disk-matches-source" | "lock-metadata-changed";
 }
 
 export interface PlannedInstall {

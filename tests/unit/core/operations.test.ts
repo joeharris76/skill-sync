@@ -334,6 +334,31 @@ describe("syncOperation — skill removal", () => {
 });
 
 describe("syncOperation — skipped skills", () => {
+  it("refreshes lock provenance when identical bytes move to a new source", async () => {
+    const content = "---\nname: code\ndescription: code skill\n---\n# Same bytes\n";
+    const firstSource = join(tmpBase, "metadata-source-a-" + Date.now());
+    const secondSource = join(tmpBase, "metadata-source-b-" + Date.now());
+    await makeLocalSkillSource(firstSource, "code", content);
+    await makeLocalSkillSource(secondSource, "code", content);
+    const projectRoot = await makeConsumerProject("metadata-project-" + Date.now(), firstSource, ["code"]);
+
+    await syncOperation({ projectRoot });
+    const manifest = {
+      version: 1,
+      sources: [{ name: "canonical", type: "local", path: secondSource }],
+      skills: ["code"],
+      targets: { claude: ".claude/skills" },
+      install_mode: "mirror",
+    };
+    await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml(manifest));
+
+    const result = await syncOperation({ projectRoot });
+    const lock = await readLockFile(projectRoot);
+    expect(result.summary.skipped).toEqual([{ name: "code", reason: "lock-metadata-changed" }]);
+    expect(lock?.skills.code?.source.name).toBe("canonical");
+    expect(lock?.skills.code?.source.path).toBe(`~${secondSource}/code`);
+  });
+
   it("reports skipped when disk already matches source but lock has stale hashes", async () => {
     const sourceRoot = join(tmpBase, "skipped-source-" + Date.now());
     await mkdir(sourceRoot, { recursive: true });
