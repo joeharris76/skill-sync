@@ -406,7 +406,12 @@ sources:
     type: git
     url: git@github.com:myorg/team-skills.git
     ref: main
+    subdir: skills  # optional repository-relative package root
 ```
+
+`subdir` is optional. Use it when skill directories live below the repository
+root. Absolute paths, backslashes, and `..` traversal segments are rejected;
+the normalized subdirectory is recorded in lock-file provenance.
 
 ### Source Priority
 

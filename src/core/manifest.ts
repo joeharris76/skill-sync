@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { normalizeRepositorySubdir } from "./paths.js";
 import type {
   InstallMode,
   Manifest,
@@ -103,12 +104,16 @@ function parseSources(raw: unknown): SourceConfig[] {
     if (sourceType === "git" && typeof s.url !== "string") {
       throw new Error(`Git source "${s.name}" is missing a "url" field`);
     }
+    if (s.subdir !== undefined && (sourceType !== "git" || typeof s.subdir !== "string")) {
+      throw new Error(`Source "${s.name}" may define string "subdir" only for type "git"`);
+    }
     return {
       name: s.name,
       type: sourceType,
       path: typeof s.path === "string" ? s.path : undefined,
       url: typeof s.url === "string" ? s.url : undefined,
       ref: typeof s.ref === "string" ? s.ref : undefined,
+      subdir: typeof s.subdir === "string" ? normalizeRepositorySubdir(s.subdir) : undefined,
       registry: typeof s.registry === "string" ? s.registry : undefined,
     };
   });
@@ -234,6 +239,7 @@ export function serializeManifest(manifest: Manifest): string {
       if (s.path) entry.path = s.path;
       if (s.url) entry.url = s.url;
       if (s.ref) entry.ref = s.ref;
+      if (s.subdir) entry.subdir = s.subdir;
       if (s.registry) entry.registry = s.registry;
       return entry;
     }),

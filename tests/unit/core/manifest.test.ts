@@ -13,6 +13,7 @@ sources:
     type: git
     url: git@github.com:org/skills.git
     ref: main
+    subdir: skills
 skills:
   - code
   - test
@@ -43,6 +44,7 @@ project_registry:
     expect(manifest.sources[0]!.name).toBe("personal");
     expect(manifest.sources[0]!.type).toBe("local");
     expect(manifest.sources[1]!.type).toBe("git");
+    expect(manifest.sources[1]!.subdir).toBe("skills");
     expect(manifest.skills).toEqual(["code", "test", "SHARED/commit-framework"]);
     expect(manifest.targets).toEqual({
       claude: { dir: ".claude/skills" },
@@ -53,6 +55,51 @@ project_registry:
     expect(manifest.overrides.code?.installMode).toBe("symlink");
     expect(manifest.hooks.beforeSync).toEqual(["make agent-write-preflight"]);
     expect(manifest.projectRegistry.includeWorktrees).toBe(true);
+  });
+
+  it.each(["../skills", "/skills", "skills/../other", "skills\\nested"])(
+    "rejects unsafe git source subdir %j",
+    (subdir) => {
+      const yaml = `
+version: 1
+sources:
+  - name: team
+    type: git
+    url: https://example.com/skills.git
+    subdir: ${JSON.stringify(subdir)}
+skills: [code]
+`;
+      expect(() => parseManifest(yaml)).toThrow(/subdir/);
+    },
+  );
+
+  it("rejects subdir on a non-git source", () => {
+    const yaml = `
+version: 1
+sources:
+  - name: personal
+    type: local
+    path: ~/.skill-sync/skills
+    subdir: nested
+skills: [code]
+`;
+    expect(() => parseManifest(yaml)).toThrow(/subdir.*type "git"/);
+  });
+
+  it("round-trips a normalized git source subdir", () => {
+    const yaml = `
+version: 1
+sources:
+  - name: team
+    type: git
+    url: https://example.com/skills.git
+    ref: main
+    subdir: skills/
+skills: [code]
+`;
+    const serialized = serializeManifest(parseManifest(yaml));
+    expect(serialized).toContain("subdir: skills");
+    expect(parseManifest(serialized).sources[0]?.subdir).toBe("skills");
   });
 
   it("defaults install_mode to mirror", () => {

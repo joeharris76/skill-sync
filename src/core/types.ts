@@ -93,6 +93,8 @@ export interface SourceProvenance {
   url?: string;
   /** Git ref used for resolution (branch, tag). */
   ref?: string;
+  /** Repository-relative directory containing skills (git sources). */
+  subdir?: string;
   /** Resolved git commit SHA. */
   revision?: string;
   /** ISO 8601 timestamp of last fetch. */
@@ -162,6 +164,7 @@ export interface SourceConfig {
   path?: string;
   url?: string;
   ref?: string;
+  subdir?: string;
   registry?: string;
 }
 
