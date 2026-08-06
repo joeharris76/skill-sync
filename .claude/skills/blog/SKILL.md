@@ -31,7 +31,7 @@ global `~/.claude/blog/*`. If neither exists, proceed and note the gap.
 
 ## Global rules
 
-- Write actions use `SHARED/commit-framework/SKILL.md` with prefix `docs(blog)`
+- Write actions use `SHARED/change-framework/SKILL.md` with prefix `docs(blog)`
   after verification and cleanup.
 - Plain `critique`, `editorial-review`, `audit`, and `deformulize` are
   read-only under `SHARED/review-protocol/SKILL.md`; `--chain`/`--fix` may
