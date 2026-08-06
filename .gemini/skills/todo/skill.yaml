@@ -1,7 +1,7 @@
 depends:
-  - SHARED/research-framework
+  - SHARED/change-framework
+  - SHARED/investigation-framework
   - SHARED/review-protocol
-  - SHARED/plan-deepening-framework
 tags:
   - workflow
   - todo
@@ -9,3 +9,4 @@ category: workflow
 targets:
   claude: true
   codex: true
+standalone_only_commands: {}

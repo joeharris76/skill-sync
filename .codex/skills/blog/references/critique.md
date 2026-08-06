@@ -19,7 +19,7 @@ Use for adversarial draft review. Default is read-only unless `--chain`/`--fix` 
 
 Apply when the post responds to a vendor or source-author publication; skip on evergreen content.
 
-- **Currency** (Risk lane): if the outline cites blocked TODOs, honest deferrals, or "not yet shipped" caveats, verify against `git log` and the current state of `_project/TODO/` and `_project/DONE/`. Flag any item shipped since the outline was written.
+- **Currency** (Risk lane): if the outline cites blocked TODOs, honest deferrals, or "not yet shipped" caveats, verify against `git log` and the current tracker state (`todo list`, `todo show <id>`). Flag any item shipped since the outline was written.
 - **Partisan-Reader** (Voice lane): identify framings that contrast the source against BenchBox's coverage (boring/novel, surface/hidden, obvious/clever). For each, ask "would a reader from the source's team find this dismissive?" Substitute technical specificity for editorial contrast where the answer is yes: name the exact API, benchmark coverage, or operational limitation instead of ranking the source's work.
 
 ## Scoring

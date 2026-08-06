@@ -1,7 +1,6 @@
 depends:
-  - SHARED/commit-framework
+  - SHARED/change-framework
   - SHARED/review-protocol
-  - SHARED/plan-deepening-framework
 tags:
   - writing
   - blog
@@ -9,3 +8,6 @@ category: content
 targets:
   claude: true
   codex: true
+# Documentary optional global style-guide path, not a runtime dependency.
+portability_allow:
+  - "~/.claude/blog/*"
