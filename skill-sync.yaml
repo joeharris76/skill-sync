@@ -25,8 +25,5 @@ targets:
     dir: .gemini/skills
     tracked: true
 install_mode: mirror
-config:
-  code:
-    review_checklist: "When a TODO says a SQL-translation fix is done because a test harness passed, check the helper call site. Confirm the test uses the same read= value as the wrapper. One dialect passing does not prove all dialects work with SQLGlot."
 projects:
   - ~/Developer/letterops-mcp

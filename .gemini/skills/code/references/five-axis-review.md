@@ -18,7 +18,7 @@ Every review evaluates five dimensions with severity classification.
 - For multi-PR work, run `gh pr diff <N> --name-only` and classify blockers
   before content; avoid `--json body,files` unless needed.
 - Put project-specific checks (for example, SQLGlot dialect checks) in `code.review_checklist` (`code/skill.yaml:28`). Do not add them to this shared rubric. Use them only when `skill-sync.config.yaml` sets `code.review_checklist`.
-- `review --chain` can fix only small, non-structural issues. It needs explicit approval in a separate step. See `SHARED/review-protocol/SKILL.md` [REVIEW-AUTH-001]. If approved, verify the fixes. Then use the commit framework to save, push, or open a PR. Without that separate approval, `--chain` stays read-only.
+- `review --chain` stays read-only unless a later user message explicitly authorizes remediation in a separate turn under `SHARED/review-protocol/SKILL.md` [REVIEW-AUTH-001]. If authorized, it can fix only non-structural issues. Verify the fixes. Then use the commit framework to save, push, or open a PR.
 
 ## The Five Axes
 
