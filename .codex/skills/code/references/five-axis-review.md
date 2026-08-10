@@ -6,7 +6,7 @@ Every review evaluates five dimensions with severity classification.
 >
 > It does not control permissions or workflow. `SHARED/review-protocol/SKILL.md` controls those. It covers authorization, defect handling, L1/L2/L3 steps, saving findings, and parity (`REVIEW-AUTH-001` to `REVIEW-PARITY-001`).
 >
-> Only the shared protocol can authorize changes. This file cannot. Any fix needs a separate, explicit approval as described there.
+> `SHARED/review-protocol/SKILL.md` defines the authorization boundary. Only a later user message, in a separate turn, can authorize remediation. This file cannot authorize changes.
 
 ## Router-specific checks
 
