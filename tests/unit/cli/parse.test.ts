@@ -26,8 +26,9 @@ describe("parseArgv", () => {
   });
 
   it("parses short flags", () => {
-    const result = parseArgv(["sync", "-n", "-p", "/tmp"]);
+    const result = parseArgv(["sync", "-n", "-j", "-p", "/tmp"]);
     expect(result.flags["dry-run"]).toBe(true);
+    expect(result.flags.json).toBe(true);
     expect(result.flags.project).toBe("/tmp");
   });
 
