@@ -12,13 +12,17 @@ export function isImplementedSourceType(type: SourceConfig["type"]): boolean {
  * Create SkillSource instances from manifest source configs.
  * Sources are ordered by manifest declaration order (first match wins).
  */
-export function createSourcesFromConfig(configs: SourceConfig[]): SkillSource[] {
-  return createSourcesFromConfigForSkill(configs);
+export function createSourcesFromConfig(
+  configs: SourceConfig[],
+  projectRoot = process.cwd(),
+): SkillSource[] {
+  return createSourcesFromConfigForSkill(configs, undefined, projectRoot);
 }
 
 export function createSourcesFromConfigForSkill(
   configs: SourceConfig[],
   override?: SkillOverride,
+  projectRoot = process.cwd(),
 ): SkillSource[] {
   const selectedConfigs = override?.sourceName
     ? configs.filter((config) => config.name === override.sourceName)
@@ -31,7 +35,7 @@ export function createSourcesFromConfigForSkill(
   return selectedConfigs.map((config) => {
     switch (config.type) {
       case "local":
-        return new LocalSource(config.name, config.path!);
+        return new LocalSource(config.name, config.path!, projectRoot);
       case "git":
         return new GitSource(
           config.name,

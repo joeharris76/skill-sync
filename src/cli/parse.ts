@@ -1,6 +1,6 @@
 import type { ParsedArgs } from "./types.js";
 
-const KNOWN_FLAGS: Record<string, { type: "string" | "boolean"; short?: string }> = {
+export const KNOWN_FLAGS: Record<string, { type: "string" | "boolean"; short?: string }> = {
   json: { type: "boolean" },
   help: { type: "boolean", short: "h" },
   project: { type: "string", short: "p" },

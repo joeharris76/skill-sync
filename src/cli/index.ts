@@ -14,9 +14,9 @@ import { verifyCommand } from "./commands/verify.js";
 import { parseArgv } from "./parse.js";
 import type { CliResult } from "./types.js";
 
-const VERSION = "0.1.0";
+export const VERSION = "0.1.0";
 
-const COMMANDS: Record<string, { description: string; usage: string }> = {
+export const COMMANDS: Record<string, { description: string; usage: string }> = {
   sync: {
     description: "Sync skills from sources to target directories",
     usage: "skill-sync sync [--dry-run] [--force] [--json]",

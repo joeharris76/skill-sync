@@ -1,5 +1,5 @@
 import { access, constants } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { expandTilde } from "../core/paths.js";
 import type { FetchedSkill, ResolvedSkill, SkillSource, SourceProvenance } from "../core/types.js";
 
@@ -8,11 +8,13 @@ export class LocalSource implements SkillSource {
   readonly name: string;
   readonly type = "local" as const;
   private readonly basePath: string;
+  private readonly configuredPath: string;
 
-  constructor(name: string, path: string) {
+  constructor(name: string, path: string, projectRoot = process.cwd()) {
     this.name = name;
-    // Expand ~ to home directory
-    this.basePath = resolve(expandTilde(path));
+    const expanded = expandTilde(path);
+    this.basePath = resolve(projectRoot, expanded);
+    this.configuredPath = isAbsolute(expanded) ? this.basePath : path;
   }
 
   async resolve(skillName: string): Promise<ResolvedSkill | null> {
@@ -45,7 +47,9 @@ export class LocalSource implements SkillSource {
     return {
       type: this.type,
       name: this.name,
-      path: resolved.location,
+      path: isAbsolute(this.configuredPath)
+        ? resolved.location
+        : join(this.configuredPath, resolved.name),
       fetchedAt: new Date().toISOString(),
     };
   }

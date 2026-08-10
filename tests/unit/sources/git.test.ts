@@ -1,15 +1,16 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { mkdir, writeFile, rm, access, constants } from "node:fs/promises";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
+import { access, constants, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { GitSource } from "../../../src/sources/git.js";
 
 const exec = promisify(execFile);
 
 let repoDir: string;
 let tmpBase: string;
+let firstRevision: string;
 
 async function initLocalRepo(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
@@ -20,7 +21,10 @@ async function initLocalRepo(dir: string): Promise<void> {
   // Add a skill
   const skillDir = join(dir, "code");
   await mkdir(skillDir, { recursive: true });
-  await writeFile(join(skillDir, "SKILL.md"), "---\nname: code\ndescription: Code skill\n---\n# Code\n");
+  await writeFile(
+    join(skillDir, "SKILL.md"),
+    "---\nname: code\ndescription: Code skill\n---\n# Code\n",
+  );
 
   const nestedSkillDir = join(dir, "skills", "docs");
   await mkdir(nestedSkillDir, { recursive: true });
@@ -31,6 +35,11 @@ async function initLocalRepo(dir: string): Promise<void> {
 
   await exec("git", ["add", "."], { cwd: dir });
   await exec("git", ["commit", "-m", "initial"], { cwd: dir });
+  firstRevision = (await exec("git", ["rev-parse", "HEAD"], { cwd: dir })).stdout.trim();
+
+  await writeFile(join(dir, "later.txt"), "later\n");
+  await exec("git", ["add", "later.txt"], { cwd: dir });
+  await exec("git", ["commit", "-m", "later"], { cwd: dir });
 }
 
 beforeAll(async () => {
@@ -80,12 +89,16 @@ describe("GitSource.resolve()", () => {
     }
   });
 
-  it.each(["../skills", "skills/../other", "/skills", "C:/skills", "skills\\nested", " "])(
-    "rejects unsafe repository subdir %j",
-    (subdir) => {
-      expect(() => new GitSource("test", `file://${repoDir}`, "main", subdir)).toThrow(/subdir/);
-    },
-  );
+  it.each([
+    "../skills",
+    "skills/../other",
+    "/skills",
+    "C:/skills",
+    "skills\\nested",
+    " ",
+  ])("rejects unsafe repository subdir %j", (subdir) => {
+    expect(() => new GitSource("test", `file://${repoDir}`, "main", subdir)).toThrow(/subdir/);
+  });
 
   it("reuses the clone on repeated calls (does not clone twice)", async () => {
     const source = new GitSource("test", `file://${repoDir}`, "main");
@@ -94,6 +107,16 @@ describe("GitSource.resolve()", () => {
       await source.resolve("code");
       const result = await source.resolve("code");
       expect(result).not.toBeNull();
+    } finally {
+      await source.dispose();
+    }
+  });
+
+  it("resolves an older commit SHA", async () => {
+    const source = new GitSource("test", `file://${repoDir}`, firstRevision);
+    try {
+      expect(await source.resolve("code")).not.toBeNull();
+      expect(source.provenance((await source.resolve("code"))!).revision).toBe(firstRevision);
     } finally {
       await source.dispose();
     }
@@ -147,7 +170,12 @@ describe("GitSource.provenance()", () => {
 
   it("returns undefined revision before first resolve", () => {
     const source = new GitSource("test", `file://${repoDir}`, "main");
-    const fakeResolved = { name: "code", sourceName: "test", sourceType: "git" as const, location: "/tmp/code" };
+    const fakeResolved = {
+      name: "code",
+      sourceName: "test",
+      sourceType: "git" as const,
+      location: "/tmp/code",
+    };
     const prov = source.provenance(fakeResolved);
     expect(prov.revision).toBeUndefined();
   });

@@ -1,7 +1,14 @@
-import { describe, it, expect } from "vitest";
-import { createSourcesFromConfig, createSourcesFromConfigForSkill, isImplementedSourceType } from "../../../src/sources/factory.js";
-import { LocalSource } from "../../../src/sources/local.js";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import {
+  createSourcesFromConfig,
+  createSourcesFromConfigForSkill,
+  isImplementedSourceType,
+} from "../../../src/sources/factory.js";
 import { GitSource } from "../../../src/sources/git.js";
+import { LocalSource } from "../../../src/sources/local.js";
 
 describe("isImplementedSourceType", () => {
   it("returns true for local", () => expect(isImplementedSourceType("local")).toBe(true));
@@ -19,7 +26,13 @@ describe("createSourcesFromConfig", () => {
 
   it("creates a GitSource for git type", () => {
     const sources = createSourcesFromConfig([
-      { name: "repo", type: "git", url: "https://example.com/skills.git", ref: "main", subdir: "skills" },
+      {
+        name: "repo",
+        type: "git",
+        url: "https://example.com/skills.git",
+        ref: "main",
+        subdir: "skills",
+      },
     ]);
     expect(sources).toHaveLength(1);
     expect(sources[0]).toBeInstanceOf(GitSource);
@@ -35,12 +48,30 @@ describe("createSourcesFromConfig", () => {
 
   it("throws for registry type", () => {
     expect(() =>
-      createSourcesFromConfig([{ name: "npm", type: "registry", registry: "npm" }])
+      createSourcesFromConfig([{ name: "npm", type: "registry", registry: "npm" }]),
     ).toThrow(/registry sources are not implemented/);
   });
 });
 
 describe("createSourcesFromConfigForSkill", () => {
+  it("resolves relative local sources from the manifest project root", async () => {
+    const projectRoot = join(tmpdir(), `skill-sync-relative-source-${Date.now()}`);
+    const skillRoot = join(projectRoot, "skills", "skill-sync");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(join(skillRoot, "SKILL.md"), "---\nname: skill-sync\n---\n");
+
+    const [source] = createSourcesFromConfigForSkill(
+      [{ name: "product", type: "local", path: "skills" }],
+      { sourceName: "product" },
+      projectRoot,
+    );
+    const resolved = await source!.resolve("skill-sync");
+
+    expect(resolved?.location).toBe(skillRoot);
+    expect(source!.provenance(resolved!).path).toBe("skills/skill-sync");
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
   it("filters to override source when sourceName is set", () => {
     const configs = [
       { name: "personal", type: "local" as const, path: "/personal" },
@@ -56,7 +87,7 @@ describe("createSourcesFromConfigForSkill", () => {
       createSourcesFromConfigForSkill(
         [{ name: "personal", type: "local" as const, path: "/personal" }],
         { sourceName: "nonexistent" },
-      )
+      ),
     ).toThrow(/unknown source/);
   });
 
@@ -67,7 +98,12 @@ describe("createSourcesFromConfigForSkill", () => {
     );
     expect(sources[0]).toBeInstanceOf(GitSource);
     // Verify revision is used as ref by checking provenance returns it as the ref
-    const prov = sources[0]!.provenance({ name: "skill", sourceName: "repo", sourceType: "git", location: "/tmp" });
+    const prov = sources[0]!.provenance({
+      name: "skill",
+      sourceName: "repo",
+      sourceType: "git",
+      location: "/tmp",
+    });
     // Before cloning, the ref is the revision override, not "main"
     expect(prov.ref).toBe("abc123");
   });
