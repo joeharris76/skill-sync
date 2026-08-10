@@ -103,6 +103,7 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
       const skillSources = createSourcesFromConfigForSkill(
         manifest.sources,
         manifest.overrides[skillName],
+        projectRoot,
       );
       sources.push(...skillSources);
 

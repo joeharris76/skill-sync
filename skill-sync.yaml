@@ -1,8 +1,13 @@
 version: 1
 sources:
-  - name: personal
+  - name: product
     type: local
-    path: ~/.skill-sync/skills
+    path: skills
+  - name: personal
+    type: git
+    url: https://github.com/joeharris76/skill-sync-skills.git
+    ref: c49764b4d3d4043f016c39011febc8dd487111a6
+    subdir: skills
 skills:
   - blog
   - code
@@ -25,5 +30,8 @@ targets:
     dir: .gemini/skills
     tracked: true
 install_mode: mirror
+overrides:
+  skill-sync:
+    source_name: product
 projects:
   - ~/Developer/letterops-mcp

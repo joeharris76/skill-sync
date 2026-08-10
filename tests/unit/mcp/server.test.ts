@@ -1,15 +1,31 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { createServer, listInstalledSkills, runValidation } from "../../../src/mcp/server.js";
-import { writeFile, mkdir, rm, readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { stringify as stringifyYaml } from "yaml";
 import * as operations from "../../../src/core/operations.js";
+import { createServer, listInstalledSkills, runValidation } from "../../../src/mcp/server.js";
 
 const tmpBase = join(tmpdir(), "skill-sync-mcp-test");
 type TestMcpServer = ReturnType<typeof createServer> & {
-  _registeredPrompts: Record<string, { callback: (args: { name: string }, extra: unknown) => Promise<{ messages: Array<{ content: { type: "text"; text: string } }> }> }>;
-  _registeredTools: Record<string, { description?: string; handler: (...args: never[]) => Promise<{ content: Array<{ text: string }>; structuredContent?: unknown }> }>;
+  _registeredPrompts: Record<
+    string,
+    {
+      callback: (
+        args: { name: string },
+        extra: unknown,
+      ) => Promise<{ messages: Array<{ content: { type: "text"; text: string } }> }>;
+    }
+  >;
+  _registeredTools: Record<
+    string,
+    {
+      description?: string;
+      handler: (
+        ...args: never[]
+      ) => Promise<{ content: Array<{ text: string }>; structuredContent?: unknown }>;
+    }
+  >;
 };
 
 async function setupTestProject() {
@@ -18,52 +34,67 @@ async function setupTestProject() {
 
   // Create manifest
   await mkdir(projectRoot, { recursive: true });
-  await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml({
-    version: 1,
-    sources: [{ name: "test", type: "local", path: "/tmp" }],
-    skills: ["code", "test"],
-    targets: { claude: ".claude/skills" },
-    install_mode: "mirror",
-  }));
+  await writeFile(
+    join(projectRoot, "skill-sync.yaml"),
+    stringifyYaml({
+      version: 1,
+      sources: [{ name: "test", type: "local", path: "/tmp" }],
+      skills: ["code", "test"],
+      targets: { claude: ".claude/skills" },
+      install_mode: "mirror",
+    }),
+  );
 
   // Create installed skills
   await mkdir(join(skillsDir, "code"), { recursive: true });
-  await writeFile(join(skillsDir, "code", "SKILL.md"), [
-    "---",
-    "name: code",
-    "description: Code development skill",
-    "---",
-    "# Code Skill",
-    "",
-    "Use this skill for code tasks.",
-  ].join("\n"));
-  await writeFile(join(skillsDir, "code", "skill.yaml"), stringifyYaml({
-    tags: ["development", "coding"],
-    depends: [],
-    config_inputs: [],
-    targets: {},
-  }));
+  await writeFile(
+    join(skillsDir, "code", "SKILL.md"),
+    [
+      "---",
+      "name: code",
+      "description: Code development skill",
+      "---",
+      "# Code Skill",
+      "",
+      "Use this skill for code tasks.",
+    ].join("\n"),
+  );
+  await writeFile(
+    join(skillsDir, "code", "skill.yaml"),
+    stringifyYaml({
+      tags: ["development", "coding"],
+      depends: [],
+      config_inputs: [],
+      targets: {},
+    }),
+  );
 
   await mkdir(join(skillsDir, "test"), { recursive: true });
-  await writeFile(join(skillsDir, "test", "SKILL.md"), [
-    "---",
-    "name: test",
-    "description: Testing skill",
-    "---",
-    "# Test Skill",
-    "",
-    "Use this for testing.",
-  ].join("\n"));
+  await writeFile(
+    join(skillsDir, "test", "SKILL.md"),
+    [
+      "---",
+      "name: test",
+      "description: Testing skill",
+      "---",
+      "# Test Skill",
+      "",
+      "Use this for testing.",
+    ].join("\n"),
+  );
 
   // Create nested SHARED skill
   await mkdir(join(skillsDir, "SHARED", "commit-framework"), { recursive: true });
-  await writeFile(join(skillsDir, "SHARED", "commit-framework", "SKILL.md"), [
-    "---",
-    "name: commit-framework",
-    "description: Commit framework",
-    "---",
-    "# Commit Framework",
-  ].join("\n"));
+  await writeFile(
+    join(skillsDir, "SHARED", "commit-framework", "SKILL.md"),
+    [
+      "---",
+      "name: commit-framework",
+      "description: Commit framework",
+      "---",
+      "# Commit Framework",
+    ].join("\n"),
+  );
 
   return projectRoot;
 }
@@ -73,13 +104,16 @@ async function setupSkillSyncProject() {
   const skillsDir = join(projectRoot, ".claude", "skills");
 
   await mkdir(join(skillsDir, "skill-sync"), { recursive: true });
-  await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml({
-    version: 1,
-    sources: [{ name: "bundled", type: "local", path: "skills" }],
-    skills: ["skill-sync"],
-    targets: { claude: ".claude/skills" },
-    install_mode: "mirror",
-  }));
+  await writeFile(
+    join(projectRoot, "skill-sync.yaml"),
+    stringifyYaml({
+      version: 1,
+      sources: [{ name: "bundled", type: "local", path: "skills" }],
+      skills: ["skill-sync"],
+      targets: { claude: ".claude/skills" },
+      install_mode: "mirror",
+    }),
+  );
 
   const bundledSkill = await readFile(resolve("skills", "skill-sync", "SKILL.md"), "utf8");
   await writeFile(join(skillsDir, "skill-sync", "SKILL.md"), bundledSkill, "utf8");
@@ -138,7 +172,9 @@ describe("MCP server skill discovery", () => {
       let entries: import("node:fs").Dirent[];
       try {
         entries = await readdir(joinPath(root, prefix), { withFileTypes: true });
-      } catch { return []; }
+      } catch {
+        return [];
+      }
       for (const entry of entries) {
         if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
         const skillPath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -313,17 +349,21 @@ describe("MCP tool: skill-status", () => {
     const projectRoot = await setupTestProject();
     await writeFile(
       join(projectRoot, "skill-sync.lock"),
-      JSON.stringify({
-        version: 1,
-        lockedAt: new Date().toISOString(),
-        skills: {
-          code: {
-            source: { type: "local", name: "test", fetchedAt: new Date().toISOString() },
-            installMode: "mirror",
-            files: { "SKILL.md": { sha256: "expected-hash", size: 10 } },
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: new Date().toISOString(),
+          skills: {
+            code: {
+              source: { type: "local", name: "test", fetchedAt: new Date().toISOString() },
+              installMode: "mirror",
+              files: { "SKILL.md": { sha256: "expected-hash", size: 10 } },
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
       "utf-8",
     );
 
@@ -344,17 +384,21 @@ describe("MCP tool: validate-skills", () => {
     const projectRoot = await setupTestProject();
     await writeFile(
       join(projectRoot, "skill-sync.lock"),
-      JSON.stringify({
-        version: 1,
-        lockedAt: new Date().toISOString(),
-        skills: {
-          code: {
-            source: { type: "local", name: "test", fetchedAt: new Date().toISOString() },
-            installMode: "mirror",
-            files: { "SKILL.md": { sha256: "abc", size: 10 } },
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: new Date().toISOString(),
+          skills: {
+            code: {
+              source: { type: "local", name: "test", fetchedAt: new Date().toISOString() },
+              installMode: "mirror",
+              files: { "SKILL.md": { sha256: "abc", size: 10 } },
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
       "utf-8",
     );
 
@@ -373,7 +417,13 @@ describe("MCP tool: validate-skills", () => {
     await mkdir(projectRoot, { recursive: true });
     await writeFile(
       join(projectRoot, "skill-sync.yaml"),
-      stringifyYaml({ version: 1, sources: [], skills: [], targets: { claude: ".claude/skills" }, install_mode: "mirror" }),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
     );
 
     const server = createServer(projectRoot) as TestMcpServer;
@@ -494,21 +544,31 @@ describe("MCP tool: prune-skills", () => {
     await writeFile(join(skillsDir, "SKILL.md"), "---\nname: old\ndescription: old\n---\n");
     await writeFile(
       join(projectRoot, "skill-sync.yaml"),
-      stringifyYaml({ version: 1, sources: [], skills: [], targets: { claude: ".claude/skills" }, install_mode: "mirror" }),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
     );
     await writeFile(
       join(projectRoot, "skill-sync.lock"),
-      JSON.stringify({
-        version: 1,
-        lockedAt: new Date().toISOString(),
-        skills: {
-          old: {
-            source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
-            installMode: "mirror",
-            files: { "SKILL.md": { sha256: "abc", size: 10 } },
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: new Date().toISOString(),
+          skills: {
+            old: {
+              source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
+              installMode: "mirror",
+              files: { "SKILL.md": { sha256: "abc", size: 10 } },
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
     );
 
     const server = createServer(projectRoot) as TestMcpServer;
@@ -530,21 +590,31 @@ describe("MCP tool: prune-skills", () => {
     await writeFile(join(skillsDir, "SKILL.md"), "---\nname: old\ndescription: old\n---\n");
     await writeFile(
       join(projectRoot, "skill-sync.yaml"),
-      stringifyYaml({ version: 1, sources: [], skills: [], targets: { claude: ".claude/skills" }, install_mode: "mirror" }),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
     );
     await writeFile(
       join(projectRoot, "skill-sync.lock"),
-      JSON.stringify({
-        version: 1,
-        lockedAt: new Date().toISOString(),
-        skills: {
-          old: {
-            source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
-            installMode: "mirror",
-            files: { "SKILL.md": { sha256: "abc", size: 10 } },
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: new Date().toISOString(),
+          skills: {
+            old: {
+              source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
+              installMode: "mirror",
+              files: { "SKILL.md": { sha256: "abc", size: 10 } },
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
     );
 
     const server = createServer(projectRoot) as TestMcpServer;
@@ -566,7 +636,9 @@ describe("MCP tool: pin-skill / unpin-skill", () => {
       join(projectRoot, "skill-sync.yaml"),
       stringifyYaml({
         version: 1,
-        sources: [{ name: "team", type: "git", url: "https://example.com/skills.git", ref: "main" }],
+        sources: [
+          { name: "team", type: "git", url: "https://example.com/skills.git", ref: "main" },
+        ],
         skills: ["code"],
         targets: { claude: ".claude/skills" },
         install_mode: "mirror",
@@ -574,17 +646,21 @@ describe("MCP tool: pin-skill / unpin-skill", () => {
     );
     await writeFile(
       join(projectRoot, "skill-sync.lock"),
-      JSON.stringify({
-        version: 1,
-        lockedAt: new Date().toISOString(),
-        skills: {
-          code: {
-            source: { type: "local", name: "team", fetchedAt: new Date().toISOString() },
-            installMode: "mirror",
-            files: {},
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: new Date().toISOString(),
+          skills: {
+            code: {
+              source: { type: "local", name: "team", fetchedAt: new Date().toISOString() },
+              installMode: "mirror",
+              files: {},
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
     );
 
     const server = createServer(projectRoot) as TestMcpServer;
@@ -602,7 +678,9 @@ describe("MCP tool: pin-skill / unpin-skill", () => {
       join(projectRoot, "skill-sync.yaml"),
       stringifyYaml({
         version: 1,
-        sources: [{ name: "team", type: "git", url: "https://example.com/skills.git", ref: "main" }],
+        sources: [
+          { name: "team", type: "git", url: "https://example.com/skills.git", ref: "main" },
+        ],
         skills: ["code"],
         targets: { claude: ".claude/skills" },
         install_mode: "mirror",
@@ -705,8 +783,14 @@ describe("MCP exported helpers", () => {
 
     await mkdir(claudeDir, { recursive: true });
     await mkdir(codexDir, { recursive: true });
-    await writeFile(join(claudeDir, "SKILL.md"), "---\nname: code\ndescription: Code skill\n---\n# Code\n");
-    await writeFile(join(codexDir, "SKILL.md"), "---\nname: code\ndescription: Code skill\n---\n# Code\n");
+    await writeFile(
+      join(claudeDir, "SKILL.md"),
+      "---\nname: code\ndescription: Code skill\n---\n# Code\n",
+    );
+    await writeFile(
+      join(codexDir, "SKILL.md"),
+      "---\nname: code\ndescription: Code skill\n---\n# Code\n",
+    );
 
     await writeFile(
       join(projectRoot, "skill-sync.yaml"),
@@ -749,17 +833,21 @@ describe("MCP exported helpers", () => {
     // Lock has "code" but it's not on disk
     await writeFile(
       join(projectRoot, "skill-sync.lock"),
-      JSON.stringify({
-        version: 1,
-        lockedAt: new Date().toISOString(),
-        skills: {
-          code: {
-            source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
-            installMode: "mirror",
-            files: { "SKILL.md": { sha256: "abc", size: 10 } },
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: new Date().toISOString(),
+          skills: {
+            code: {
+              source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
+              installMode: "mirror",
+              files: { "SKILL.md": { sha256: "abc", size: 10 } },
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
     );
 
     const diagnostics = await runValidation(projectRoot);
@@ -791,17 +879,21 @@ describe("MCP exported helpers", () => {
     );
     await writeFile(
       join(projectRoot, "skill-sync.lock"),
-      JSON.stringify({
-        version: 1,
-        lockedAt: new Date().toISOString(),
-        skills: {
-          code: {
-            source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
-            installMode: "mirror",
-            files: { "SKILL.md": { sha256: "abc", size: 10 } },
+      JSON.stringify(
+        {
+          version: 1,
+          lockedAt: new Date().toISOString(),
+          skills: {
+            code: {
+              source: { type: "local", name: "local", fetchedAt: new Date().toISOString() },
+              installMode: "mirror",
+              files: { "SKILL.md": { sha256: "abc", size: 10 } },
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
     );
 
     const diagnostics = await runValidation(projectRoot);
@@ -838,7 +930,15 @@ describe("MCP instruction audit tool", () => {
           expectedProjectFiles: ["CLAUDE.md"],
           expectedOverrideFiles: [],
           globalFiles: [],
-          projectFiles: [{ agent: "claude", scope: "project", path: "CLAUDE.md", resolvedPath: join(projectRoot, "CLAUDE.md"), state: "present" }],
+          projectFiles: [
+            {
+              agent: "claude",
+              scope: "project",
+              path: "CLAUDE.md",
+              resolvedPath: join(projectRoot, "CLAUDE.md"),
+              state: "present",
+            },
+          ],
           overrideFiles: [],
         },
       ],
@@ -910,7 +1010,7 @@ describe("MCP skill-sync guidance", () => {
 
     expect(text).toContain("Before following these instructions, enforce repo hygiene");
     expect(text).toContain(".gitignore");
-    expect(text).toContain("Before `skill-sync sync` begins, check `git status --short`.");
+    expect(text).toContain("Stop before sync when managed tracked files are dirty.");
     expect(text).toContain("commit resulting tracked changes after sync ends");
   });
 });
