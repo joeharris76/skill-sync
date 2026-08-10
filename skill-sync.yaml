@@ -25,5 +25,8 @@ targets:
     dir: .gemini/skills
     tracked: true
 install_mode: mirror
+config:
+  code:
+    review_checklist: "For TODOs claiming to retire a SQL-translation post-fixup from a harness PASS, grep the helper call site and confirm the harness probe matches the wrapper's read= argument. A single-dialect PASS cannot retire a helper invoked with SQLGlot cross-dialect translation."
 projects:
   - ~/Developer/letterops-mcp

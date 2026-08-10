@@ -2,6 +2,8 @@
 
 Every review evaluates five dimensions with severity classification.
 
+> **Scope:** This is a code-domain rubric. Authorization, defect routing, L1/L2/L3 planning-depth layers, capture, and parity are owned by `SHARED/review-protocol/SKILL.md` (`REVIEW-AUTH-001` through `REVIEW-PARITY-001`). This file adds code-review content only (axes, deletion checklist, severity, sizing, and code-specific branches) and **cannot authorize writes** — any remediation follows the shared protocol's separate-turn authorization.
+
 ## Router-specific checks
 
 - Accept path, directory, staged, recent, PR, topic, or empty review scope;
@@ -10,14 +12,10 @@ Every review evaluates five dimensions with severity classification.
 - For review-shape triggers, use the matching branch below: matrix/audit-doc,
   mixed tooling+data, repo-shape ADR, multi-W spec, defect follow-up
   artifact-freshness, or verification-only.
-- For TODOs claiming to retire a SQL-translation post-fixup from a harness
-  PASS, grep the helper call site and confirm the harness probe matches the
-  wrapper's `read=` argument. A single-dialect PASS cannot retire a helper
-  invoked with SQLGlot cross-dialect translation.
 - For multi-PR work, run `gh pr diff <N> --name-only` and classify blockers
   before content; avoid `--json body,files` unless needed.
-- `review --chain` may apply only authorized non-structural fixes; verify them,
-  then use the commit framework for commit/push/PR close-out.
+- Project-specific checks (e.g., SQLGlot dialect retirement) belong in `code.review_checklist` (`code/skill.yaml:28`), not in this shared rubric; apply them when `skill-sync.config.yaml` defines `code.review_checklist`.
+- `review --chain` may apply only non-structural fixes explicitly authorized in a separate turn per `SHARED/review-protocol/SKILL.md` [REVIEW-AUTH-001]; verify them, then use the commit framework for commit/push/PR close-out. Without separate-turn authorization, `--chain` remains read-only.
 
 ## The Five Axes
 

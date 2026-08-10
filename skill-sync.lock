@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "lockedAt": "2026-08-06T17:24:57.745Z",
+  "lockedAt": "2026-08-10T12:26:16.265Z",
   "skills": {
     "blog": {
       "source": {
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/blog",
-        "fetchedAt": "2026-08-06T17:24:57.654Z"
+        "fetchedAt": "2026-08-10T12:26:16.208Z"
       },
       "installMode": "mirror",
       "files": {
@@ -58,7 +58,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/code",
-        "fetchedAt": "2026-08-06T17:24:57.657Z"
+        "fetchedAt": "2026-08-10T12:26:16.211Z"
       },
       "installMode": "mirror",
       "files": {
@@ -71,8 +71,8 @@
           "size": 794
         },
         "references/five-axis-review.md": {
-          "sha256": "ea1836fe2b7b03e36d753e3454fde077e620870cda0155b1cb14f35e3563ae39",
-          "size": 5692
+          "sha256": "b727fafe2f9127c67aa8cd934781990c91141192b659ee7b3f63ed9b15d21e6a",
+          "size": 6233
         },
         "references/handoff.md": {
           "sha256": "37ecdbe8e88662d8bda26b8b87412081750ba1e23fb804a68e0803fe7cf7e8c2",
@@ -105,7 +105,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/docs",
-        "fetchedAt": "2026-08-06T17:24:57.659Z"
+        "fetchedAt": "2026-08-10T12:26:16.212Z"
       },
       "installMode": "mirror",
       "files": {
@@ -144,7 +144,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/skill-sync",
-        "fetchedAt": "2026-08-06T17:24:57.661Z"
+        "fetchedAt": "2026-08-10T12:26:16.213Z"
       },
       "installMode": "mirror",
       "files": {
@@ -167,7 +167,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/test",
-        "fetchedAt": "2026-08-06T17:24:57.663Z"
+        "fetchedAt": "2026-08-10T12:26:16.214Z"
       },
       "installMode": "mirror",
       "files": {
@@ -210,7 +210,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/todo",
-        "fetchedAt": "2026-08-06T17:24:57.666Z"
+        "fetchedAt": "2026-08-10T12:26:16.217Z"
       },
       "installMode": "mirror",
       "files": {
@@ -261,7 +261,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/tidy-perms",
-        "fetchedAt": "2026-08-06T17:24:57.667Z"
+        "fetchedAt": "2026-08-10T12:26:16.218Z"
       },
       "installMode": "mirror",
       "files": {
@@ -292,7 +292,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/SHARED/review-protocol",
-        "fetchedAt": "2026-08-06T17:24:57.668Z"
+        "fetchedAt": "2026-08-10T12:26:16.219Z"
       },
       "installMode": "mirror",
       "files": {
@@ -311,7 +311,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/SHARED/change-framework",
-        "fetchedAt": "2026-08-06T17:24:57.667Z"
+        "fetchedAt": "2026-08-10T12:26:16.218Z"
       },
       "installMode": "mirror",
       "files": {
@@ -330,7 +330,7 @@
         "type": "local",
         "name": "personal",
         "path": "~/.skill-sync/skills/SHARED/investigation-framework",
-        "fetchedAt": "2026-08-06T17:24:57.668Z"
+        "fetchedAt": "2026-08-10T12:26:16.219Z"
       },
       "installMode": "mirror",
       "files": {
