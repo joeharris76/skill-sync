@@ -9,7 +9,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "skills/skill-sync/**/*"
   ],
   "exports": {
     ".": "./dist/index.js",
