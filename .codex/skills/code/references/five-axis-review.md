@@ -2,20 +2,23 @@
 
 Every review evaluates five dimensions with severity classification.
 
-> **Scope:** This is a code-domain rubric. Authorization, defect routing, L1/L2/L3 planning-depth layers, capture, and parity are owned by `SHARED/review-protocol/SKILL.md` (`REVIEW-AUTH-001` through `REVIEW-PARITY-001`). This file adds code-review content only (axes, deletion checklist, severity, sizing, and code-specific branches) and **cannot authorize writes** — any remediation follows the shared protocol's separate-turn authorization.
+> **Scope:** This file is for code reviews only. Use it to check the five axes, what to delete, how to rate issues, size limits, and code-specific branches.
+>
+> It does not control permissions or workflow. `SHARED/review-protocol/SKILL.md` controls those. It covers authorization, defect handling, L1/L2/L3 steps, saving findings, and parity (`REVIEW-AUTH-001` to `REVIEW-PARITY-001`).
+>
+> Only the shared protocol can authorize changes. This file cannot. Any fix needs a separate, explicit approval as described there.
 
 ## Router-specific checks
 
-- Accept path, directory, staged, recent, PR, topic, or empty review scope;
-  output severity findings first: Critical, Required, Nit, Consider.
+- Accept any review scope: a file path, directory, staged changes, recent commits, a PR, a topic, or no scope. List severity findings first: Critical, Required, Nit, Consider.
 - Route L2 blind-spot audits through `SHARED/review-protocol/SKILL.md`.
 - For review-shape triggers, use the matching branch below: matrix/audit-doc,
   mixed tooling+data, repo-shape ADR, multi-W spec, defect follow-up
   artifact-freshness, or verification-only.
 - For multi-PR work, run `gh pr diff <N> --name-only` and classify blockers
   before content; avoid `--json body,files` unless needed.
-- Project-specific checks (e.g., SQLGlot dialect retirement) belong in `code.review_checklist` (`code/skill.yaml:28`), not in this shared rubric; apply them when `skill-sync.config.yaml` defines `code.review_checklist`.
-- `review --chain` may apply only non-structural fixes explicitly authorized in a separate turn per `SHARED/review-protocol/SKILL.md` [REVIEW-AUTH-001]; verify them, then use the commit framework for commit/push/PR close-out. Without separate-turn authorization, `--chain` remains read-only.
+- Put project-specific checks (for example, SQLGlot dialect checks) in `code.review_checklist` (`code/skill.yaml:28`). Do not add them to this shared rubric. Use them only when `skill-sync.config.yaml` sets `code.review_checklist`.
+- `review --chain` can fix only small, non-structural issues. It needs explicit approval in a separate step. See `SHARED/review-protocol/SKILL.md` [REVIEW-AUTH-001]. If approved, verify the fixes. Then use the commit framework to save, push, or open a PR. Without that separate approval, `--chain` stays read-only.
 
 ## The Five Axes
 
@@ -25,7 +28,7 @@ Every review evaluates five dimensions with severity classification.
 - Error paths handled (not just happy path)?
 - Tests adequate and testing the right things?
 - Off-by-one, race conditions, state inconsistencies?
-- **Empirical-claim durability**: changes that update empirically-observed numbers (catalog "verified <tool>" comments, doc storage-size claims, expected-bytes bounds) need a checked-in smoke or make target that re-produces the observation, plus a consistency test that fails when doc claims drift outside catalog bounds.
+- **Empirical-claim durability**: if you change numbers that were measured (like `verified <tool>` comments, doc storage sizes, or expected-bytes limits), add two things. First, a check-in smoke or make target that reproduces the measurement. Second, a test that fails when the docs no longer match the catalog.
 
 ### 2. Readability & Simplicity
 - Names descriptive, consistent with project conventions?
