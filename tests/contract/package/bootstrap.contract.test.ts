@@ -27,6 +27,17 @@ function isAtLeast(actual: string, minimum: string): boolean {
 }
 
 describe("packaged skill-sync operator contract", () => {
+  it("documents installation of the complete operator package", async () => {
+    const readme = await readFile(join(projectRoot, "README.md"), "utf8");
+
+    expect(readme).toContain(
+      "cp -R node_modules/skill-sync/skills/skill-sync/. .claude/skills/skill-sync/",
+    );
+    expect(readme).not.toContain(
+      "cp node_modules/skill-sync/skills/skill-sync/SKILL.md .claude/skills/skill-sync/",
+    );
+  });
+
   it("documents every CLI command and recognized flag", async () => {
     const skill = await readFile(join(skillRoot, "SKILL.md"), "utf8");
 
