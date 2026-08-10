@@ -11,8 +11,10 @@ const exec = promisify(execFile);
 /**
  * Source adapter for git-hosted skill repositories.
  *
- * Fetches one requested revision into a temporary shallow checkout and resolves
- * skills within that tree.
+ * Clones the repository without a working tree to a temporary directory and
+ * checks out the configured ref. A ref may be a branch, tag, or exact commit;
+ * pinned commits must remain resolvable even when they are not on the default
+ * branch.
  */
 export class GitSource implements SkillSource {
   readonly name: string;
@@ -82,10 +84,10 @@ export class GitSource implements SkillSource {
 
     const tmpDir = await mkdtemp(join(tmpdir(), "skill-sync-git-"));
     try {
-      await exec("git", ["init", "--quiet", tmpDir]);
-      await exec("git", ["remote", "add", "origin", this.url], { cwd: tmpDir });
-      await exec("git", ["fetch", "--depth", "1", "origin", this.ref], { cwd: tmpDir });
-      await exec("git", ["checkout", "--quiet", "--detach", "FETCH_HEAD"], { cwd: tmpDir });
+      await exec("git", ["clone", "--no-checkout", this.url, tmpDir]);
+      await exec("git", ["checkout", "--quiet", "--detach", this.ref], {
+        cwd: tmpDir,
+      });
 
       // Resolve the HEAD revision
       const { stdout } = await exec("git", ["rev-parse", "HEAD"], {

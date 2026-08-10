@@ -11,6 +11,7 @@ const exec = promisify(execFile);
 let repoDir: string;
 let tmpBase: string;
 let firstRevision: string;
+let pinnedRevision: string;
 
 async function initLocalRepo(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
@@ -40,6 +41,18 @@ async function initLocalRepo(dir: string): Promise<void> {
   await writeFile(join(dir, "later.txt"), "later\n");
   await exec("git", ["add", "later.txt"], { cwd: dir });
   await exec("git", ["commit", "-m", "later"], { cwd: dir });
+
+  await exec("git", ["checkout", "-b", "feature"], { cwd: dir });
+  const pinnedSkillDir = join(dir, "pinned");
+  await mkdir(pinnedSkillDir, { recursive: true });
+  await writeFile(
+    join(pinnedSkillDir, "SKILL.md"),
+    "---\nname: pinned\ndescription: Pinned skill\n---\n# Pinned\n",
+  );
+  await exec("git", ["add", "pinned/SKILL.md"], { cwd: dir });
+  await exec("git", ["commit", "-m", "add pinned skill"], { cwd: dir });
+  pinnedRevision = (await exec("git", ["rev-parse", "HEAD"], { cwd: dir })).stdout.trim();
+  await exec("git", ["checkout", "main"], { cwd: dir });
 }
 
 beforeAll(async () => {
@@ -53,6 +66,19 @@ afterAll(async () => {
 });
 
 describe("GitSource.resolve()", () => {
+  it("resolves an exact commit that is not on the default branch", async () => {
+    const source = new GitSource("test", `file://${repoDir}`, pinnedRevision);
+    try {
+      const result = await source.resolve("pinned");
+
+      expect(result).not.toBeNull();
+      expect(result!.name).toBe("pinned");
+      expect(source.provenance(result!).revision).toBe(pinnedRevision);
+    } finally {
+      await source.dispose();
+    }
+  });
+
   it("returns ResolvedSkill for an existing skill", async () => {
     const source = new GitSource("test", `file://${repoDir}`, "main");
     try {
