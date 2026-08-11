@@ -637,6 +637,70 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
         });
       }
     }
+
+    // Pinned git sources: compare the pinned revision against upstream HEAD.
+    for (const source of manifest.sources) {
+      if (source.type !== "git" || !source.url || !/^[0-9a-f]{40}$/i.test(source.ref ?? "")) {
+        continue;
+      }
+      try {
+        const { stdout } = await execFileAsync("git", ["ls-remote", source.url, "HEAD"], {
+          timeout: 10_000,
+        });
+        const upstreamHead = stdout.split(/\s+/)[0] ?? "";
+        if (upstreamHead.toLowerCase() === source.ref!.toLowerCase()) {
+          checks.push({
+            check: `pin:${source.name}`,
+            status: "ok",
+            message: "Pinned revision matches upstream HEAD",
+          });
+        } else {
+          checks.push({
+            check: `pin:${source.name}`,
+            status: "warn",
+            message: `Pinned revision ${source.ref!.slice(0, 12)} differs from upstream HEAD ${upstreamHead.slice(0, 12)}; bump the ref to pick up updates`,
+          });
+        }
+      } catch {
+        checks.push({
+          check: `pin:${source.name}`,
+          status: "warn",
+          message: `Could not reach ${source.url} to compare the pinned revision`,
+        });
+      }
+    }
+  }
+
+  // Check: installed skill-sync operator copies declare CLI compatibility.
+  // Copies without the declaration predate product ownership and should be
+  // re-synced from the skill-sync package source.
+  if (manifest?.skills.includes("skill-sync")) {
+    for (const [target, cfg] of Object.entries(manifest.targets)) {
+      const operatorDir = resolvePath(projectRoot, join(cfg.dir, "skill-sync"));
+      let pkg: Awaited<ReturnType<typeof loadSkillPackage>>;
+      try {
+        pkg = await loadSkillPackage(operatorDir);
+      } catch {
+        continue; // Not installed; drift checks already cover missing skills.
+      }
+      const declaresCli = Boolean(
+        pkg.meta?.compatibility && "skill-sync" in pkg.meta.compatibility,
+      );
+      checks.push(
+        declaresCli
+          ? {
+              check: `operator:${target}`,
+              status: "ok",
+              message: "Installed skill-sync operator declares CLI compatibility",
+            }
+          : {
+              check: `operator:${target}`,
+              status: "warn",
+              message:
+                "Installed skill-sync operator lacks a compatibility.skill-sync declaration (stale pre-product copy); re-sync it from the skill-sync package source",
+            },
+      );
+    }
   }
 
   // Check 4: Drift detection

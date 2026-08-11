@@ -50,6 +50,12 @@ export function parseSkillSyncMeta(content: string): SkillSyncMeta {
       raw.targets && typeof raw.targets === "object"
         ? (raw.targets as Record<string, boolean>)
         : {},
+    compatibility:
+      raw.compatibility &&
+      typeof raw.compatibility === "object" &&
+      !Array.isArray(raw.compatibility)
+        ? (raw.compatibility as Record<string, unknown>)
+        : undefined,
     settingsRequirements: parseSettingsRequirements(raw.settings_requirements),
     portabilityAllow: Array.isArray(raw.portability_allow)
       ? (raw.portability_allow as unknown[]).filter((p): p is string => typeof p === "string")

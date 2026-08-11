@@ -40,6 +40,8 @@ export interface SkillSyncMeta {
   configInputs: ConfigInput[];
   /** Agent compatibility declarations. */
   targets: Record<string, boolean>;
+  /** Tooling compatibility floors, e.g. { "skill-sync": { min_version: "0.1.0" } }. */
+  compatibility?: Record<string, unknown>;
   /** Per-agent runtime settings requirements declared by the skill author. */
   settingsRequirements?: SettingsRequirements;
   /**

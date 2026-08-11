@@ -841,6 +841,134 @@ describe("doctorOperation", () => {
     expect(mirrorChecks.some((item) => item.message.includes("AGENTS.md"))).toBe(true);
     expect(mirrorChecks.some((item) => item.message.includes("AGENTS.override.md"))).toBe(true);
   });
+
+  it("warns when a pinned git source falls behind upstream HEAD", async () => {
+    const upstream = join(tmpBase, "doctor-pin-upstream-" + Date.now());
+    await mkdir(upstream, { recursive: true });
+    await execFileAsync("git", ["init"], { cwd: upstream });
+    await writeFile(join(upstream, "a.txt"), "one\n");
+    await execFileAsync("git", ["add", "a.txt"], { cwd: upstream });
+    const gitEnv = ["-c", "user.name=Test", "-c", "user.email=test@example.com"];
+    await execFileAsync("git", [...gitEnv, "commit", "-m", "one"], { cwd: upstream });
+    const firstSha = (
+      await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: upstream })
+    ).stdout.trim();
+    await writeFile(join(upstream, "b.txt"), "two\n");
+    await execFileAsync("git", ["add", "b.txt"], { cwd: upstream });
+    await execFileAsync("git", [...gitEnv, "commit", "-m", "two"], { cwd: upstream });
+    const headSha = (
+      await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: upstream })
+    ).stdout.trim();
+
+    const projectRoot = await setupProject("doctor-pin-stale-" + Date.now());
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "pinned", type: "git", url: `file://${upstream}`, ref: firstSha }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    const stale = await doctorOperation(projectRoot);
+    const staleCheck = stale.checks.find((c) => c.check === "pin:pinned");
+    expect(staleCheck?.status).toBe("warn");
+    expect(staleCheck?.message).toContain("differs from upstream HEAD");
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [{ name: "pinned", type: "git", url: `file://${upstream}`, ref: headSha }],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+    const fresh = await doctorOperation(projectRoot);
+    expect(fresh.checks.find((c) => c.check === "pin:pinned")?.status).toBe("ok");
+  });
+
+  it("warns when a pinned git source is unreachable", async () => {
+    const projectRoot = await setupProject("doctor-pin-unreachable-" + Date.now());
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [
+          {
+            name: "pinned",
+            type: "git",
+            url: `file://${join(tmpBase, "missing-repo")}`,
+            ref: "a".repeat(40),
+          },
+        ],
+        skills: ["code"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const check = result.checks.find((c) => c.check === "pin:pinned");
+    expect(check?.status).toBe("warn");
+    expect(check?.message).toContain("Could not reach");
+  });
+
+  it("warns when the installed skill-sync operator lacks a CLI compatibility declaration", async () => {
+    const projectRoot = await setupProject("doctor-operator-stale-" + Date.now());
+    const operatorDir = join(projectRoot, ".claude", "skills", "skill-sync");
+    await mkdir(operatorDir, { recursive: true });
+    await writeFile(
+      join(operatorDir, "SKILL.md"),
+      "---\nname: skill-sync\ndescription: operator\n---\n# skill-sync",
+    );
+    await writeFile(join(operatorDir, "skill.yaml"), "tags: []\ndepends: []\ntargets: {}\n");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["skill-sync"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const check = result.checks.find((c) => c.check === "operator:claude");
+    expect(check?.status).toBe("warn");
+    expect(check?.message).toContain("compatibility.skill-sync");
+  });
+
+  it("reports ok when the installed skill-sync operator declares CLI compatibility", async () => {
+    const projectRoot = await setupProject("doctor-operator-ok-" + Date.now());
+    const operatorDir = join(projectRoot, ".claude", "skills", "skill-sync");
+    await mkdir(operatorDir, { recursive: true });
+    await writeFile(
+      join(operatorDir, "SKILL.md"),
+      "---\nname: skill-sync\ndescription: operator\n---\n# skill-sync",
+    );
+    await writeFile(
+      join(operatorDir, "skill.yaml"),
+      ["tags: []", "depends: []", "targets: {}", "compatibility:", "  skill-sync:", "    min_version: 0.1.0"].join("\n"),
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["skill-sync"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    expect(result.checks.find((c) => c.check === "operator:claude")?.status).toBe("ok");
+  });
 });
 
 // ---------------------------------------------------------------------------
