@@ -6,6 +6,9 @@ sources:
   - name: personal
     type: git
     url: https://github.com/joeharris76/skill-sync-skills.git
+    # Source-level pin: a full 40-char SHA, bumped manually on purpose.
+    # `pin`/`unpin` manage per-skill overrides, not this ref.
+    # `skill-sync doctor` warns when this pin falls behind upstream HEAD.
     ref: c49764b4d3d4043f016c39011febc8dd487111a6
     subdir: skills
 skills:
