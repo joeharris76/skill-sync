@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { agentConfigCommand } from "./commands/agent-config.js";
 import { diffCommand } from "./commands/diff.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { pinCommand, unpinCommand } from "./commands/pin.js";
@@ -61,6 +62,10 @@ const COMMANDS: Record<string, { description: string; usage: string }> = {
     description: "Show required agent settings from installed skills",
     usage:
       "skill-sync settings <subcommand> [--agent <name>] [--json]\n\nSubcommands:\n  generate   Print suggested settings fragment for installed skills",
+  },
+  "agent-config": {
+    description: "Capture, validate, or restore the six local Markdown instruction files",
+    usage: "skill-sync agent-config <capture|validate|restore> [--dry-run] [--force] [--json]",
   },
 };
 
@@ -152,6 +157,8 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       return promoteCommand(parsed);
     case "settings":
       return settingsCommand(parsed);
+    case "agent-config":
+      return agentConfigCommand(parsed);
     default:
       return {
         exitCode: 1,

@@ -1,5 +1,31 @@
 // Type exports
 
+export type {
+  AgentConfigCaptureOptions,
+  AgentConfigCaptureResult,
+  AgentConfigDriftStatus,
+  AgentConfigFileSpec,
+  AgentConfigOptions,
+  AgentConfigPresence,
+  AgentConfigRestoreConflict,
+  AgentConfigRestoreEntry,
+  AgentConfigRestoreOptions,
+  AgentConfigRestoreResult,
+  AgentConfigScope,
+  AgentConfigSnapshot,
+  AgentConfigSnapshotEntry,
+  AgentConfigValidationEntry,
+  AgentConfigValidationReport,
+} from "./agent-config.js";
+// Runtime exports — local agent instruction snapshots
+export {
+  AGENT_CONFIG_FILE_SPECS,
+  agentConfigSnapshotPath,
+  captureAgentConfig,
+  resolveAgentConfigFiles,
+  restoreAgentConfig,
+  validateAgentConfig,
+} from "./agent-config.js";
 export type { AgentTarget, AgentTargetConfig } from "./compatibility.js";
 // Runtime exports — compatibility
 export {
@@ -64,6 +90,9 @@ export type {
 } from "./operations.js";
 // Runtime exports — operations (shared CLI/MCP orchestration)
 export {
+  agentConfigCaptureOperation,
+  agentConfigRestoreOperation,
+  agentConfigValidateOperation,
   instructionAuditOperation,
   pinOperation,
   pruneOperation,

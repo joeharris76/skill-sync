@@ -131,6 +131,64 @@ In v0, promotion is a documented manual workflow:
 
 Automated promotion is planned for v0.2+.
 
+### `skill-sync agent-config`
+
+Capture and validate the six supported Markdown instruction files, or restore a
+previously captured local snapshot.
+
+```bash
+skill-sync agent-config capture [--dry-run] [--json]
+skill-sync agent-config validate [--json]
+skill-sync agent-config restore [--dry-run] [--force] [--json]
+```
+
+The allowlist is deliberately exact:
+
+| Scope | Files |
+|-------|-------|
+| Global | `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md` |
+| Project root | `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` |
+
+The local snapshot lives at `.skill-sync/agent-config/`. Its `snapshot.json`
+metadata records the six stable IDs, scope, source path, snapshot payload path,
+presence state, byte size, and SHA-256 digest. Present files are copied byte for
+byte into the snapshot; missing files are recorded as missing and have no
+payload. A local `.gitignore` excludes the raw payloads while retaining the
+metadata and guard itself; existing custom guard text is retained and the
+protective rules are appended. Payloads are exact, unredacted instruction-file
+content, so operators must not capture credentials or other secrets. The
+snapshot is separate from `skill-sync.lock` and is not a remote or
+general-purpose backup store.
+
+Agent-config operations serialize through the transient
+`.skill-sync/agent-config.lock`; it is removed after completion and is not part
+of the snapshot format.
+
+Capture reads the live files and replaces the local snapshot only when it is
+run without `--dry-run`; dry-run reports the planned six-file capture without
+writing. Validate compares the live files with the snapshot and exits 0 only
+when all six states and hashes match. A missing snapshot is an error. Restore
+uses the snapshot payloads: it creates missing destinations, leaves unchanged
+files alone, and refuses to replace modified destinations unless `--force` is
+explicit. `--dry-run` reports the restore plan without writing. Files that were
+missing at capture are never deleted by restore, even with `--force`.
+
+Restore stages every payload before changing any destination. It uses a durable
+local journal, same-directory no-overwrite installation, and recovery copies;
+staged and installed payloads are hash-checked against the snapshot. An
+EXDEV-specific exclusive-copy fallback is available for unusual filesystems,
+but that fallback is not crash-atomic. An unexpected process interruption is
+rolled back by the next non-dry-run agent-config command. A live destination
+change is never silently overwritten: the operation either refuses it,
+preserves the concurrent file during rollback, or leaves the journal for
+manual conflict resolution. The journal provides recoverable failure behavior,
+not a filesystem-level multi-file transaction across power loss. A conflict or
+failed restore returns a non-zero exit code.
+
+This MVP does not capture settings, permissions, hooks, trusted-folder state,
+MCP configuration, nested instruction hierarchies, arbitrary rule files,
+remote state, cross-agent translations, or Markdown semantics.
+
 ## Output Principles
 
 CLI output:
