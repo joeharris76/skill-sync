@@ -112,6 +112,15 @@ describe("GitSource.resolve()", () => {
     }
   });
 
+  it("explains that abbreviated SHAs cannot be fetched", async () => {
+    const source = new GitSource("test", `file://${repoDir}`, firstRevision.slice(0, 12));
+    try {
+      await expect(source.resolve("code")).rejects.toThrow(/full 40-character SHA/);
+    } finally {
+      await source.dispose();
+    }
+  });
+
   it("resolves an older commit SHA", async () => {
     const source = new GitSource("test", `file://${repoDir}`, firstRevision);
     try {
