@@ -108,6 +108,9 @@ skills. The MVP snapshot is project-local at
 
 Operations use the transient `.skill-sync/agent-config.lock` for local
 serialization; it is separate from `skill-sync.lock` and the snapshot metadata.
+The lock is owner-token-bound and fail-closed. Operations do not automatically
+delete a pre-existing lock from a PID check because pathname-based stale-lock
+removal can race with a new owner.
 
 The model has an exact six-file allowlist:
 

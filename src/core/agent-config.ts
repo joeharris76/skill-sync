@@ -209,6 +209,7 @@ type AgentConfigFileHandle = Awaited<ReturnType<typeof fs.open>>;
 
 interface AgentConfigLock {
   handle: AgentConfigFileHandle;
+  ownerToken: string;
   path: string;
   parentPath: string;
   parentCreated: boolean;
@@ -349,66 +350,47 @@ async function acquireAgentConfigLock(projectRoot: string): Promise<AgentConfigL
   const parentCreated = !(await pathExists(parentPath));
   await fs.mkdir(parentPath, { recursive: true });
   let handle: AgentConfigFileHandle | undefined;
+  const ownerToken = randomUUID();
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      handle = await fs.open(lockPath, "wx", 0o600);
-      await handle.writeFile(
-        `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() })}\n`,
-        "utf8",
-      );
-      await handle.sync();
-      return { handle, path: lockPath, parentPath, parentCreated };
-    } catch (error) {
-      if (handle) {
-        await handle.close().catch(() => undefined);
-        handle = undefined;
-        await fs.rm(lockPath, { force: true }).catch(() => undefined);
-      }
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || attempt > 0) {
-        throw error;
-      }
-      if (!(await removeDeadAgentConfigLock(lockPath))) {
-        throw new Error(`Another agent-config operation is using ${resolve(projectRoot)}.`);
-      }
-    }
-  }
-
-  throw new Error(`Another agent-config operation is using ${resolve(projectRoot)}.`);
-}
-
-async function removeDeadAgentConfigLock(lockPath: string): Promise<boolean> {
-  let lockContent: string;
   try {
-    lockContent = await fs.readFile(lockPath, "utf8");
-  } catch {
-    return false;
-  }
-  let pid: unknown;
-  try {
-    pid = (JSON.parse(lockContent) as { pid?: unknown }).pid;
-  } catch {
-    return false;
-  }
-  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0 || isProcessAlive(pid)) {
-    return false;
-  }
-  await fs.rm(lockPath, { force: true });
-  return true;
-}
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
+    handle = await fs.open(lockPath, "wx", 0o600);
+    await handle.writeFile(
+      `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), ownerToken })}\n`,
+      "utf8",
+    );
+    await handle.sync();
+    return { handle, ownerToken, path: lockPath, parentPath, parentCreated };
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code !== "ESRCH";
+    if (handle) {
+      await handle.close().catch(() => undefined);
+      await fs.rm(lockPath, { force: true }).catch(() => undefined);
+    }
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(
+        `Another agent-config operation is using ${resolve(projectRoot)}; ` +
+          `the lock is fail-closed and must not be removed until its owner is confirmed stopped.`,
+      );
+    }
+    throw error;
+  }
+}
+
+async function removeOwnedAgentConfigLock(lock: AgentConfigLock): Promise<void> {
+  let ownerToken: unknown;
+  try {
+    const lockContent = await fs.readFile(lock.path, "utf8");
+    ownerToken = (JSON.parse(lockContent) as { ownerToken?: unknown }).ownerToken;
+  } catch {
+    return;
+  }
+  if (ownerToken === lock.ownerToken) {
+    await fs.rm(lock.path, { force: true });
   }
 }
 
 async function releaseAgentConfigLock(lock: AgentConfigLock): Promise<void> {
   await lock.handle.close();
-  await fs.rm(lock.path, { force: true });
+  await removeOwnedAgentConfigLock(lock);
   if (lock.parentCreated) {
     try {
       await fs.rmdir(lock.parentPath);

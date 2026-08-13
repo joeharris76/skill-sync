@@ -162,7 +162,10 @@ general-purpose backup store.
 
 Agent-config operations serialize through the transient
 `.skill-sync/agent-config.lock`; it is removed after completion and is not part
-of the snapshot format.
+of the snapshot format. Lock ownership is token-bound and fail-closed: commands
+never delete a pre-existing lock based only on a recorded PID. If a process
+terminates without releasing its lock, confirm that no operation is still
+running before moving the lock aside manually and retrying.
 
 Capture reads the live files and replaces the local snapshot only when it is
 run without `--dry-run`; dry-run reports the planned six-file capture without

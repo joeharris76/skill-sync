@@ -225,6 +225,18 @@ describe("agent-config snapshot model", () => {
     );
   });
 
+  it("fails closed without deleting a lock whose recorded process is gone", async () => {
+    const { projectRoot, homeDir } = await setupWorkspace();
+    await writeFixture(projectRoot, homeDir);
+    const lockPath = join(projectRoot, ".skill-sync", "agent-config.lock");
+    const staleLock = `${JSON.stringify({ pid: 2_147_483_647, startedAt: "2026-01-01T00:00:00Z" })}\n`;
+    await mkdir(dirname(lockPath), { recursive: true });
+    await writeFile(lockPath, staleLock);
+
+    await expect(captureAgentConfig({ projectRoot, homeDir })).rejects.toThrow("the lock is fail-closed");
+    expect(await readFile(lockPath, "utf8")).toBe(staleLock);
+  });
+
   it("recovers an interrupted restore journal before validating", async () => {
     const { projectRoot, homeDir } = await setupWorkspace();
     await writeFixture(projectRoot, homeDir, { "project.claude": "# Project\n" });
