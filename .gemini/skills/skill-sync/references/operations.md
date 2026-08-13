@@ -22,6 +22,9 @@
 - **Pin/unpin:** update config, then validate.
 - **Prune:** dry-run first; remove only known managed content.
 - **Settings:** use `settings generate` to show required agent settings.
+- **Agent config:** use `agent-config capture|validate|restore` for the exact
+  six-file local instruction snapshot. Validate before restore; require
+  `--force` to replace modified destinations.
 
 ## Promote
 
