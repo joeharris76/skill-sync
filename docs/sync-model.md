@@ -98,6 +98,51 @@ Expected lockfile contents:
 The exact format is undecided, but it should be stable, human-inspectable, and
 safe to commit.
 
+## Local agent-instruction snapshot
+
+Agent instruction content has a separate local snapshot model. It must not be
+added to `skill-sync.lock`, whose schema and reproducibility guarantees are for
+skills. The MVP snapshot is project-local at
+`.skill-sync/agent-config/snapshot.json`, with raw payloads beside it under
+`global/` and `project/`.
+
+Operations use the transient `.skill-sync/agent-config.lock` for local
+serialization; it is separate from `skill-sync.lock` and the snapshot metadata.
+
+The model has an exact six-file allowlist:
+
+- global: `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, and
+  `~/.gemini/GEMINI.md`;
+- project root: `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md`.
+
+Capture is explicit and read-only with respect to the live files. It records
+presence, byte size, exact payload, and SHA-256 for each present file; missing
+files are recorded as missing. The live files remain authoritative for capture
+and validation. The snapshot is authoritative only during an explicit restore.
+No content is translated between agents, and no settings, hooks, permissions,
+trusted-folder state, MCP data, nested files, arbitrary rules, or remote data
+are included.
+
+Validation reports unchanged, modified, missing, and newly-present drift for
+each allowlisted path. An unchanged missing file is clean because that state was
+captured intentionally. Restore does not delete paths that were absent in the
+snapshot. It restores missing payloads, skips unchanged files, and blocks
+modified destinations unless the operator passes `--force`.
+
+Capture and restore support `--dry-run`; JSON output is available with
+`--json`. The snapshot directory has a local `.gitignore` for raw payloads;
+payloads remain exact and unredacted, so credentials and other secrets must not
+be captured. Restore stages all payloads before applying any file, records a
+durable recovery journal, and installs each replacement with a same-directory
+no-overwrite operation. Staged and installed payloads are hash-checked against
+the snapshot. An EXDEV-specific exclusive-copy fallback handles unusual
+filesystems, but that fallback is not crash-atomic. A later non-dry-run command
+recovers an interrupted operation. Concurrent changes are preserved rather than
+silently overwritten; unresolvable recovery conflicts leave the journal for
+manual resolution. This is recoverable failure behavior rather than a
+filesystem-level multi-file transaction across power loss. The snapshot is not
+a general-purpose backup manager and is not synchronized outside the project.
+
 ## Planned Sync Operations
 
 ### Install

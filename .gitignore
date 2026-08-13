@@ -3,6 +3,9 @@ dist/
 coverage/
 .DS_Store
 tests/.tmp/
+.todo-db/
+.skill-sync/agent-config.lock
+.skill-sync/agent-config-capture.json
 *.tsbuildinfo
 .claude/settings.local.json
 /.antigravitycli

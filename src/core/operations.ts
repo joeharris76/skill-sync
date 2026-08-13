@@ -10,6 +10,12 @@ import { access, constants, readFile, realpath, writeFile } from "node:fs/promis
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { createSourcesFromConfigForSkill, isImplementedSourceType } from "../sources/factory.js";
+import type {
+  AgentConfigCaptureOptions,
+  AgentConfigOptions,
+  AgentConfigRestoreOptions,
+} from "./agent-config.js";
+import { captureAgentConfig, restoreAgentConfig, validateAgentConfig } from "./agent-config.js";
 import { generateConfig, writeProjectConfig } from "./config-generator.js";
 import { detectDrift, detectTargetReadiness } from "./drift.js";
 import { applyGitTracking } from "./gitignore.js";
@@ -530,6 +536,22 @@ export async function instructionAuditOperation(
   }
 
   return auditInstructions(projectRoot, configuredTargets);
+}
+
+// ---------------------------------------------------------------------------
+// Agent-config snapshot
+// ---------------------------------------------------------------------------
+
+export function agentConfigCaptureOperation(opts: AgentConfigCaptureOptions) {
+  return captureAgentConfig(opts);
+}
+
+export function agentConfigValidateOperation(opts: AgentConfigOptions) {
+  return validateAgentConfig(opts);
+}
+
+export function agentConfigRestoreOperation(opts: AgentConfigRestoreOptions) {
+  return restoreAgentConfig(opts);
 }
 
 // ---------------------------------------------------------------------------
