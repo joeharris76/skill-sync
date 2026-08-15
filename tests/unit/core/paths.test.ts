@@ -46,7 +46,8 @@ describe("resolvePath", () => {
   });
 
   it("returns an absolute target unchanged", () => {
-    expect(resolvePath("/some/project", "/abs/skills")).toBe("/abs/skills");
+    const absoluteTarget = resolve("/abs/skills");
+    expect(resolvePath("/some/project", absoluteTarget)).toBe(absoluteTarget);
   });
 });
 

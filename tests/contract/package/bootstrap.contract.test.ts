@@ -9,6 +9,7 @@ import { COMMANDS, VERSION } from "../../../src/cli/index.js";
 import { KNOWN_FLAGS } from "../../../src/cli/parse.js";
 
 const execFileAsync = promisify(execFile);
+const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const skillRoot = join(projectRoot, "skills", "skill-sync");
 
@@ -66,7 +67,7 @@ describe("packaged skill-sync operator contract", () => {
         (match) => match[1]!,
       );
       const { stdout } = await execFileAsync(
-        "npm",
+        npmExecutable,
         ["--silent", "pack", "--dry-run", "--json", "--ignore-scripts"],
         { cwd: projectRoot },
       );

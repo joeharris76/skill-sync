@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
-import { writeFile, mkdir, rm, readFile } from "node:fs/promises";
+import { writeFile, mkdir, rm as fsRm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
@@ -31,6 +31,10 @@ import { existsSync } from "node:fs";
 
 const tmpBase = join(tmpdir(), "skill-sync-operations-test-" + Date.now());
 const execFileAsync = promisify(execFile);
+
+async function removeTestTree(path: string): Promise<void> {
+  await fsRm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+}
 
 async function writeManifest(
   projectRoot: string,
@@ -105,7 +109,7 @@ afterEach(() => {
 });
 
 afterAll(async () => {
-  await rm(tmpBase, { recursive: true, force: true });
+  await removeTestTree(tmpBase);
 });
 
 // ---------------------------------------------------------------------------
@@ -337,7 +341,9 @@ describe("syncOperation — skipped skills", () => {
   it("refreshes lock provenance when identical bytes move to a new source", async () => {
     const content = "---\nname: code\ndescription: code skill\n---\n# Same bytes\n";
     const firstSource = join(tmpBase, "metadata-source-a-" + Date.now());
-    const secondSource = join(tmpBase, "metadata-source-b-" + Date.now());
+    const secondSourceName = "metadata-source-b-" + Date.now();
+    const secondSource = join(tmpBase, secondSourceName);
+    mockedOs.homeDir = tmpBase;
     await makeLocalSkillSource(firstSource, "code", content);
     await makeLocalSkillSource(secondSource, "code", content);
     const projectRoot = await makeConsumerProject("metadata-project-" + Date.now(), firstSource, ["code"]);
@@ -356,7 +362,7 @@ describe("syncOperation — skipped skills", () => {
     const lock = await readLockFile(projectRoot);
     expect(result.summary.skipped).toEqual([{ name: "code", reason: "lock-metadata-changed" }]);
     expect(lock?.skills.code?.source.name).toBe("canonical");
-    expect(lock?.skills.code?.source.path).toBe(`~${secondSource}/code`);
+    expect(lock?.skills.code?.source.path).toBe(`~/${secondSourceName}/code`);
   });
 
   it("reports skipped when disk already matches source but lock has stale hashes", async () => {
@@ -732,7 +738,9 @@ describe("syncOperation — registerProjectInSources", () => {
     await syncOperation({ projectRoot });
 
     const sourceManifest = await readManifest(sourceParent);
-    expect(sourceManifest.projects?.some((entry) => entry.endsWith("/packages/consumer"))).toBe(true);
+    expect(
+      sourceManifest.projects?.some((entry) => entry.endsWith(join("packages", "consumer"))),
+    ).toBe(true);
   });
 });
 

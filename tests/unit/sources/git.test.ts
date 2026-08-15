@@ -49,7 +49,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await rm(tmpBase, { recursive: true, force: true });
+  await rm(tmpBase, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
 });
 
 describe("GitSource.resolve()", () => {
@@ -82,7 +82,7 @@ describe("GitSource.resolve()", () => {
     const source = new GitSource("test", `file://${repoDir}`, "main", "skills");
     try {
       const result = await source.resolve("docs");
-      expect(result?.location).toMatch(/\/skills\/docs$/);
+      expect(result?.location.endsWith(join("skills", "docs"))).toBe(true);
       expect(await source.resolve("code")).toBeNull();
     } finally {
       await source.dispose();

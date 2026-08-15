@@ -39,7 +39,13 @@ export function resolvePath(base: string, p: string): string {
 export function toTildePath(absPath: string): string {
   const home = homedir();
   if (absPath === home) return "~";
-  if (absPath.startsWith(`${home}${sep}`)) return `~/${absPath.slice(home.length + 1)}`;
+  if (absPath.startsWith(`${home}${sep}`)) {
+    const relativeHomePath = absPath
+      .slice(home.length + 1)
+      .split(sep)
+      .join("/");
+    return `~/${relativeHomePath}`;
+  }
   return absPath;
 }
 
