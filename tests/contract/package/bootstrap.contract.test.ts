@@ -70,7 +70,10 @@ describe("packaged skill-sync operator contract", () => {
         ["--silent", "pack", "--dry-run", "--json", "--ignore-scripts"],
         { cwd: projectRoot },
       );
-      const [{ files }] = JSON.parse(stdout) as [{ files: Array<{ path: string }> }];
+      // npm can emit prepare-script output before its JSON on clean runners.
+      const jsonStart = stdout.lastIndexOf("\n[");
+      const json = jsonStart === -1 ? stdout : stdout.slice(jsonStart + 1);
+      const [{ files }] = JSON.parse(json) as [{ files: Array<{ path: string }> }];
       const packed = new Set(files.map((file) => file.path));
 
       expect(packed).toContain("skills/skill-sync/SKILL.md");
