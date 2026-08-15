@@ -1,5 +1,5 @@
 import { access, constants } from "node:fs/promises";
-import { isAbsolute, join, posix, resolve } from "node:path";
+import { isAbsolute, join, posix, resolve, sep } from "node:path";
 import { expandTilde } from "../core/paths.js";
 import type { FetchedSkill, ResolvedSkill, SkillSource, SourceProvenance } from "../core/types.js";
 
@@ -14,9 +14,7 @@ export class LocalSource implements SkillSource {
     this.name = name;
     const expanded = expandTilde(path);
     this.basePath = resolve(projectRoot, expanded);
-    // Relative provenance paths are recorded with POSIX separators so the
-    // lock file stays byte-identical across operating systems.
-    this.configuredPath = isAbsolute(expanded) ? this.basePath : path.replaceAll("\\", "/");
+    this.configuredPath = isAbsolute(expanded) ? this.basePath : path;
   }
 
   async resolve(skillName: string): Promise<ResolvedSkill | null> {
@@ -46,12 +44,15 @@ export class LocalSource implements SkillSource {
   }
 
   provenance(resolved: ResolvedSkill): SourceProvenance {
+    // Normalize only the host platform's separator. A backslash is a valid
+    // filename character on POSIX and must not be rewritten there.
+    const portableConfiguredPath = this.configuredPath.split(sep).join(posix.sep);
     return {
       type: this.type,
       name: this.name,
       path: isAbsolute(this.configuredPath)
         ? resolved.location
-        : posix.join(this.configuredPath, resolved.name),
+        : posix.join(portableConfiguredPath, resolved.name),
       fetchedAt: new Date().toISOString(),
     };
   }

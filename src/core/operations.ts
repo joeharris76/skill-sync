@@ -637,38 +637,6 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
         });
       }
     }
-
-    // Pinned git sources: compare the pinned revision against upstream HEAD.
-    for (const source of manifest.sources) {
-      if (source.type !== "git" || !source.url || !/^[0-9a-f]{40}$/i.test(source.ref ?? "")) {
-        continue;
-      }
-      try {
-        const { stdout } = await execFileAsync("git", ["ls-remote", source.url, "HEAD"], {
-          timeout: 10_000,
-        });
-        const upstreamHead = stdout.split(/\s+/)[0] ?? "";
-        if (upstreamHead.toLowerCase() === source.ref!.toLowerCase()) {
-          checks.push({
-            check: `pin:${source.name}`,
-            status: "ok",
-            message: "Pinned revision matches upstream HEAD",
-          });
-        } else {
-          checks.push({
-            check: `pin:${source.name}`,
-            status: "warn",
-            message: `Pinned revision ${source.ref!.slice(0, 12)} differs from upstream HEAD ${upstreamHead.slice(0, 12)}; bump the ref to pick up updates`,
-          });
-        }
-      } catch {
-        checks.push({
-          check: `pin:${source.name}`,
-          status: "warn",
-          message: `Could not reach ${source.url} to compare the pinned revision`,
-        });
-      }
-    }
   }
 
   // Check: installed skill-sync operator copies declare CLI compatibility.

@@ -1,6 +1,6 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createSourcesFromConfig,
@@ -76,8 +76,7 @@ describe("createSourcesFromConfigForSkill", () => {
   });
 
   it("records relative provenance paths with POSIX separators", () => {
-    // Windows-style configured paths normalize to forward slashes in the lock.
-    const source = new LocalSource("product", "nested\\skills", "/tmp");
+    const source = new LocalSource("product", join("nested", "skills"), "/tmp");
     const provenance = source.provenance({
       name: "demo",
       sourceName: "product",
@@ -85,6 +84,20 @@ describe("createSourcesFromConfigForSkill", () => {
       location: "/tmp/nested/skills/demo",
     });
     expect(provenance.path).toBe("nested/skills/demo");
+  });
+
+  it("preserves backslashes that are not platform separators", () => {
+    const source = new LocalSource("product", "nested\\skills", "/tmp");
+    const provenance = source.provenance({
+      name: "demo",
+      sourceName: "product",
+      sourceType: "local",
+      location: "/tmp/nested/skills/demo",
+    });
+
+    expect(provenance.path).toBe(
+      sep === "\\" ? "nested/skills/demo" : "nested\\skills/demo",
+    );
   });
 
   it("filters to override source when sourceName is set", () => {

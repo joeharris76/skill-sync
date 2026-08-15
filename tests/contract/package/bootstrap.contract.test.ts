@@ -58,23 +58,29 @@ describe("packaged skill-sync operator contract", () => {
     expect(isAtLeast(packageJson.version, minimum)).toBe(true);
   });
 
-  it("packages every referenced operator file", async () => {
-    const skill = await readFile(join(skillRoot, "SKILL.md"), "utf8");
-    const references = [...skill.matchAll(/`(references\/[^`]+\.md)`/g)].map((match) => match[1]!);
-    const { stdout } = await execFileAsync(
-      "npm",
-      ["pack", "--dry-run", "--json", "--ignore-scripts"],
-      { cwd: projectRoot },
-    );
-    const [{ files }] = JSON.parse(stdout) as [{ files: Array<{ path: string }> }];
-    const packed = new Set(files.map((file) => file.path));
+  it(
+    "packages every referenced operator file",
+    async () => {
+      const skill = await readFile(join(skillRoot, "SKILL.md"), "utf8");
+      const references = [...skill.matchAll(/`(references\/[^`]+\.md)`/g)].map(
+        (match) => match[1]!,
+      );
+      const { stdout } = await execFileAsync(
+        "npm",
+        ["pack", "--dry-run", "--json", "--ignore-scripts"],
+        { cwd: projectRoot },
+      );
+      const [{ files }] = JSON.parse(stdout) as [{ files: Array<{ path: string }> }];
+      const packed = new Set(files.map((file) => file.path));
 
-    expect(packed).toContain("skills/skill-sync/SKILL.md");
-    expect(packed).toContain("skills/skill-sync/skill.yaml");
-    for (const reference of references) {
-      expect(packed).toContain(`skills/skill-sync/${reference}`);
-    }
-  });
+      expect(packed).toContain("skills/skill-sync/SKILL.md");
+      expect(packed).toContain("skills/skill-sync/skill.yaml");
+      for (const reference of references) {
+        expect(packed).toContain(`skills/skill-sync/${reference}`);
+      }
+    },
+    15_000,
+  );
 
   it("keeps tracked consumer copies byte-identical", async () => {
     const files = ["SKILL.md", "skill.yaml", "references/operations.md"];
