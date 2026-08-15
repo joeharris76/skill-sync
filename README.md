@@ -38,7 +38,7 @@ your agent's skill directory:
 ```bash
 npm install skill-sync
 mkdir -p .claude/skills/skill-sync
-cp node_modules/skill-sync/skills/skill-sync/SKILL.md .claude/skills/skill-sync/
+cp -R node_modules/skill-sync/skills/skill-sync/. .claude/skills/skill-sync/
 ```
 
 Then ask your agent: *"Set up skill-sync for this project."* It will scan your
