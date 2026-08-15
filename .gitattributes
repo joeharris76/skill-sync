@@ -1,3 +1,5 @@
+* text=auto eol=lf
+
 # >>> skill-sync managed (do not edit) >>>
 /.claude/skills/** -text
 /.codex/skills/** -text

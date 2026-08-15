@@ -67,7 +67,7 @@ describe("packaged skill-sync operator contract", () => {
       );
       const { stdout } = await execFileAsync(
         "npm",
-        ["pack", "--dry-run", "--json", "--ignore-scripts"],
+        ["pack", "--dry-run", "--json", "--ignore-scripts", "--silent"],
         { cwd: projectRoot },
       );
       const [{ files }] = JSON.parse(stdout) as [{ files: Array<{ path: string }> }];
