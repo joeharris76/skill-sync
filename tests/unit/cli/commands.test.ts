@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { runCli } from "../../../src/cli/index.js";
-import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm as fsRm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sha256 } from "../../../src/core/hasher.js";
+
+async function rm(path: string, options: { recursive: true; force: true }): Promise<void> {
+  await fsRm(path, { ...options, maxRetries: 5, retryDelay: 50 });
+}
 
 describe("runCli", () => {
   it("returns help text for --help", async () => {
@@ -1427,6 +1431,7 @@ describe("skill-sync settings", () => {
 describe("skill-sync sync/status — tilde target resolution", () => {
   it("expands a ~-rooted target so status reports clean (not missing) after sync", async () => {
     const originalHome = process.env.HOME;
+    const originalUserProfile = process.env.USERPROFILE;
     const base = await mkdtemp(join(tmpdir(), "skill-sync-tilde-cli-"));
     const home = join(base, "home");
     const sourceRoot = join(base, "src");
@@ -1454,8 +1459,9 @@ describe("skill-sync sync/status — tilde target resolution", () => {
     );
 
     try {
-      // os.homedir() honors $HOME on POSIX; point it at a temp dir.
-      process.env.HOME = home;
+      // os.homedir() uses HOME on POSIX and USERPROFILE on Windows.
+      if (process.platform === "win32") process.env.USERPROFILE = home;
+      else process.env.HOME = home;
 
       const sync = await runCli(["sync", "--project", projectRoot]);
       expect(sync.exitCode).toBe(0);
@@ -1478,6 +1484,8 @@ describe("skill-sync sync/status — tilde target resolution", () => {
     } finally {
       if (originalHome === undefined) delete process.env.HOME;
       else process.env.HOME = originalHome;
+      if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+      else process.env.USERPROFILE = originalUserProfile;
       await rm(base, { recursive: true, force: true });
     }
   });
