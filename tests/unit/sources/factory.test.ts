@@ -1,6 +1,6 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createSourcesFromConfig,
@@ -18,7 +18,10 @@ describe("isImplementedSourceType", () => {
 
 describe("createSourcesFromConfig", () => {
   it("creates a LocalSource for local type", () => {
-    const sources = createSourcesFromConfig([{ name: "test", type: "local", path: "/tmp/skills" }]);
+    const sources = createSourcesFromConfig(
+      [{ name: "test", type: "local", path: "/tmp/skills" }],
+      "/tmp",
+    );
     expect(sources).toHaveLength(1);
     expect(sources[0]).toBeInstanceOf(LocalSource);
     expect(sources[0]!.name).toBe("test");
@@ -33,7 +36,7 @@ describe("createSourcesFromConfig", () => {
         ref: "main",
         subdir: "skills",
       },
-    ]);
+    ], "/tmp");
     expect(sources).toHaveLength(1);
     expect(sources[0]).toBeInstanceOf(GitSource);
     expect(sources[0]!.name).toBe("repo");
@@ -48,7 +51,7 @@ describe("createSourcesFromConfig", () => {
 
   it("throws for registry type", () => {
     expect(() =>
-      createSourcesFromConfig([{ name: "npm", type: "registry", registry: "npm" }]),
+      createSourcesFromConfig([{ name: "npm", type: "registry", registry: "npm" }], "/tmp"),
     ).toThrow(/registry sources are not implemented/);
   });
 });
@@ -72,12 +75,37 @@ describe("createSourcesFromConfigForSkill", () => {
     await rm(projectRoot, { recursive: true, force: true });
   });
 
+  it("records relative provenance paths with POSIX separators", () => {
+    const source = new LocalSource("product", join("nested", "skills"), "/tmp");
+    const provenance = source.provenance({
+      name: "demo",
+      sourceName: "product",
+      sourceType: "local",
+      location: "/tmp/nested/skills/demo",
+    });
+    expect(provenance.path).toBe("nested/skills/demo");
+  });
+
+  it("preserves backslashes that are not platform separators", () => {
+    const source = new LocalSource("product", "nested\\skills", "/tmp");
+    const provenance = source.provenance({
+      name: "demo",
+      sourceName: "product",
+      sourceType: "local",
+      location: "/tmp/nested/skills/demo",
+    });
+
+    expect(provenance.path).toBe(
+      sep === "\\" ? "nested/skills/demo" : "nested\\skills/demo",
+    );
+  });
+
   it("filters to override source when sourceName is set", () => {
     const configs = [
       { name: "personal", type: "local" as const, path: "/personal" },
       { name: "team", type: "local" as const, path: "/team" },
     ];
-    const sources = createSourcesFromConfigForSkill(configs, { sourceName: "team" });
+    const sources = createSourcesFromConfigForSkill(configs, { sourceName: "team" }, "/tmp");
     expect(sources).toHaveLength(1);
     expect(sources[0]!.name).toBe("team");
   });
@@ -87,6 +115,7 @@ describe("createSourcesFromConfigForSkill", () => {
       createSourcesFromConfigForSkill(
         [{ name: "personal", type: "local" as const, path: "/personal" }],
         { sourceName: "nonexistent" },
+        "/tmp",
       ),
     ).toThrow(/unknown source/);
   });
@@ -95,6 +124,7 @@ describe("createSourcesFromConfigForSkill", () => {
     const sources = createSourcesFromConfigForSkill(
       [{ name: "repo", type: "git" as const, url: "https://example.com/skills.git", ref: "main" }],
       { sourceName: "repo", revision: "abc123" },
+      "/tmp",
     );
     expect(sources[0]).toBeInstanceOf(GitSource);
     // Verify revision is used as ref by checking provenance returns it as the ref

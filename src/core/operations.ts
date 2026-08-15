@@ -639,6 +639,38 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
     }
   }
 
+  // Check: installed skill-sync operator copies declare CLI compatibility.
+  // Copies without the declaration predate product ownership and should be
+  // re-synced from the skill-sync package source.
+  if (manifest?.skills.includes("skill-sync")) {
+    for (const [target, cfg] of Object.entries(manifest.targets)) {
+      const operatorDir = resolvePath(projectRoot, join(cfg.dir, "skill-sync"));
+      let pkg: Awaited<ReturnType<typeof loadSkillPackage>>;
+      try {
+        pkg = await loadSkillPackage(operatorDir);
+      } catch {
+        continue; // Not installed; drift checks already cover missing skills.
+      }
+      const declaresCli = Boolean(
+        pkg.meta?.compatibility && "skill-sync" in pkg.meta.compatibility,
+      );
+      checks.push(
+        declaresCli
+          ? {
+              check: `operator:${target}`,
+              status: "ok",
+              message: "Installed skill-sync operator declares CLI compatibility",
+            }
+          : {
+              check: `operator:${target}`,
+              status: "warn",
+              message:
+                "Installed skill-sync operator lacks a compatibility.skill-sync declaration (stale pre-product copy); re-sync it from the skill-sync package source",
+            },
+      );
+    }
+  }
+
   // Check 4: Drift detection
   if (manifest && lockFile) {
     for (const [target, cfg] of Object.entries(manifest.targets)) {

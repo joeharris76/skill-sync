@@ -841,6 +841,59 @@ describe("doctorOperation", () => {
     expect(mirrorChecks.some((item) => item.message.includes("AGENTS.md"))).toBe(true);
     expect(mirrorChecks.some((item) => item.message.includes("AGENTS.override.md"))).toBe(true);
   });
+
+  it("warns when the installed skill-sync operator lacks a CLI compatibility declaration", async () => {
+    const projectRoot = await setupProject("doctor-operator-stale-" + Date.now());
+    const operatorDir = join(projectRoot, ".claude", "skills", "skill-sync");
+    await mkdir(operatorDir, { recursive: true });
+    await writeFile(
+      join(operatorDir, "SKILL.md"),
+      "---\nname: skill-sync\ndescription: operator\n---\n# skill-sync",
+    );
+    await writeFile(join(operatorDir, "skill.yaml"), "tags: []\ndepends: []\ntargets: {}\n");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["skill-sync"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const check = result.checks.find((c) => c.check === "operator:claude");
+    expect(check?.status).toBe("warn");
+    expect(check?.message).toContain("compatibility.skill-sync");
+  });
+
+  it("reports ok when the installed skill-sync operator declares CLI compatibility", async () => {
+    const projectRoot = await setupProject("doctor-operator-ok-" + Date.now());
+    const operatorDir = join(projectRoot, ".claude", "skills", "skill-sync");
+    await mkdir(operatorDir, { recursive: true });
+    await writeFile(
+      join(operatorDir, "SKILL.md"),
+      "---\nname: skill-sync\ndescription: operator\n---\n# skill-sync",
+    );
+    await writeFile(
+      join(operatorDir, "skill.yaml"),
+      ["tags: []", "depends: []", "targets: {}", "compatibility:", "  skill-sync:", "    min_version: 0.1.0"].join("\n"),
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["skill-sync"],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    expect(result.checks.find((c) => c.check === "operator:claude")?.status).toBe("ok");
+  });
 });
 
 // ---------------------------------------------------------------------------

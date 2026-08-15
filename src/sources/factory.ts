@@ -14,15 +14,15 @@ export function isImplementedSourceType(type: SourceConfig["type"]): boolean {
  */
 export function createSourcesFromConfig(
   configs: SourceConfig[],
-  projectRoot = process.cwd(),
+  projectRoot: string,
 ): SkillSource[] {
   return createSourcesFromConfigForSkill(configs, undefined, projectRoot);
 }
 
 export function createSourcesFromConfigForSkill(
   configs: SourceConfig[],
-  override?: SkillOverride,
-  projectRoot = process.cwd(),
+  override: SkillOverride | undefined,
+  projectRoot: string,
 ): SkillSource[] {
   const selectedConfigs = override?.sourceName
     ? configs.filter((config) => config.name === override.sourceName)

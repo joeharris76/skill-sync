@@ -1,5 +1,5 @@
 import { access, constants } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, posix, resolve, sep } from "node:path";
 import { expandTilde } from "../core/paths.js";
 import type { FetchedSkill, ResolvedSkill, SkillSource, SourceProvenance } from "../core/types.js";
 
@@ -10,7 +10,7 @@ export class LocalSource implements SkillSource {
   private readonly basePath: string;
   private readonly configuredPath: string;
 
-  constructor(name: string, path: string, projectRoot = process.cwd()) {
+  constructor(name: string, path: string, projectRoot: string) {
     this.name = name;
     const expanded = expandTilde(path);
     this.basePath = resolve(projectRoot, expanded);
@@ -44,12 +44,15 @@ export class LocalSource implements SkillSource {
   }
 
   provenance(resolved: ResolvedSkill): SourceProvenance {
+    // Normalize only the host platform's separator. A backslash is a valid
+    // filename character on POSIX and must not be rewritten there.
+    const portableConfiguredPath = this.configuredPath.split(sep).join(posix.sep);
     return {
       type: this.type,
       name: this.name,
       path: isAbsolute(this.configuredPath)
         ? resolved.location
-        : join(this.configuredPath, resolved.name),
+        : posix.join(portableConfiguredPath, resolved.name),
       fetchedAt: new Date().toISOString(),
     };
   }

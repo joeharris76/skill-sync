@@ -77,6 +77,19 @@ export class GitSource implements SkillSource {
     }
   }
 
+  private describeFetchFailure(err: unknown): string {
+    const detail = err instanceof Error ? err.message.trim() : String(err);
+    let message = `source "${this.name}": failed to fetch ref "${this.ref}" from ${this.url}.`;
+    if (/^[0-9a-f]{4,39}$/i.test(this.ref)) {
+      message +=
+        " Abbreviated commit SHAs cannot be fetched directly; use the full 40-character SHA, a branch, or a tag.";
+    } else if (/^[0-9a-f]{40}$/i.test(this.ref)) {
+      message +=
+        " Fetching by commit SHA requires server support (uploadpack.allowReachableSHA1InWant); use a branch or tag if the server does not allow it.";
+    }
+    return `${message} ${detail}`;
+  }
+
   private async ensureCloned(): Promise<void> {
     if (this.clonePath) return;
 
@@ -84,7 +97,11 @@ export class GitSource implements SkillSource {
     try {
       await exec("git", ["init", "--quiet", tmpDir]);
       await exec("git", ["remote", "add", "origin", this.url], { cwd: tmpDir });
-      await exec("git", ["fetch", "--depth", "1", "origin", this.ref], { cwd: tmpDir });
+      try {
+        await exec("git", ["fetch", "--depth", "1", "origin", this.ref], { cwd: tmpDir });
+      } catch (err) {
+        throw new Error(this.describeFetchFailure(err), { cause: err });
+      }
       await exec("git", ["checkout", "--quiet", "--detach", "FETCH_HEAD"], { cwd: tmpDir });
 
       // Resolve the HEAD revision
