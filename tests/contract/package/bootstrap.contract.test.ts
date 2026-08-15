@@ -9,9 +9,14 @@ import { COMMANDS, VERSION } from "../../../src/cli/index.js";
 import { KNOWN_FLAGS } from "../../../src/cli/parse.js";
 
 const execFileAsync = promisify(execFile);
-const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const skillRoot = join(projectRoot, "skills", "skill-sync");
+
+async function runNpm(args: string[]): Promise<string> {
+  const npmCli = process.env.npm_execpath;
+  if (!npmCli) throw new Error("npm_execpath is required for the package contract test");
+  return (await execFileAsync(process.execPath, [npmCli, ...args], { cwd: projectRoot })).stdout;
+}
 
 function versionTuple(version: string): number[] {
   return version.split(".").map((part) => Number.parseInt(part, 10));
@@ -66,11 +71,7 @@ describe("packaged skill-sync operator contract", () => {
       const references = [...skill.matchAll(/`(references\/[^`]+\.md)`/g)].map(
         (match) => match[1]!,
       );
-      const { stdout } = await execFileAsync(
-        npmExecutable,
-        ["--silent", "pack", "--dry-run", "--json", "--ignore-scripts"],
-        { cwd: projectRoot },
-      );
+      const stdout = await runNpm(["--silent", "pack", "--dry-run", "--json", "--ignore-scripts"]);
       // npm can emit prepare-script output before its JSON on clean runners.
       const jsonStart = stdout.lastIndexOf("\n[");
       const json = jsonStart === -1 ? stdout : stdout.slice(jsonStart + 1);
