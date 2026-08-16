@@ -1,30 +1,46 @@
 ---
 name: todo
-description: Use when the user asks to "ideate on an idea", "refine an idea", "brainstorm", "write a spec", "create a specification", "create a TODO", "show TODO items", "manage TODOs", "prioritize TODOs", "top N most important todos", "rank the backlog", "what should we work on", "implement a TODO", "implement a batch of TODOs", "complete a TODO", "cleanup TODOs", "review TODO quality", "claim a TODO", "what's ready" / "ready queue", "defer this work", "promote a deferral", "dismiss a deferral", "block"/"unblock a TODO", "create TODOs from a spec", or "todo stats". Idea to spec and the database-backed tracker; all tracker state lives in the shared DB and flows through the `todo` CLI (except skill-only analysis such as prioritize).
-version: 0.8.0
+description: Use when the user asks to "ideate on an idea", "refine an idea", "brainstorm", "write a spec", "create a specification", "create a TODO", "show TODO items", "manage TODOs", "prioritize TODOs", "top N most important todos", "rank the backlog", "what should we work on", "implement a TODO", "implement a batch of TODOs", "complete a TODO", "cleanup TODOs", "review TODO quality", "claim a TODO", "what's ready" / "ready queue", "defer this work", "promote a deferral", "dismiss a deferral", "block"/"unblock a TODO", "create TODOs from a spec", "create a batch handoff", "close out a reviewed batch", or "todo stats". Covers the lifecycle from idea to specification, implementation, and completion.
+version: 0.9.0
 tools: Bash, Read, Edit, Write, Task
 ---
 
 # Todo — Idea to Done
 
-## Purpose
+## Critical rules
 
-Use this skill to turn a rough idea into a clear spec and to manage TODO items in the shared database. The skill covers the full lifecycle: idea, spec, create, implement, and complete. The database is the only record. Do not write tracker state to files.
+After bootstrap, use `_project/scripts/todo` for every tracker command.
 
-## How to run commands
+- Run `_project/scripts/todo --help` and confirm the chosen subcommand.
+- Treat that subcommand's `--help` output as its full contract.
+- If the subcommand is missing, report the gap and stop.
+- Put global flags before it: `todo --db <path> --actor <name> <command>`.
 
-Use `_project/scripts/todo`. Check that the wrapper supports the command you need:
+Skill-only actions: `prioritize`, `batch`, `handoff`, and `closeout`; follow their guides, not the CLI.
 
-* Run `_project/scripts/todo --help` and confirm the subcommand appears.
-* If the subcommand is missing, report the gap and stop.
+If one request combines review or validation with close-out, perform the
+read-only review and stop at findings under `SHARED/review-protocol/SKILL.md`.
+A later user message may authorize `closeout`.
 
-`prioritize` has no CLI command. It is a skill-only analysis. Follow `references/prioritize.md` and use only the inspect commands it lists.
+### Failures and claims
 
-Put global flags before the subcommand: `todo --db <path> --actor <name> <command>`.
+- Exit code 2 means a general failure.
+- Exit code 4 means the hosted database rejected the credentials. Stop writes,
+  run `todo doctor`, and show the error. The wrapper may first try one token
+  refresh.
+- Only the holder can run `todo release`. It exits 2 for another actor's claim;
+  checking `claimed_by` can still race. `complete` and `drop` may clear any
+  claim. `--actor` prevents mistakes, not impersonation.
 
-Exit code 2 means a general failure. Exit code 4 means the hosted database rejected your credentials. When you get exit code 4, stop all writes, run `todo doctor`, and show the error. Some wrappers try once to refresh the token before they return exit code 4.
+### Lifecycle rules
 
-The `--help` output for the command you chose is the full contract.
+- Read the selected action guide before acting.
+- When the user approves a specification and asks to track it, create its item
+  with `todo create` or the supported create-from-spec command.
+- Store tracker state only in the database; do not create tracker files by hand.
+- Commit through `SHARED/change-framework/SKILL.md`.
+- `TODO_DB_URL` may select the hosted database. The CLI never prints its
+  connection string.
 
 ## Actions
 
@@ -37,15 +53,12 @@ The `--help` output for the command you chose is the full contract.
 | `create`, `update`, `list`, `show`, `stats`, `deps`, `export`, `block`, `unblock`, `release`, `sweep-stale`, `drop` | You query or change items | `references/queries.md` |
 | `prioritize` — skill-only, no CLI command | You rank open items and group by topic | `references/prioritize.md` |
 | `lint` | You review an item | `references/review.md` |
-| `finding candidates`, `finding triage`, `finding sync`, `finding promote` | You triage findings | `references/implement.md` |
-| `batch` — a set of related TODOs | You implement several TODOs in order | `references/batch.md` |
+| `finding candidates`, `finding triage`, `finding import`, `finding sync`, `finding promote` | You triage findings | `references/implement.md` |
+| `batch` — skill-only, no CLI command | You implement several TODOs in order | `references/batch.md` |
+| `handoff` — skill-only, no CLI command | You create a self-contained batch handoff | `references/handoff.md` |
+| `closeout` — skill-only, no CLI command | You remediate a separately reviewed batch and close its items | `references/closeout.md` |
 | `help` | You need the action list | This table |
 
-`todo ready` and `todo stats` may print a one-line warning on stderr when there are untriaged findings (open findings or unsynced drafts). The warning does not affect stdout. When you see it, run `todo finding candidates` to triage. The warning is silent when there are no findings.
-
-## Rules
-
-* Read the guide in the Guide column before you act.
-* When the spec is agreed, create the TODO with `todo create` (or create from spec). Do not write TODO state to files.
-* Follow the guide you selected. Commit only through `SHARED/change-framework/SKILL.md`.
-* Never write tracker state to files by hand. `TODO_DB_URL` can set the hosted database. The CLI never prints its connection string.
+`todo ready` and `todo stats` may warn on stderr about open findings or unsynced
+drafts without changing stdout. Run `todo finding candidates` when warned; no
+warning appears when there are no findings.

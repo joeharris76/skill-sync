@@ -8,6 +8,11 @@ sources:
     url: https://github.com/joeharris76/skill-sync-skills.git
     ref: c49764b4d3d4043f016c39011febc8dd487111a6
     subdir: skills
+  - name: todo-context-efficiency
+    type: git
+    url: https://github.com/joeharris76/skill-sync-skills.git
+    ref: 740eeab3a585af162523c5b5e653fea18fae19f1
+    subdir: skills
 skills:
   - blog
   - code
@@ -33,5 +38,7 @@ install_mode: mirror
 overrides:
   skill-sync:
     source_name: product
+  todo:
+    source_name: todo-context-efficiency
 projects:
   - ~/Developer/letterops-mcp
