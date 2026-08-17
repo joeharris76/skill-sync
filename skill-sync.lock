@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lockedAt": "2026-08-16T22:50:44.127Z",
+  "lockedAt": "2026-08-17T00:19:03.333Z",
   "skills": {
     "blog": {
       "source": {
@@ -153,13 +153,13 @@
         "type": "local",
         "name": "product",
         "path": "skills/skill-sync",
-        "fetchedAt": "2026-08-13T22:55:43.789Z"
+        "fetchedAt": "2026-08-17T00:18:59.135Z"
       },
       "installMode": "mirror",
       "files": {
         "references/operations.md": {
-          "sha256": "7a1cc1063f4927c9f281395d46eaf5ed8629946c436ab3ce24385de29d899249",
-          "size": 2106
+          "sha256": "4835e79ceba1b314be879705cb3b42812fd341486ae0bd1cb2a215b0227b5860",
+          "size": 2776
         },
         "SKILL.md": {
           "sha256": "68f73b8880bcf6534e97d2fa1f6b4fb5a6675eb17e8dff7929bd46445717906b",

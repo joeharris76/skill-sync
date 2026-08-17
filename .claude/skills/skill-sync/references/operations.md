@@ -37,6 +37,19 @@
 5. Commit, push, or open a PR only when authorized. Publish the source before
    updating downstream pins and mirrors.
 
+## Consumer lock, attributes, and pins
+
+- A git source is cloned `--depth 1` of the default branch. A pin that exists
+  only on a feature branch fails as a missing ref. Land the source change on
+  that default branch before advancing a consumer pin.
+- Sync rewrites `skill-sync.lock` every time. Revert timestamp-only
+  `lockedAt`/`fetchedAt` churn; keep source refs, revisions, and file digests
+  when they change. Unconditional `git checkout skill-sync.lock` discards a
+  real pin or digest update.
+- Sync may move its managed `.gitattributes` block to end-of-file. Sequence
+  that rewrite with any other `.gitattributes` edit rather than landing both
+  in parallel.
+
 ## Deployment and branch tests
 
 - Serve global loaders from a generated store built from merged, pinned source
