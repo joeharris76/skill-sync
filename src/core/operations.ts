@@ -17,8 +17,9 @@ import type {
 } from "./agent-config.js";
 import { captureAgentConfig, restoreAgentConfig, validateAgentConfig } from "./agent-config.js";
 import { generateConfig, writeProjectConfig } from "./config-generator.js";
-import { detectDrift, detectTargetReadiness } from "./drift.js";
+import { detectDrift, detectTargetReadiness, listInstalledSkillNames } from "./drift.js";
 import { applyGitTracking } from "./gitignore.js";
+import { hashSkillDirectory } from "./hasher.js";
 import { auditInstructions } from "./instruction-audit.js";
 import { isInstructionAgent } from "./instruction-targets.js";
 import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
@@ -43,6 +44,7 @@ import type {
   LockFile,
   Manifest,
   ResolvedSkill,
+  SkillFile,
   SkillSource,
   SourceProvenance,
   SyncPlan,
@@ -85,6 +87,28 @@ export interface SyncResult {
  */
 function normalizeProvenancePaths(source: SourceProvenance): SourceProvenance {
   return source.path ? { ...source, path: toTildePath(source.path) } : source;
+}
+
+function assertFileDigestsMatch(
+  skillName: string,
+  expectedFiles: SkillFile[],
+  actualFiles: SkillFile[],
+  targetRoot: string,
+): void {
+  if (expectedFiles.length !== actualFiles.length) {
+    throw new Error(
+      `Materialized mirror integrity error for skill "${skillName}" in "${targetRoot}": file count mismatch (expected ${expectedFiles.length}, got ${actualFiles.length})`,
+    );
+  }
+  const actualMap = new Map(actualFiles.map((f) => [f.relativePath, f.sha256]));
+  for (const exp of expectedFiles) {
+    const actualSha = actualMap.get(exp.relativePath);
+    if (actualSha !== exp.sha256) {
+      throw new Error(
+        `Materialized mirror integrity error for skill "${skillName}" in "${targetRoot}": file "${exp.relativePath}" hash mismatch (expected ${exp.sha256}, got ${actualSha ?? "missing"})`,
+      );
+    }
+  }
 }
 
 export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
@@ -201,7 +225,6 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     for (const install of plan.install) {
       const sourcePkg = prepared.find((p) => p.name === install.name)!;
       const sourceDir = resolved.find((r) => r.name === install.name)!.location;
-      let lockFiles = sourcePkg.files;
       for (const { targetRoot } of driftReports) {
         const result = await materialize({
           skillName: install.name,
@@ -210,21 +233,22 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
           mode: install.installMode,
           sourceFiles: sourcePkg.files,
         });
-        lockFiles = result.files;
+        if (install.installMode === "mirror") {
+          assertFileDigestsMatch(install.name, sourcePkg.files, result.files, targetRoot);
+        }
       }
       lockSkill(
         updatedLock,
         install.name,
         normalizeProvenancePaths(install.source),
         install.installMode,
-        lockFiles,
+        sourcePkg.files,
       );
     }
 
     for (const update of plan.update) {
       const sourceDir = resolved.find((r) => r.name === update.name)!.location;
       const sourcePkg = prepared.find((p) => p.name === update.name)!;
-      let lockFiles = sourcePkg.files;
       for (const { targetRoot } of driftReports) {
         const result = await materialize({
           skillName: update.name,
@@ -233,14 +257,16 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
           mode: update.installMode,
           sourceFiles: sourcePkg.files,
         });
-        lockFiles = result.files;
+        if (update.installMode === "mirror") {
+          assertFileDigestsMatch(update.name, sourcePkg.files, result.files, targetRoot);
+        }
       }
       lockSkill(
         updatedLock,
         update.name,
         normalizeProvenancePaths(update.source),
         update.installMode,
-        lockFiles,
+        sourcePkg.files,
       );
     }
 
@@ -249,7 +275,6 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
         const sourceDir = resolved.find((r) => r.name === conflict.name)!.location;
         const sourcePkg = prepared.find((p) => p.name === conflict.name)!;
         const installMode = manifest.overrides[conflict.name]?.installMode ?? manifest.installMode;
-        let lockFiles = sourcePkg.files;
         for (const { targetRoot } of driftReports) {
           const result = await materialize({
             skillName: conflict.name,
@@ -258,14 +283,16 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
             mode: installMode,
             sourceFiles: sourcePkg.files,
           });
-          lockFiles = result.files;
+          if (installMode === "mirror") {
+            assertFileDigestsMatch(conflict.name, sourcePkg.files, result.files, targetRoot);
+          }
         }
         lockSkill(
           updatedLock,
           conflict.name,
           normalizeProvenancePaths(sourcePkg.source),
           installMode,
-          lockFiles,
+          sourcePkg.files,
         );
       }
     }
@@ -635,6 +662,94 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
           status: "warn",
           message: `${cfg.dir} does not exist yet`,
         });
+      }
+    }
+
+    // Check: Unconfigured legacy vendor directories on disk & cross-tree collisions
+    const KNOWN_VENDOR_PATHS = [
+      { name: "claude", dir: ".claude/skills" },
+      { name: "codex", dir: ".codex/skills" },
+      { name: "gemini", dir: ".gemini/skills" },
+      { name: "agents", dir: ".agents/skills" },
+    ];
+    const configuredDirs = new Set(
+      Object.values(manifest.targets).map((t) => resolvePath(projectRoot, t.dir)),
+    );
+
+    const discoverableRoots: {
+      name: string;
+      root: string;
+      dir: string;
+      configured: boolean;
+    }[] = [];
+
+    for (const vendor of KNOWN_VENDOR_PATHS) {
+      const vendorPath = resolvePath(projectRoot, vendor.dir);
+      const isConfigured = configuredDirs.has(vendorPath);
+      try {
+        await access(vendorPath, constants.R_OK);
+        discoverableRoots.push({
+          name: vendor.name,
+          root: vendorPath,
+          dir: vendor.dir,
+          configured: isConfigured,
+        });
+        if (!isConfigured) {
+          checks.push({
+            check: `legacy-root:${vendor.name}`,
+            status: "warn",
+            message: `Unconfigured directory "${vendor.dir}" exists on disk; agents may discover stale or duplicate skills from it`,
+          });
+        }
+      } catch {
+        // Directory does not exist on disk, clean.
+      }
+    }
+
+    // Check for collisions across discoverable roots (e.g. .codex/skills and .agents/skills)
+    const codexRoot = discoverableRoots.find((r) => r.name === "codex");
+    const agentsRoot = discoverableRoots.find((r) => r.name === "agents");
+
+    if (codexRoot && agentsRoot) {
+      const codexSkills = await listInstalledSkillNames(codexRoot.root);
+      const agentsSkills = await listInstalledSkillNames(agentsRoot.root);
+
+      for (const skillName of codexSkills) {
+        if (agentsSkills.includes(skillName)) {
+          if (!codexRoot.configured || !agentsRoot.configured) {
+            checks.push({
+              check: `collision:${skillName}`,
+              status: "warn",
+              message: `Skill "${skillName}" is present in both .codex/skills and .agents/skills with an unconfigured legacy root; Codex will discover both. Remove the legacy copy`,
+            });
+          } else {
+            let diff = false;
+            try {
+              const codexFiles = await hashSkillDirectory(join(codexRoot.root, skillName));
+              const agentsFiles = await hashSkillDirectory(join(agentsRoot.root, skillName));
+              if (codexFiles.length !== agentsFiles.length) {
+                diff = true;
+              } else {
+                const cMap = new Map(codexFiles.map((f: SkillFile) => [f.relativePath, f.sha256]));
+                for (const af of agentsFiles) {
+                  if (cMap.get(af.relativePath) !== af.sha256) {
+                    diff = true;
+                    break;
+                  }
+                }
+              }
+            } catch {
+              diff = true;
+            }
+            if (diff) {
+              checks.push({
+                check: `collision:${skillName}`,
+                status: "error",
+                message: `Conflicting skill "${skillName}" with differing content found in both .codex/skills and .agents/skills; resolve content mismatch`,
+              });
+            }
+          }
+        }
       }
     }
   }

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { hashSkillDirectory } from "./hasher.js";
+import { normalizeSkillName } from "./paths.js";
 import type {
   ConfigInput,
   SettingsRequirements,
@@ -44,7 +45,11 @@ export function parseSkillSyncMeta(content: string): SkillSyncMeta {
   return {
     tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
     category: typeof raw.category === "string" ? raw.category : undefined,
-    depends: Array.isArray(raw.depends) ? (raw.depends as string[]) : [],
+    depends: Array.isArray(raw.depends)
+      ? raw.depends
+          .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+          .map((s) => normalizeSkillName(s))
+      : [],
     configInputs: Array.isArray(raw.config_inputs) ? (raw.config_inputs as ConfigInput[]) : [],
     targets:
       raw.targets && typeof raw.targets === "object"

@@ -98,7 +98,7 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
             if (targetName === targetEntries[0]?.[0]) {
               const portDiags = await validatePortability(pkg, locked.installMode);
               diagnostics.push(...portDiags);
-              const compatDiags = checkAllTargetCompatibility(pkg, manifest.targets);
+              const compatDiags = checkAllTargetCompatibility(pkg, manifest.targets, skillName);
               diagnostics.push(...compatDiags);
               diagnostics.push(...checkScriptSafety(pkg, DEFAULT_TRUST_POLICY));
               diagnostics.push(

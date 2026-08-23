@@ -159,3 +159,39 @@ describe("materialize — mirror mode", () => {
     expect(result.files[0]!.sha256).toHaveLength(64); // SHA256 hex
   });
 });
+
+describe("materialize — containment & normalization safety", () => {
+  it("rejects skill names that attempt path traversal outside targetRoot", async () => {
+    const root = await makeTempDir();
+    const { sourcePath, sourceFiles } = await makeSourceSkill(root);
+    const targetRoot = join(root, "target", "skills");
+
+    await expect(
+      materialize({
+        skillName: "../../escape",
+        sourcePath,
+        targetRoot,
+        mode: "copy",
+        sourceFiles,
+      }),
+    ).rejects.toThrow("traversal segments");
+  });
+
+  it("rejects absolute skill names in materialize", async () => {
+    const root = await makeTempDir();
+    const { sourcePath, sourceFiles } = await makeSourceSkill(root);
+    const targetRoot = join(root, "target", "skills");
+
+    await expect(
+      materialize({
+        skillName: "/etc/passwd",
+        sourcePath,
+        targetRoot,
+        mode: "copy",
+        sourceFiles,
+      }),
+    ).rejects.toThrow("relative path");
+  });
+});
+
+

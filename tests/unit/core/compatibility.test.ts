@@ -72,4 +72,23 @@ describe("checkCompatibility", () => {
       result.some((d) => d.rule === "missing-frontmatter-description"),
     ).toBe(true);
   });
+
+  it("warns about nested skills for shallow discovery targets (e.g. Gemini CLI)", () => {
+    const pkg = makePackage({
+      name: "SHARED/change-framework",
+      skillMd: { name: "change-framework", description: "Change framework" },
+    });
+    const result = checkCompatibility(pkg, "gemini");
+    const nestedDiag = result.find((d) => d.message.includes("Nested skill directory"));
+    expect(nestedDiag).toBeDefined();
+    expect(nestedDiag!.rule).toBe("unsupported-feature");
+    expect(nestedDiag!.severity).toBe("warning");
+  });
+
+  it("supports agents target for shared .agents/skills discovery", () => {
+    const pkg = makePackage();
+    const result = checkCompatibility(pkg, "agents");
+    expect(result).toEqual([]);
+  });
 });
+

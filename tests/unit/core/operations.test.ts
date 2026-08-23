@@ -902,6 +902,83 @@ describe("doctorOperation", () => {
     const result = await doctorOperation(projectRoot);
     expect(result.checks.find((c) => c.check === "operator:claude")?.status).toBe("ok");
   });
+
+  it("warns when unconfigured legacy vendor directories exist on disk", async () => {
+    const projectRoot = await setupProject("doctor-legacy-root-" + Date.now());
+    await mkdir(join(projectRoot, ".codex", "skills"), { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const legacyCheck = result.checks.find((c) => c.check === "legacy-root:codex");
+    expect(legacyCheck).toBeDefined();
+    expect(legacyCheck?.status).toBe("warn");
+    expect(legacyCheck?.message).toContain(".codex/skills");
+  });
+
+  it("reports error for conflicting skill content across .codex/skills and .agents/skills", async () => {
+    const projectRoot = await setupProject("doctor-collision-" + Date.now());
+    const codexDir = join(projectRoot, ".codex", "skills", "test-skill");
+    const agentsDir = join(projectRoot, ".agents", "skills", "test-skill");
+    await mkdir(codexDir, { recursive: true });
+    await mkdir(agentsDir, { recursive: true });
+    await writeFile(join(codexDir, "SKILL.md"), "---\nname: test-skill\ndescription: A\n---");
+    await writeFile(join(agentsDir, "SKILL.md"), "---\nname: test-skill\ndescription: B\n---");
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["test-skill"],
+        targets: {
+          codex: ".codex/skills",
+          agents: ".agents/skills",
+        },
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const collisionCheck = result.checks.find((c) => c.check === "collision:test-skill");
+    expect(collisionCheck).toBeDefined();
+    expect(collisionCheck?.status).toBe("error");
+    expect(collisionCheck?.message).toContain("both .codex/skills and .agents/skills");
+  });
+
+  it("warns when a skill exists in an unconfigured legacy root and an active root", async () => {
+    const projectRoot = await setupProject("doctor-legacy-collision-" + Date.now());
+    const codexDir = join(projectRoot, ".codex", "skills", "test-skill");
+    const agentsDir = join(projectRoot, ".agents", "skills", "test-skill");
+    await mkdir(codexDir, { recursive: true });
+    await mkdir(agentsDir, { recursive: true });
+    await writeFile(join(codexDir, "SKILL.md"), "---\nname: test-skill\ndescription: A\n---");
+    await writeFile(join(agentsDir, "SKILL.md"), "---\nname: test-skill\ndescription: A\n---");
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["test-skill"],
+        targets: {
+          agents: ".agents/skills",
+        },
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const collisionCheck = result.checks.find((c) => c.check === "collision:test-skill");
+    expect(collisionCheck).toBeDefined();
+    expect(collisionCheck?.status).toBe("warn");
+    expect(collisionCheck?.message).toContain("unconfigured legacy root");
+  });
 });
 
 // ---------------------------------------------------------------------------

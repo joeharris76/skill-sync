@@ -123,7 +123,7 @@ export async function detectDrift(targetRoot: string, lockFile: LockFile): Promi
  * Supports nested paths like SHARED/commit-framework by recursing into
  * subdirectories that don't contain SKILL.md themselves.
  */
-async function listInstalledSkillNames(targetRoot: string, prefix = ""): Promise<string[]> {
+export async function listInstalledSkillNames(targetRoot: string, prefix = ""): Promise<string[]> {
   const names: string[] = [];
   let entries: Dirent[];
   try {

@@ -1,7 +1,24 @@
 import { copyFile, mkdir, rm, symlink } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { hashSkillDirectory } from "./hasher.js";
+import { normalizeSkillName } from "./paths.js";
 import type { InstallMode, SkillFile } from "./types.js";
+
+function assertContained(parentRoot: string, childPath: string): void {
+  const root = resolve(parentRoot);
+  const target = resolve(childPath);
+  const rel = relative(root, target);
+  if (
+    rel === "" ||
+    rel === ".." ||
+    rel.startsWith(`..${sep}`) ||
+    rel.startsWith("../") ||
+    rel.startsWith("..\\") ||
+    isAbsolute(rel)
+  ) {
+    throw new Error(`Path "${childPath}" must be contained within root "${parentRoot}"`);
+  }
+}
 
 export interface MaterializeOptions {
   /** Skill name (used for the target subdirectory). */
@@ -33,7 +50,9 @@ export interface MaterializeResult {
  * - **mirror**: File copy with full hash tracking in the lock file.
  */
 export async function materialize(opts: MaterializeOptions): Promise<MaterializeResult> {
-  const targetDir = join(opts.targetRoot, opts.skillName);
+  const normalizedSkill = normalizeSkillName(opts.skillName);
+  const targetDir = join(opts.targetRoot, normalizedSkill);
+  assertContained(opts.targetRoot, targetDir);
 
   switch (opts.mode) {
     case "symlink":
@@ -52,8 +71,10 @@ async function materializeCopy(
   await rm(targetDir, { recursive: true, force: true });
 
   for (const file of opts.sourceFiles) {
-    const srcFile = join(opts.sourcePath, file.relativePath);
-    const destFile = join(targetDir, file.relativePath);
+    const normalizedFileRel = normalizeSkillName(file.relativePath);
+    const srcFile = join(opts.sourcePath, normalizedFileRel);
+    const destFile = join(targetDir, normalizedFileRel);
+    assertContained(targetDir, destFile);
     await mkdir(dirname(destFile), { recursive: true });
     await copyFile(srcFile, destFile);
   }
@@ -93,6 +114,8 @@ async function materializeSymlink(
  * Remove a materialized skill from a target directory.
  */
 export async function dematerialize(skillName: string, targetRoot: string): Promise<void> {
-  const targetDir = join(targetRoot, skillName);
+  const normalizedSkill = normalizeSkillName(skillName);
+  const targetDir = join(targetRoot, normalizedSkill);
+  assertContained(targetRoot, targetDir);
   await rm(targetDir, { recursive: true, force: true });
 }

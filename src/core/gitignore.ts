@@ -84,7 +84,8 @@ export function planGitTracking(
 
     // Tracked: do NOT ignore the dir. Ignore only the excluded skills, and mark
     // the whole tree as `-text` so committed bytes survive EOL normalization
-    // (the SHA gate hashes committed bytes).
+    // (the SHA gate hashes committed bytes). Do not set `linguist-generated` or `-diff`
+    // so prompts remain fully visible in PR reviews and inspectable for prompt injection.
     trackedRels.push(rel);
     attributeLines.push(`/${rel}/** -text`);
     for (const skill of [...(cfg.ignore ?? [])].sort()) {

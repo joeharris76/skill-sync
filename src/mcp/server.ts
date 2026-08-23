@@ -626,7 +626,11 @@ export async function runValidation(projectRoot: string): Promise<ValidationDiag
         }
       }
       if (pkgForWarnings) {
-        const compatDiags = checkAllTargetCompatibility(pkgForWarnings, manifest.targets);
+        const compatDiags = checkAllTargetCompatibility(
+          pkgForWarnings,
+          manifest.targets,
+          skillName,
+        );
         diagnostics.push(...compatDiags);
       }
     }
