@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkCompatibility } from "../../../src/core/compatibility.js";
+import { checkCompatibility, resolveAgentTarget } from "../../../src/core/compatibility.js";
 import type { SkillPackage } from "../../../src/core/types.js";
 
 function makePackage(overrides: Partial<SkillPackage> = {}): SkillPackage {
@@ -56,9 +56,7 @@ describe("checkCompatibility", () => {
       },
     });
     const result = checkCompatibility(pkg, "codex");
-    expect(result.some((d) => d.rule === "target-declared-incompatible")).toBe(
-      true,
-    );
+    expect(result.some((d) => d.rule === "target-declared-incompatible")).toBe(true);
     expect(result[0]!.severity).toBe("error");
   });
 
@@ -68,12 +66,10 @@ describe("checkCompatibility", () => {
     });
     const result = checkCompatibility(pkg, "claude");
     expect(result.some((d) => d.rule === "missing-frontmatter-name")).toBe(true);
-    expect(
-      result.some((d) => d.rule === "missing-frontmatter-description"),
-    ).toBe(true);
+    expect(result.some((d) => d.rule === "missing-frontmatter-description")).toBe(true);
   });
 
-  it("warns about nested skills for shallow discovery targets (e.g. Gemini CLI)", () => {
+  it("errors for nested skills that Gemini CLI cannot discover", () => {
     const pkg = makePackage({
       name: "SHARED/change-framework",
       skillMd: { name: "change-framework", description: "Change framework" },
@@ -82,13 +78,24 @@ describe("checkCompatibility", () => {
     const nestedDiag = result.find((d) => d.message.includes("Nested skill directory"));
     expect(nestedDiag).toBeDefined();
     expect(nestedDiag!.rule).toBe("unsupported-feature");
-    expect(nestedDiag!.severity).toBe("warning");
+    expect(nestedDiag!.severity).toBe("error");
   });
 
-  it("supports agents target for shared .agents/skills discovery", () => {
-    const pkg = makePackage();
-    const result = checkCompatibility(pkg, "agents");
-    expect(result).toEqual([]);
+  it("resolves exact vendor directory segments across path separators", () => {
+    expect(resolveAgentTarget("custom", "/repo/.claude/skills")).toBe("claude");
+    expect(resolveAgentTarget("custom", "C:\\repo\\.codex\\skills")).toBe("codex");
+    expect(resolveAgentTarget("custom", "/repo/.gemini/skills/")).toBe("gemini");
+    expect(resolveAgentTarget("custom", "/repo/.agent/skills")).toBe("generic-mcp");
+  });
+
+  it("does not infer a runtime from ambiguous or lookalike directories", () => {
+    expect(resolveAgentTarget("custom", "/repo/.agents/skills")).toBeNull();
+    expect(resolveAgentTarget("custom", "/repo/.claude-backup/skills")).toBeNull();
+    expect(resolveAgentTarget("custom", "/repo/.agents-old/skills")).toBeNull();
+    expect(resolveAgentTarget("custom", "/repo/.agent-cache/skills")).toBeNull();
+  });
+
+  it("prefers an exact configured target key", () => {
+    expect(resolveAgentTarget("antigravity", "/repo/.agents/skills")).toBe("antigravity");
   });
 });
-

@@ -25,7 +25,7 @@ import { isInstructionAgent } from "./instruction-targets.js";
 import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
 import { createLockFile, lockSkill, readLockFile, writeLockFile } from "./lock.js";
 import { ManifestNotFoundError, readManifest, serializeManifest } from "./manifest.js";
-import { dematerialize, materialize } from "./materializer.js";
+import { dematerialize, materializeBatch } from "./materializer.js";
 import { loadSkillPackage } from "./parser.js";
 import { expandTilde, relativeInside, resolvePath, toTildePath } from "./paths.js";
 import { isPortableMode } from "./portability.js";
@@ -89,26 +89,10 @@ function normalizeProvenancePaths(source: SourceProvenance): SourceProvenance {
   return source.path ? { ...source, path: toTildePath(source.path) } : source;
 }
 
-function assertFileDigestsMatch(
-  skillName: string,
-  expectedFiles: SkillFile[],
-  actualFiles: SkillFile[],
-  targetRoot: string,
-): void {
-  if (expectedFiles.length !== actualFiles.length) {
-    throw new Error(
-      `Materialized mirror integrity error for skill "${skillName}" in "${targetRoot}": file count mismatch (expected ${expectedFiles.length}, got ${actualFiles.length})`,
-    );
-  }
-  const actualMap = new Map(actualFiles.map((f) => [f.relativePath, f.sha256]));
-  for (const exp of expectedFiles) {
-    const actualSha = actualMap.get(exp.relativePath);
-    if (actualSha !== exp.sha256) {
-      throw new Error(
-        `Materialized mirror integrity error for skill "${skillName}" in "${targetRoot}": file "${exp.relativePath}" hash mismatch (expected ${exp.sha256}, got ${actualSha ?? "missing"})`,
-      );
-    }
-  }
+function skillFilesDiffer(left: SkillFile[], right: SkillFile[]): boolean {
+  if (left.length !== right.length) return true;
+  const leftByPath = new Map(left.map((file) => [file.relativePath, file.sha256]));
+  return right.some((file) => leftByPath.get(file.relativePath) !== file.sha256);
 }
 
 export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
@@ -225,18 +209,15 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     for (const install of plan.install) {
       const sourcePkg = prepared.find((p) => p.name === install.name)!;
       const sourceDir = resolved.find((r) => r.name === install.name)!.location;
-      for (const { targetRoot } of driftReports) {
-        const result = await materialize({
+      await materializeBatch(
+        driftReports.map(({ targetRoot }) => ({
           skillName: install.name,
           sourcePath: sourceDir,
           targetRoot,
           mode: install.installMode,
           sourceFiles: sourcePkg.files,
-        });
-        if (install.installMode === "mirror") {
-          assertFileDigestsMatch(install.name, sourcePkg.files, result.files, targetRoot);
-        }
-      }
+        })),
+      );
       lockSkill(
         updatedLock,
         install.name,
@@ -249,18 +230,15 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     for (const update of plan.update) {
       const sourceDir = resolved.find((r) => r.name === update.name)!.location;
       const sourcePkg = prepared.find((p) => p.name === update.name)!;
-      for (const { targetRoot } of driftReports) {
-        const result = await materialize({
+      await materializeBatch(
+        driftReports.map(({ targetRoot }) => ({
           skillName: update.name,
           sourcePath: sourceDir,
           targetRoot,
           mode: update.installMode,
           sourceFiles: sourcePkg.files,
-        });
-        if (update.installMode === "mirror") {
-          assertFileDigestsMatch(update.name, sourcePkg.files, result.files, targetRoot);
-        }
-      }
+        })),
+      );
       lockSkill(
         updatedLock,
         update.name,
@@ -275,18 +253,15 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
         const sourceDir = resolved.find((r) => r.name === conflict.name)!.location;
         const sourcePkg = prepared.find((p) => p.name === conflict.name)!;
         const installMode = manifest.overrides[conflict.name]?.installMode ?? manifest.installMode;
-        for (const { targetRoot } of driftReports) {
-          const result = await materialize({
+        await materializeBatch(
+          driftReports.map(({ targetRoot }) => ({
             skillName: conflict.name,
             sourcePath: sourceDir,
             targetRoot,
             mode: installMode,
             sourceFiles: sourcePkg.files,
-          });
-          if (installMode === "mirror") {
-            assertFileDigestsMatch(conflict.name, sourcePkg.files, result.files, targetRoot);
-          }
-        }
+          })),
+        );
         lockSkill(
           updatedLock,
           conflict.name,
@@ -558,7 +533,8 @@ export async function instructionAuditOperation(
   try {
     const manifest = await readManifest(projectRoot);
     configuredTargets = Object.keys(manifest.targets).filter(isInstructionAgent);
-  } catch {
+  } catch (err) {
+    if (!(err instanceof ManifestNotFoundError)) throw err;
     configuredTargets = [];
   }
 
@@ -665,13 +641,18 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
       }
     }
 
-    // Check: Unconfigured legacy vendor directories on disk & cross-tree collisions
+    // Check collisions between roots known to be aliases for the same runtime.
     const KNOWN_VENDOR_PATHS = [
       { name: "claude", dir: ".claude/skills" },
       { name: "codex", dir: ".codex/skills" },
       { name: "gemini", dir: ".gemini/skills" },
       { name: "agents", dir: ".agents/skills" },
+      { name: "generic-mcp", dir: ".agent/skills" },
     ];
+    const COLLISION_PAIRS = [
+      ["codex", "agents"],
+      ["gemini", "agents"],
+    ] as const;
     const configuredDirs = new Set(
       Object.values(manifest.targets).map((t) => resolvePath(projectRoot, t.dir)),
     );
@@ -694,61 +675,45 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
           dir: vendor.dir,
           configured: isConfigured,
         });
-        if (!isConfigured) {
-          checks.push({
-            check: `legacy-root:${vendor.name}`,
-            status: "warn",
-            message: `Unconfigured directory "${vendor.dir}" exists on disk; agents may discover stale or duplicate skills from it`,
-          });
-        }
       } catch {
         // Directory does not exist on disk, clean.
       }
     }
 
-    // Check for collisions across discoverable roots (e.g. .codex/skills and .agents/skills)
-    const codexRoot = discoverableRoots.find((r) => r.name === "codex");
-    const agentsRoot = discoverableRoots.find((r) => r.name === "agents");
+    for (const [leftName, rightName] of COLLISION_PAIRS) {
+      const leftRoot = discoverableRoots.find((root) => root.name === leftName);
+      const rightRoot = discoverableRoots.find((root) => root.name === rightName);
+      if (!leftRoot || !rightRoot) continue;
 
-    if (codexRoot && agentsRoot) {
-      const codexSkills = await listInstalledSkillNames(codexRoot.root);
-      const agentsSkills = await listInstalledSkillNames(agentsRoot.root);
+      const leftSkills = await listInstalledSkillNames(leftRoot.root);
+      const rightSkills = new Set(await listInstalledSkillNames(rightRoot.root));
+      for (const skillName of leftSkills) {
+        if (!rightSkills.has(skillName)) continue;
+        const check = `collision:${leftName}:${rightName}:${skillName}`;
+        if (!leftRoot.configured || !rightRoot.configured) {
+          checks.push({
+            check,
+            status: "warn",
+            message: `Skill "${skillName}" is present in both ${leftRoot.dir} and ${rightRoot.dir} while at least one root is unconfigured; remove the duplicate or configure both roots`,
+          });
+          continue;
+        }
 
-      for (const skillName of codexSkills) {
-        if (agentsSkills.includes(skillName)) {
-          if (!codexRoot.configured || !agentsRoot.configured) {
-            checks.push({
-              check: `collision:${skillName}`,
-              status: "warn",
-              message: `Skill "${skillName}" is present in both .codex/skills and .agents/skills with an unconfigured legacy root; Codex will discover both. Remove the legacy copy`,
-            });
-          } else {
-            let diff = false;
-            try {
-              const codexFiles = await hashSkillDirectory(join(codexRoot.root, skillName));
-              const agentsFiles = await hashSkillDirectory(join(agentsRoot.root, skillName));
-              if (codexFiles.length !== agentsFiles.length) {
-                diff = true;
-              } else {
-                const cMap = new Map(codexFiles.map((f: SkillFile) => [f.relativePath, f.sha256]));
-                for (const af of agentsFiles) {
-                  if (cMap.get(af.relativePath) !== af.sha256) {
-                    diff = true;
-                    break;
-                  }
-                }
-              }
-            } catch {
-              diff = true;
-            }
-            if (diff) {
-              checks.push({
-                check: `collision:${skillName}`,
-                status: "error",
-                message: `Conflicting skill "${skillName}" with differing content found in both .codex/skills and .agents/skills; resolve content mismatch`,
-              });
-            }
-          }
+        let different = false;
+        try {
+          different = skillFilesDiffer(
+            await hashSkillDirectory(join(leftRoot.root, skillName)),
+            await hashSkillDirectory(join(rightRoot.root, skillName)),
+          );
+        } catch {
+          different = true;
+        }
+        if (different) {
+          checks.push({
+            check,
+            status: "error",
+            message: `Conflicting skill "${skillName}" has different content in ${leftRoot.dir} and ${rightRoot.dir}; resolve the mismatch`,
+          });
         }
       }
     }
@@ -1002,10 +967,11 @@ export async function settingsGenerateOperation(
   let manifest: Manifest | undefined;
   try {
     manifest = await readManifest(projectRoot);
-    lockFile = await readLockFile(projectRoot);
-  } catch {
+  } catch (err) {
+    if (!(err instanceof ManifestNotFoundError)) throw err;
     return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };
   }
+  lockFile = await readLockFile(projectRoot);
 
   if (!lockFile || !manifest) {
     return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };

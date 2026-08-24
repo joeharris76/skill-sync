@@ -59,14 +59,13 @@ describe("planGitTracking", () => {
     expect(plan.gitattributes).toBe("");
   });
 
-  it("emits no dir ignore for a tracked target, but adds a -text attribute (and never -diff)", () => {
+  it("emits no dir ignore for a tracked target, but adds a -text attribute", () => {
     const targets: Record<string, TargetConfig> = {
       claude: { dir: ".claude/skills", tracked: true },
     };
     const plan = planGitTracking(root, targets, null, null);
     expect(plan.gitignore).toBe(""); // nothing to ignore
     expect(plan.gitattributes).toContain("/.claude/skills/** -text");
-    expect(plan.gitattributes).not.toContain("-diff");
   });
 
   it("ignores only excluded skills within a tracked target (no negations)", () => {

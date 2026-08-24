@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { checkAllTargetCompatibility } from "../../core/compatibility.js";
 import { validateConfigOverrides } from "../../core/config-generator.js";
 import { readLockFile } from "../../core/lock.js";
-import { readManifest } from "../../core/manifest.js";
+import { ManifestNotFoundError, readManifest } from "../../core/manifest.js";
 import { instructionAuditOperation } from "../../core/operations.js";
 import { loadSkillPackage } from "../../core/parser.js";
 import { resolvePath } from "../../core/paths.js";
@@ -27,7 +27,8 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
     let manifest: Manifest;
     try {
       manifest = await readManifest(projectRoot);
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ManifestNotFoundError)) throw err;
       const result = {
         valid: true,
         diagnostics: [
@@ -105,13 +106,26 @@ export async function validateCommand(args: ParsedArgs): Promise<CliResult> {
                 ...checkProvenanceRequired(skillName, locked.source, DEFAULT_TRUST_POLICY),
               );
             }
-          } catch {
-            diagnostics.push({
-              rule: "skill-not-found",
-              severity: "error",
-              message: `Locked skill "${skillName}" not found at ${installedSkillPath}`,
-              skill: skillName,
-            });
+          } catch (err) {
+            const missing =
+              err instanceof Error &&
+              "code" in err &&
+              (err as NodeJS.ErrnoException).code === "ENOENT";
+            diagnostics.push(
+              missing
+                ? {
+                    rule: "skill-not-found",
+                    severity: "error",
+                    message: `Locked skill "${skillName}" not found at ${installedSkillPath}`,
+                    skill: skillName,
+                  }
+                : {
+                    rule: "invalid-skill-package",
+                    severity: "error",
+                    message: err instanceof Error ? err.message : String(err),
+                    skill: skillName,
+                  },
+            );
           }
         }
       }

@@ -45,11 +45,7 @@ export function parseSkillSyncMeta(content: string): SkillSyncMeta {
   return {
     tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
     category: typeof raw.category === "string" ? raw.category : undefined,
-    depends: Array.isArray(raw.depends)
-      ? raw.depends
-          .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-          .map((s) => normalizeSkillName(s))
-      : [],
+    depends: parseDependencies(raw.depends),
     configInputs: Array.isArray(raw.config_inputs) ? (raw.config_inputs as ConfigInput[]) : [],
     targets:
       raw.targets && typeof raw.targets === "object"
@@ -67,6 +63,21 @@ export function parseSkillSyncMeta(content: string): SkillSyncMeta {
       : undefined,
     source: undefined, // Populated by sync engine, not parsed from author file
   };
+}
+
+function parseDependencies(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((dependency, index) => {
+    if (typeof dependency !== "string") {
+      throw new Error(`depends[${index}] must be a string`);
+    }
+    try {
+      return normalizeSkillName(dependency);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Invalid depends[${index}] value "${dependency}": ${message}`);
+    }
+  });
 }
 
 function parseSettingsRequirements(raw: unknown): SettingsRequirements | undefined {

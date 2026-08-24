@@ -79,7 +79,7 @@ export {
 export { parseManifest, readManifest, serializeManifest } from "./manifest.js";
 export type { MaterializeOptions, MaterializeResult } from "./materializer.js";
 // Runtime exports — materializer
-export { dematerialize, materialize } from "./materializer.js";
+export { dematerialize, materialize, materializeBatch } from "./materializer.js";
 export type {
   InstructionAuditOptions,
   PinResult,

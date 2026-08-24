@@ -7,7 +7,7 @@ import { checkAllTargetCompatibility } from "../core/compatibility.js";
 import { validateConfigOverrides } from "../core/config-generator.js";
 import { detectDrift } from "../core/drift.js";
 import { readLockFile } from "../core/lock.js";
-import { readManifest } from "../core/manifest.js";
+import { ManifestNotFoundError, readManifest } from "../core/manifest.js";
 import {
   doctorOperation,
   instructionAuditOperation,
@@ -530,7 +530,8 @@ async function getTargetRoots(projectRoot: string): Promise<TargetRoot[]> {
     if (targets.length > 0) {
       return targets;
     }
-  } catch {
+  } catch (err) {
+    if (!(err instanceof ManifestNotFoundError)) throw err;
     // Fall through to default target.
   }
   const defaults: TargetRoot[] = [];
@@ -616,13 +617,26 @@ export async function runValidation(projectRoot: string): Promise<ValidationDiag
           diagnostics.push(
             ...portDiags.map((diag) => ({ ...diag, message: `[${target.name}] ${diag.message}` })),
           );
-        } catch {
-          diagnostics.push({
-            rule: "skill-not-found",
-            severity: "error",
-            message: `Skill "${skillName}" not found on disk for target "${target.name}"`,
-            skill: skillName,
-          });
+        } catch (err) {
+          const missing =
+            err instanceof Error &&
+            "code" in err &&
+            (err as NodeJS.ErrnoException).code === "ENOENT";
+          diagnostics.push(
+            missing
+              ? {
+                  rule: "skill-not-found",
+                  severity: "error",
+                  message: `Skill "${skillName}" not found on disk for target "${target.name}"`,
+                  skill: skillName,
+                }
+              : {
+                  rule: "invalid-skill-package",
+                  severity: "error",
+                  message: err instanceof Error ? err.message : String(err),
+                  skill: skillName,
+                },
+          );
         }
       }
       if (pkgForWarnings) {

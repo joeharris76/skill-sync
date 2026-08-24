@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile, stat } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join, posix, relative, sep } from "node:path";
 import type { SkillFile } from "./types.js";
 
 /** Compute SHA256 hex digest of a file. */
@@ -35,7 +35,7 @@ async function walkDir(baseDir: string, currentDir: string, out: SkillFile[]): P
       const fileStat = await stat(fullPath);
       const hash = await sha256File(fullPath);
       out.push({
-        relativePath: relative(baseDir, fullPath),
+        relativePath: relative(baseDir, fullPath).split(sep).join(posix.sep),
         size: fileStat.size,
         sha256: hash,
       });

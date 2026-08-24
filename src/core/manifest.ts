@@ -121,7 +121,12 @@ function parseSources(raw: unknown): SourceConfig[] {
 
 function parseSkills(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((s): s is string => typeof s === "string").map((s) => normalizeSkillName(s));
+  return raw.map((skill, index) => {
+    if (typeof skill !== "string") {
+      throw new Error(`skills[${index}] must be a string`);
+    }
+    return normalizeSkillName(skill);
+  });
 }
 
 function parseTargets(raw: unknown): Record<string, TargetConfig> {
@@ -143,9 +148,12 @@ function parseTargets(raw: unknown): Record<string, TargetConfig> {
       const cfg: TargetConfig = { dir: o.dir };
       if (o.tracked === true) cfg.tracked = true;
       if (Array.isArray(o.ignore)) {
-        const ignore = o.ignore
-          .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-          .map((s) => normalizeSkillName(s));
+        const ignore = o.ignore.map((skill, index) => {
+          if (typeof skill !== "string") {
+            throw new Error(`targets.${key}.ignore[${index}] must be a string`);
+          }
+          return normalizeSkillName(skill);
+        });
         if (ignore.length > 0) cfg.ignore = ignore;
       }
       result[key] = cfg;

@@ -181,7 +181,6 @@ sources:
 skills:
   - code
   - test
-  - SHARED/commit-framework
 
 targets:
   codex: .codex/skills
@@ -322,6 +321,10 @@ at the project root (or `.gemini/GEMINI.md`) for project-level instructions.
 Use `skill-sync status` to check whether your `GEMINI.md` is present and
 whether it duplicates your global `~/.gemini/GEMINI.md`.
 
+Gemini CLI scans only one skill-directory level. Do not send namespaced skills
+such as `SHARED/commit-framework` to a Gemini target; validation reports these
+undiscoverable paths as errors.
+
 ### Multi-Agent Setup (Claude Code + Codex + Gemini)
 
 To support all three agents from a single manifest:
@@ -339,8 +342,6 @@ skills:
   - code
   - test
   - todo
-  - SHARED/commit-framework
-  - SHARED/verify-framework
 
 targets:
   claude: .claude/skills
@@ -368,6 +369,8 @@ skill-sync validate
 
 Skills that use `allowed-tools` (a Claude Code feature) will produce a
 diagnostic warning for the Gemini and Codex targets but still be materialized.
+Namespaced skills are different: Gemini cannot discover them, so validation
+reports an error.
 
 ---
 

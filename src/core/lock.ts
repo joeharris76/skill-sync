@@ -1,5 +1,6 @@
 import { readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { normalizeSkillName } from "./paths.js";
 import type { InstallMode, LockedSkill, LockFile, SkillFile, SourceProvenance } from "./types.js";
 
 const LOCK_VERSION = 1;
@@ -18,13 +19,7 @@ export function createLockFile(): LockFile {
 export async function readLockFile(projectRoot: string): Promise<LockFile | null> {
   try {
     const content = await readFile(join(projectRoot, LOCK_FILENAME), "utf-8");
-    const parsed = JSON.parse(content) as LockFile;
-    if (parsed.version !== LOCK_VERSION) {
-      throw new Error(
-        `Unsupported lock file version: ${parsed.version} (expected ${LOCK_VERSION})`,
-      );
-    }
-    return parsed;
+    return parseLockFile(content);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw err;
@@ -81,6 +76,19 @@ export function parseLockFile(content: string): LockFile {
   const parsed = JSON.parse(content) as LockFile;
   if (parsed.version !== LOCK_VERSION) {
     throw new Error(`Unsupported lock file version: ${parsed.version} (expected ${LOCK_VERSION})`);
+  }
+  for (const [skillName, skill] of Object.entries(parsed.skills)) {
+    const normalizedFiles: LockedSkill["files"] = {};
+    for (const [relativePath, metadata] of Object.entries(skill.files)) {
+      const normalized = normalizeSkillName(relativePath.replaceAll("\\", "/"));
+      if (normalized in normalizedFiles) {
+        throw new Error(
+          `Lock file contains colliding paths for skill "${skillName}": "${relativePath}" normalizes to "${normalized}"`,
+        );
+      }
+      normalizedFiles[normalized] = metadata;
+    }
+    skill.files = normalizedFiles;
   }
   return parsed;
 }

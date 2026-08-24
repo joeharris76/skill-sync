@@ -92,7 +92,7 @@ function helpText(): string {
     "",
     "Install modes:",
     "  mirror   Full copy with SHA256 integrity tracking (default)",
-    "  copy     Plain file copy without lock tracking",
+    "  copy     Plain file copy with lock tracking and digest verification",
     "  symlink  Symlink to source (local dev only, not portable)",
     "",
     "Examples:",

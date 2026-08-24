@@ -5,7 +5,7 @@ import type { SkillPackage, TargetConfig, ValidationDiagnostic } from "./types.j
 // ---------------------------------------------------------------------------
 
 /** Known agent targets and their directory conventions. */
-export type AgentTarget = "claude" | "codex" | "gemini" | "antigravity" | "agents" | "generic-mcp";
+export type AgentTarget = "claude" | "codex" | "gemini" | "antigravity" | "generic-mcp";
 
 export interface AgentTargetConfig {
   /** Human-readable name. */
@@ -38,7 +38,9 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
   gemini: {
     label: "Gemini CLI",
     defaultSkillDir: ".gemini/skills",
-    readsFrontmatter: true, // assumed parity with Claude/Codex; verify against Gemini CLI docs
+    // Gemini discovers only SKILL.md at the root or one directory below it.
+    // https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/skills/skillLoader.ts
+    readsFrontmatter: true,
     supportsAgentsMd: false,
     unsupportedFeatures: ["allowed-tools", "nested-skills"],
   },
@@ -47,13 +49,6 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
     defaultSkillDir: ".agents/skills",
     readsFrontmatter: true,
     supportsAgentsMd: false,
-    unsupportedFeatures: ["allowed-tools"],
-  },
-  agents: {
-    label: "Shared Agents Directory (.agents/skills)",
-    defaultSkillDir: ".agents/skills",
-    readsFrontmatter: true,
-    supportsAgentsMd: true,
     unsupportedFeatures: ["allowed-tools"],
   },
   "generic-mcp": {
@@ -69,13 +64,15 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
 export function resolveAgentTarget(targetKey: string, dir?: string): AgentTarget | null {
   if (targetKey in AGENT_TARGETS) return targetKey as AgentTarget;
   if (!dir) return null;
-  const normalized = dir.replace(/\\/g, "/");
-  if (normalized.includes(".claude")) return "claude";
-  if (normalized.includes(".codex")) return "codex";
-  if (normalized.includes(".gemini")) return "gemini";
-  if (normalized.includes(".agents")) return "agents";
-  if (normalized.includes(".agent")) return "generic-mcp";
-  return null;
+  const segments = dir.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
+  const vendorRoot = segments.slice(-2).join("/");
+  const targetsByRoot: Record<string, AgentTarget> = {
+    ".claude/skills": "claude",
+    ".codex/skills": "codex",
+    ".gemini/skills": "gemini",
+    ".agent/skills": "generic-mcp",
+  };
+  return targetsByRoot[vendorRoot] ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,7 +126,7 @@ export function checkCompatibility(
     if (feature === "nested-skills" && effectiveSkillName.includes("/")) {
       diagnostics.push({
         rule: "unsupported-feature",
-        severity: "warning",
+        severity: "error",
         message: `Nested skill directory "${effectiveSkillName}" is not discovered by ${config.label} (supports 1-level depth only)`,
         skill: effectiveSkillName,
       });

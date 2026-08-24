@@ -15,6 +15,7 @@ from a single project manifest.
 | `claude` | Claude Code | `.claude/skills` | Yes | No |
 | `codex` | OpenAI Codex | `.codex/skills` | Yes | Yes |
 | `gemini` | Gemini CLI | `.gemini/skills` | Yes | No |
+| `antigravity` | Antigravity CLI | `.agents/skills` | Yes | No |
 | `generic-mcp` | Generic MCP | `.agent/skills` | No | No |
 
 ### Compatibility Checking
@@ -31,6 +32,12 @@ target cannot support:
 | `AGENTS.md` discovery | No | Yes | No | No |
 | Instruction file | `CLAUDE.md` | `AGENTS.md` | `GEMINI.md` | — |
 
+Gemini CLI scans only `SKILL.md` at the skills root or one directory below it.
+Namespaced packages such as `SHARED/change-framework` are therefore invalid for
+a Gemini target and produce an error. This follows Gemini CLI's
+[`loadSkillsFromDir`](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/skills/skillLoader.ts)
+discovery pattern.
+
 ### Fallback Behavior
 
 When a skill uses features unsupported by a target:
@@ -39,9 +46,9 @@ When a skill uses features unsupported by a target:
   The unsupported feature is present in the files but will be ignored at
   runtime. Example: `allowed-tools` is kept in SKILL.md but Codex ignores it.
 
-- **Error**: Only when the skill explicitly declares itself incompatible
-  via `targets: { codex: false }` in skill.yaml. Materialization
-  is blocked.
+- **Error**: When the skill explicitly declares itself incompatible via
+  `targets: { codex: false }` in skill.yaml, or when the target cannot discover
+  the installed path. Validation fails so CI and release gates can block it.
 
 skill-sync never silently drops content. Unsupported features remain in the
 files — the target agent simply doesn't use them. This means:
@@ -67,7 +74,7 @@ developer's machine.
 | Mode | Portable | Use Case |
 |------|----------|----------|
 | `mirror` | Yes | Default. Full copy + integrity tracking. |
-| `copy` | Yes | Lightweight copy without lock tracking. |
+| `copy` | Yes | Plain copy with lock tracking and staged digest verification. |
 | `symlink` | No | Local development only. |
 
 ### Portability Validation
@@ -168,7 +175,7 @@ overrides:
   code:
     install_mode: symlink     # Active development on this skill
   todo:
-    install_mode: copy        # Lightweight, no tracking needed
+    install_mode: copy        # Plain copy with lock tracking
 ```
 
 ### Future: Content Overrides (v0.2+)

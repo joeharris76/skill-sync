@@ -69,6 +69,176 @@ describe("runCli", () => {
     await rm(projectRoot, { recursive: true, force: true });
   });
 
+  it.each(["sync", "status", "validate"])(
+    "%s rejects a traversal skill name instead of reporting a missing manifest",
+    async (command) => {
+      const projectRoot = await mkdtemp(join(tmpdir(), `skill-sync-cli-invalid-${command}-`));
+      await writeFile(
+        join(projectRoot, "skill-sync.yaml"),
+        [
+          "version: 1",
+          "sources: []",
+          "skills:",
+          "  - ../escape",
+          "targets:",
+          "  claude: .claude/skills",
+          "",
+        ].join("\n"),
+      );
+
+      const args = command === "sync" ? [command, "--dry-run"] : [command];
+      const result = await runCli([...args, "--project", projectRoot]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("traversal segments");
+      expect(result.stdout ?? "").not.toContain("No skill-sync.yaml found");
+      await rm(projectRoot, { recursive: true, force: true });
+    },
+  );
+
+  it("sync rejects a traversal skill before target or lock mutation", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-traversal-apply-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    await mkdir(sourceRoot, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills: [../escape]",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await runCli(["sync", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("traversal segments");
+    expect(existsSync(join(projectRoot, ".claude", "skills"))).toBe(false);
+    expect(existsSync(join(projectRoot, "skill-sync.lock"))).toBe(false);
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync rejects a traversal dependency before target or lock mutation", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-dependency-apply-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(join(skillRoot, "SKILL.md"), "---\nname: code\ndescription: Code\n---\n");
+    await writeFile(join(skillRoot, "skill.yaml"), 'depends: ["../escape"]\n');
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills: [code]",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await runCli(["sync", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("Invalid depends[0]");
+    expect(existsSync(join(projectRoot, ".claude", "skills"))).toBe(false);
+    expect(existsSync(join(projectRoot, "skill-sync.lock"))).toBe(false);
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("sync stages all targets before replacing any target", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-batch-atomic-"));
+    const sourceRoot = join(projectRoot, "source-skills");
+    const skillRoot = join(sourceRoot, "code");
+    await mkdir(skillRoot, { recursive: true });
+    await writeFile(join(skillRoot, "SKILL.md"), "---\nname: code\ndescription: Code\n---\n");
+    await writeFile(join(projectRoot, "blocked"), "not a directory\n");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources:",
+        "  - name: local",
+        "    type: local",
+        `    path: ${sourceRoot}`,
+        "skills: [code]",
+        "targets:",
+        "  first: first/skills",
+        "  second: second/skills",
+        "  blocked: blocked/skills",
+        "install_mode: copy",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await runCli(["sync", "--project", projectRoot]);
+
+    expect(result.exitCode).toBe(1);
+    expect(existsSync(join(projectRoot, "first", "skills", "code"))).toBe(false);
+    expect(existsSync(join(projectRoot, "second", "skills", "code"))).toBe(false);
+    expect(existsSync(join(projectRoot, "skill-sync.lock"))).toBe(false);
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
+  it("validate reports malformed dependency metadata as a diagnostic", async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-invalid-dependency-"));
+    const skillDir = join(projectRoot, ".claude", "skills", "code");
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      [
+        "version: 1",
+        "sources: []",
+        "skills: [code]",
+        "targets:",
+        "  claude: .claude/skills",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.lock"),
+      JSON.stringify({
+        version: 1,
+        lockedAt: new Date().toISOString(),
+        skills: {
+          code: {
+            source: { type: "local", name: "test", path: "skills", fetchedAt: new Date().toISOString() },
+            installMode: "mirror",
+            files: {},
+          },
+        },
+      }),
+    );
+    await writeFile(join(skillDir, "SKILL.md"), "---\nname: code\ndescription: Code\n---\n");
+    await writeFile(join(skillDir, "skill.yaml"), 'depends: ["../escape"]\n');
+
+    const result = await runCli([
+      "validate",
+      "--json",
+      "--exit-code",
+      "--project",
+      projectRoot,
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    const output = JSON.parse(result.stdout!);
+    expect(output.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ rule: "invalid-skill-package", skill: "code" }),
+      ]),
+    );
+    await rm(projectRoot, { recursive: true, force: true });
+  });
+
   it("sync --dry-run fails when the project path does not exist", async () => {
     const projectRoot = join(tmpdir(), "skill-sync-cli-missing-project-" + Date.now());
 

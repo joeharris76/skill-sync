@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { detectTargetReadiness } from "../../core/drift.js";
 import type { InstructionAgentAudit } from "../../core/instruction-types.js";
 import { readLockFile } from "../../core/lock.js";
-import { readManifest } from "../../core/manifest.js";
+import { ManifestNotFoundError, readManifest } from "../../core/manifest.js";
 import { instructionAuditOperation } from "../../core/operations.js";
 import { resolvePath } from "../../core/paths.js";
 import type { Manifest } from "../../core/types.js";
@@ -18,7 +18,8 @@ export async function statusCommand(args: ParsedArgs): Promise<CliResult> {
     let manifest: Manifest;
     try {
       manifest = await readManifest(projectRoot);
-    } catch {
+    } catch (err) {
+      if (!(err instanceof ManifestNotFoundError)) throw err;
       const data = {
         schemaVersion: 2,
         locked: false,
