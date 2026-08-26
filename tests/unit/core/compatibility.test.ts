@@ -108,6 +108,11 @@ describe("checkCompatibility", () => {
     expect(resolveAgentTarget("custom", "/repo/.agent-cache/skills")).toBeNull();
   });
 
+  it("resolves the consolidated interoperable agents target", () => {
+    expect(resolveAgentTarget("agents", ".agents/skills")).toBe("antigravity");
+    expect(resolveAgentTarget("agents", "/repo/.agents/skills/")).toBe("antigravity");
+  });
+
   it("prefers an exact configured target key", () => {
     expect(resolveAgentTarget("antigravity", "/repo/.agents/skills")).toBe("antigravity");
   });
