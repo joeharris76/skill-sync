@@ -47,9 +47,11 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
   antigravity: {
     label: "Antigravity CLI",
     defaultSkillDir: ".agents/skills",
+    // Antigravity discovers workspace skills one level below the customization
+    // root: {workspace}/.agents/skills/{skill_name}/SKILL.md.
     readsFrontmatter: true,
     supportsAgentsMd: false,
-    unsupportedFeatures: ["allowed-tools"],
+    unsupportedFeatures: ["allowed-tools", "nested-skills"],
   },
   "generic-mcp": {
     label: "Generic MCP Client",

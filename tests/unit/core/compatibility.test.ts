@@ -69,6 +69,19 @@ describe("checkCompatibility", () => {
     expect(result.some((d) => d.rule === "missing-frontmatter-description")).toBe(true);
   });
 
+  it("errors for nested skills that Antigravity cannot discover", () => {
+    const pkg = makePackage({
+      name: "SHARED/review-protocol",
+      skillMd: { name: "review-protocol", description: "Review protocol" },
+    });
+    const result = checkCompatibility(pkg, "antigravity");
+    const nestedDiag = result.find((d) => d.message.includes("Nested skill directory"));
+    expect(nestedDiag).toBeDefined();
+    expect(nestedDiag!.rule).toBe("unsupported-feature");
+    expect(nestedDiag!.severity).toBe("error");
+    expect(nestedDiag!.message).toContain("Antigravity CLI");
+  });
+
   it("errors for nested skills that Gemini CLI cannot discover", () => {
     const pkg = makePackage({
       name: "SHARED/change-framework",
