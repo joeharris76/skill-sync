@@ -6,7 +6,7 @@ sources:
   - name: personal
     type: git
     url: https://github.com/joeharris76/skill-sync-skills.git
-    ref: c49764b4d3d4043f016c39011febc8dd487111a6
+    ref: 72550d9e0a78a73d9ccc6f42a07838247472840e
     subdir: skills
   - name: todo-context-efficiency
     type: git
@@ -14,6 +14,7 @@ sources:
     ref: e0af1fe8b6751ee7cae42fa7a9adc374d96dd690
     subdir: skills
 skills:
+  - bossmode
   - blog
   - code
   - docs

@@ -1,15 +1,14 @@
 ---
 name: docs
 description: Use when the user asks to "create documentation", "build docs", "review docs", "compare documents", "compress docs", "adversarial review docs", or "commit docs".
-version: 0.2.0
+version: 0.3.0
 tools: Bash, Read, Write, Edit, Task
 ---
 
 # Docs Workflow
 
-Route the request to one action below. Before acting, read the file in the
-Read column for the selected action. Preserve local markup, navigation, and
-build conventions.
+Route the request below and read the selected action file. Preserve local
+markup, navigation, and build conventions.
 
 ## Resolve
 
@@ -34,8 +33,10 @@ personas. Fall back to repo docs config and the Makefile.
 
 - `review`, `adversarial`, and `compare` are read-only under
   `SHARED/review-protocol/SKILL.md`.
-- Write actions verify with configured build/validate commands before commit.
-- Shrink preserves frontmatter, commands, paths, thresholds, relationships,
-  decisions, and public contracts.
-- Do not compress READMEs, changelogs, decisions, generated docs, or study
-  artifacts unless explicitly requested.
+- Repository write actions use the shared change framework's named branch,
+  verification, commit, and approved-plan PR workflow. The `commit` action
+  handles existing documentation changes; it is not required for other writes.
+- Shrink follows the shared framework and preserves frontmatter, commands,
+  paths, thresholds, relationships, decisions, and public contracts. Compress
+  READMEs, changelogs, decisions, generated docs, or study artifacts only when
+  explicitly requested.
