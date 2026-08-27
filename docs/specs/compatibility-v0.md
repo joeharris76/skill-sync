@@ -38,6 +38,13 @@ a Gemini target and produce an error. This follows Gemini CLI's
 [`loadSkillsFromDir`](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/skills/skillLoader.ts)
 discovery pattern.
 
+Antigravity CLI discovers workspace skills one level below a customization root
+(`.agents/`, `.agent/`, `_agents/`, or `_agent/`) as
+`{workspace}/.agents/skills/{skill_name}/SKILL.md`. Namespaced packages such as
+`SHARED/review-protocol` are therefore invalid for an `antigravity` target and
+produce an error. Note that `.antigravity/` is not a discovery root: skills
+placed there are silently invisible to the runtime.
+
 ### Fallback Behavior
 
 When a skill uses features unsupported by a target:

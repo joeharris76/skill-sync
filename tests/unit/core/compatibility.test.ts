@@ -69,6 +69,19 @@ describe("checkCompatibility", () => {
     expect(result.some((d) => d.rule === "missing-frontmatter-description")).toBe(true);
   });
 
+  it("errors for nested skills that Antigravity cannot discover", () => {
+    const pkg = makePackage({
+      name: "SHARED/review-protocol",
+      skillMd: { name: "review-protocol", description: "Review protocol" },
+    });
+    const result = checkCompatibility(pkg, "antigravity");
+    const nestedDiag = result.find((d) => d.message.includes("Nested skill directory"));
+    expect(nestedDiag).toBeDefined();
+    expect(nestedDiag!.rule).toBe("unsupported-feature");
+    expect(nestedDiag!.severity).toBe("error");
+    expect(nestedDiag!.message).toContain("Antigravity CLI");
+  });
+
   it("errors for nested skills that Gemini CLI cannot discover", () => {
     const pkg = makePackage({
       name: "SHARED/change-framework",
@@ -93,6 +106,11 @@ describe("checkCompatibility", () => {
     expect(resolveAgentTarget("custom", "/repo/.claude-backup/skills")).toBeNull();
     expect(resolveAgentTarget("custom", "/repo/.agents-old/skills")).toBeNull();
     expect(resolveAgentTarget("custom", "/repo/.agent-cache/skills")).toBeNull();
+  });
+
+  it("resolves the consolidated interoperable agents target", () => {
+    expect(resolveAgentTarget("agents", ".agents/skills")).toBe("antigravity");
+    expect(resolveAgentTarget("agents", "/repo/.agents/skills/")).toBe("antigravity");
   });
 
   it("prefers an exact configured target key", () => {

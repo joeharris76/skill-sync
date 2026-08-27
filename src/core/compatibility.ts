@@ -47,9 +47,11 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
   antigravity: {
     label: "Antigravity CLI",
     defaultSkillDir: ".agents/skills",
+    // Antigravity discovers workspace skills one level below the customization
+    // root: {workspace}/.agents/skills/{skill_name}/SKILL.md.
     readsFrontmatter: true,
     supportsAgentsMd: false,
-    unsupportedFeatures: ["allowed-tools"],
+    unsupportedFeatures: ["allowed-tools", "nested-skills"],
   },
   "generic-mcp": {
     label: "Generic MCP Client",
@@ -64,7 +66,17 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
 export function resolveAgentTarget(targetKey: string, dir?: string): AgentTarget | null {
   if (targetKey in AGENT_TARGETS) return targetKey as AgentTarget;
   if (!dir) return null;
-  const segments = dir.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
+  const normalizedDir = dir.replace(/\\/g, "/").replace(/\/+$/, "");
+  if (
+    targetKey === "agents" &&
+    (normalizedDir === ".agents/skills" || normalizedDir.endsWith("/.agents/skills"))
+  ) {
+    // `.agents/skills` is an interoperable root shared by Codex, Gemini, and
+    // Antigravity. Use the strictest compatible profile so shallow-discovery
+    // errors are still reported for a consolidated target.
+    return "antigravity";
+  }
+  const segments = normalizedDir.split("/");
   const vendorRoot = segments.slice(-2).join("/");
   const targetsByRoot: Record<string, AgentTarget> = {
     ".claude/skills": "claude",
