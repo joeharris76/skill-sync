@@ -1,5 +1,17 @@
 # skill-sync v0 Release Criteria
 
+## Behavior changes
+
+- `SkillFile.relativePath` and newly written lock keys use POSIX separators on
+  every platform. Legacy Windows lock keys are normalized when read and
+  rejected if normalization would create a collision.
+- Malformed manifest skill names, target exclusions, and dependency paths fail
+  closed with field context.
+- Gemini CLI cannot discover namespaced skills such as `SHARED/foo`; validation
+  reports these paths as errors.
+- `copy` and `mirror` both stage and verify exact file digests before any target
+  is replaced.
+
 ## Support Matrix
 
 | Feature | Status | Notes |
@@ -8,7 +20,7 @@
 | Git source | Implemented | Shallow clone, single branch |
 | Registry source | Not implemented | Deferred to v0.2+; `type: registry` is parsed but cannot be resolved |
 | Mirror install mode | Implemented | SHA256 integrity tracking |
-| Copy install mode | Implemented | No lock tracking |
+| Copy install mode | Implemented | Lock tracking and post-copy digest verification |
 | Symlink install mode | Implemented | Local dev only, not portable |
 | CLI commands | Implemented | sync, status, validate, diff, doctor, pin, unpin, prune, promote |
 | MCP server | Implemented | Read-only: resources, tools, prompts |

@@ -1,22 +1,22 @@
 import { describe, it, expect, afterEach } from "vitest";
+import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, writeFile, readlink, stat, rm } from "node:fs/promises";
 import { join, tmpdir, resolve } from "node:path";
 import { tmpdir as osTmpdir } from "node:os";
-import { materialize } from "../../../src/core/materializer.js";
-import type { SkillFile } from "../../../src/core/types.js";
+import { hashSkillDirectory } from "../../../src/core/hasher.js";
+import { materialize, materializeBatch } from "../../../src/core/materializer.js";
 
 const SOURCE_CONTENT = "---\nname: code\ndescription: Code skill\n---\n# Code\n";
 const REF_CONTENT = "# Compare reference\n";
 
-async function makeSourceSkill(root: string): Promise<{ sourcePath: string; sourceFiles: SkillFile[] }> {
+async function makeSourceSkill(
+  root: string,
+): Promise<{ sourcePath: string; sourceFiles: SkillFile[] }> {
   const sourcePath = join(root, "source", "code");
   await mkdir(join(sourcePath, "references"), { recursive: true });
   await writeFile(join(sourcePath, "SKILL.md"), SOURCE_CONTENT, "utf-8");
   await writeFile(join(sourcePath, "references", "compare.md"), REF_CONTENT, "utf-8");
-  const sourceFiles: SkillFile[] = [
-    { relativePath: "SKILL.md", sha256: "abc123", size: SOURCE_CONTENT.length },
-    { relativePath: "references/compare.md", sha256: "def456", size: REF_CONTENT.length },
-  ];
+  const sourceFiles = await hashSkillDirectory(sourcePath);
   return { sourcePath, sourceFiles };
 }
 
@@ -34,14 +34,19 @@ afterEach(async () => {
   }
   tempDirs = [];
 });
-
 describe("materialize — symlink mode", () => {
   it("creates a directory symlink pointing to the source path", async () => {
     const root = await makeTempDir();
     const { sourcePath, sourceFiles } = await makeSourceSkill(root);
     const targetRoot = join(root, "target", "skills");
 
-    const result = await materialize({ skillName: "code", sourcePath, targetRoot, mode: "symlink", sourceFiles });
+    const result = await materialize({
+      skillName: "code",
+      sourcePath,
+      targetRoot,
+      mode: "symlink",
+      sourceFiles,
+    });
 
     expect(result.mode).toBe("symlink");
     expect(result.targetPath).toBe(join(targetRoot, "code"));
@@ -56,12 +61,18 @@ describe("materialize — symlink mode", () => {
     const { sourcePath, sourceFiles } = await makeSourceSkill(root);
     const targetRoot = join(root, "target", "skills");
 
-    const result = await materialize({ skillName: "code", sourcePath, targetRoot, mode: "symlink", sourceFiles });
+    const result = await materialize({
+      skillName: "code",
+      sourcePath,
+      targetRoot,
+      mode: "symlink",
+      sourceFiles,
+    });
 
     // Files array should be exactly the same reference/content — no re-hashing
     expect(result.files).toEqual(sourceFiles);
-    expect(result.files[0]!.sha256).toBe("abc123");
-    expect(result.files[1]!.sha256).toBe("def456");
+    expect(result.files[0]!.sha256).toHaveLength(64);
+    expect(result.files[1]!.sha256).toHaveLength(64);
   });
 
   it("replaces an existing directory with a symlink", async () => {
@@ -121,10 +132,16 @@ describe("materialize — copy mode", () => {
     const { sourcePath, sourceFiles } = await makeSourceSkill(root);
     const targetRoot = join(root, "target", "skills");
 
-    const result = await materialize({ skillName: "code", sourcePath, targetRoot, mode: "copy", sourceFiles });
+    const result = await materialize({
+      skillName: "code",
+      sourcePath,
+      targetRoot,
+      mode: "copy",
+      sourceFiles,
+    });
 
     expect(result.mode).toBe("copy");
-    // Files returned are source files (no re-hash)
+    // Copy re-hashes the staged target and confirms exact parity.
     expect(result.files).toEqual(sourceFiles);
 
     // Verify files actually exist at target
@@ -139,9 +156,60 @@ describe("materialize — copy mode", () => {
     const { sourcePath, sourceFiles } = await makeSourceSkill(root);
     const targetRoot = join(root, "target", "skills");
 
-    const result = await materialize({ skillName: "code", sourcePath, targetRoot, mode: "copy", sourceFiles });
+    const result = await materialize({
+      skillName: "code",
+      sourcePath,
+      targetRoot,
+      mode: "copy",
+      sourceFiles,
+    });
 
     expect(result.targetPath).toBe(join(targetRoot, "code"));
+  });
+
+  it.each([
+    "copy",
+    "mirror",
+  ] as const)("%s rejects a digest mismatch without replacing the current target", async (mode) => {
+    const root = await makeTempDir();
+    const { sourcePath, sourceFiles } = await makeSourceSkill(root);
+    const targetRoot = join(root, "target", "skills");
+    const targetDir = join(targetRoot, "code");
+    await mkdir(targetDir, { recursive: true });
+    await writeFile(join(targetDir, "CURRENT.md"), "keep me\n");
+    const incorrect = sourceFiles.map((file, index) =>
+      index === 0 ? { ...file, sha256: "0".repeat(64) } : file,
+    );
+
+    await expect(
+      materialize({ skillName: "code", sourcePath, targetRoot, mode, sourceFiles: incorrect }),
+    ).rejects.toThrow("Materialized integrity error");
+
+    expect(await stat(join(targetDir, "CURRENT.md"))).toBeDefined();
+  });
+
+  it("stages every target before committing any target", async () => {
+    const root = await makeTempDir();
+    const { sourcePath, sourceFiles } = await makeSourceSkill(root);
+    const firstRoot = join(root, "first", "skills");
+    const secondRoot = join(root, "second", "skills");
+    const blockedParent = join(root, "blocked");
+    await writeFile(blockedParent, "not a directory\n");
+
+    await expect(
+      materializeBatch(
+        [firstRoot, secondRoot, join(blockedParent, "skills")].map((targetRoot) => ({
+          skillName: "code",
+          sourcePath,
+          targetRoot,
+          mode: "copy" as const,
+          sourceFiles,
+        })),
+      ),
+    ).rejects.toThrow();
+
+    expect(existsSync(join(firstRoot, "code"))).toBe(false);
+    expect(existsSync(join(secondRoot, "code"))).toBe(false);
   });
 });
 
@@ -151,11 +219,51 @@ describe("materialize — mirror mode", () => {
     const { sourcePath, sourceFiles } = await makeSourceSkill(root);
     const targetRoot = join(root, "target", "skills");
 
-    const result = await materialize({ skillName: "code", sourcePath, targetRoot, mode: "mirror", sourceFiles });
+    const result = await materialize({
+      skillName: "code",
+      sourcePath,
+      targetRoot,
+      mode: "mirror",
+      sourceFiles,
+    });
 
     expect(result.mode).toBe("mirror");
-    // Mirror re-hashes, so sha256 values are real (not the placeholder "abc123")
-    expect(result.files[0]!.sha256).not.toBe("abc123");
+    // Mirror re-hashes the copied target.
+    expect(result.files).toEqual(sourceFiles);
     expect(result.files[0]!.sha256).toHaveLength(64); // SHA256 hex
+  });
+});
+
+describe("materialize — containment & normalization safety", () => {
+  it("rejects skill names that attempt path traversal outside targetRoot", async () => {
+    const root = await makeTempDir();
+    const { sourcePath, sourceFiles } = await makeSourceSkill(root);
+    const targetRoot = join(root, "target", "skills");
+
+    await expect(
+      materialize({
+        skillName: "../../escape",
+        sourcePath,
+        targetRoot,
+        mode: "copy",
+        sourceFiles,
+      }),
+    ).rejects.toThrow("traversal segments");
+  });
+
+  it("rejects absolute skill names in materialize", async () => {
+    const root = await makeTempDir();
+    const { sourcePath, sourceFiles } = await makeSourceSkill(root);
+    const targetRoot = join(root, "target", "skills");
+
+    await expect(
+      materialize({
+        skillName: "/etc/passwd",
+        sourcePath,
+        targetRoot,
+        mode: "copy",
+        sourceFiles,
+      }),
+    ).rejects.toThrow("relative path");
   });
 });

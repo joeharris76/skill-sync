@@ -17,14 +17,15 @@ import type {
 } from "./agent-config.js";
 import { captureAgentConfig, restoreAgentConfig, validateAgentConfig } from "./agent-config.js";
 import { generateConfig, writeProjectConfig } from "./config-generator.js";
-import { detectDrift, detectTargetReadiness } from "./drift.js";
+import { detectDrift, detectTargetReadiness, listInstalledSkillNames } from "./drift.js";
 import { applyGitTracking } from "./gitignore.js";
+import { hashSkillDirectory } from "./hasher.js";
 import { auditInstructions } from "./instruction-audit.js";
 import { isInstructionAgent } from "./instruction-targets.js";
 import type { InstructionAgent, InstructionAuditReport } from "./instruction-types.js";
 import { createLockFile, lockSkill, readLockFile, writeLockFile } from "./lock.js";
 import { ManifestNotFoundError, readManifest, serializeManifest } from "./manifest.js";
-import { dematerialize, materialize } from "./materializer.js";
+import { dematerialize, materializeBatch } from "./materializer.js";
 import { loadSkillPackage } from "./parser.js";
 import { expandTilde, relativeInside, resolvePath, toTildePath } from "./paths.js";
 import { isPortableMode } from "./portability.js";
@@ -43,6 +44,7 @@ import type {
   LockFile,
   Manifest,
   ResolvedSkill,
+  SkillFile,
   SkillSource,
   SourceProvenance,
   SyncPlan,
@@ -85,6 +87,12 @@ export interface SyncResult {
  */
 function normalizeProvenancePaths(source: SourceProvenance): SourceProvenance {
   return source.path ? { ...source, path: toTildePath(source.path) } : source;
+}
+
+function skillFilesDiffer(left: SkillFile[], right: SkillFile[]): boolean {
+  if (left.length !== right.length) return true;
+  const leftByPath = new Map(left.map((file) => [file.relativePath, file.sha256]));
+  return right.some((file) => leftByPath.get(file.relativePath) !== file.sha256);
 }
 
 export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
@@ -201,46 +209,42 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
     for (const install of plan.install) {
       const sourcePkg = prepared.find((p) => p.name === install.name)!;
       const sourceDir = resolved.find((r) => r.name === install.name)!.location;
-      let lockFiles = sourcePkg.files;
-      for (const { targetRoot } of driftReports) {
-        const result = await materialize({
+      await materializeBatch(
+        driftReports.map(({ targetRoot }) => ({
           skillName: install.name,
           sourcePath: sourceDir,
           targetRoot,
           mode: install.installMode,
           sourceFiles: sourcePkg.files,
-        });
-        lockFiles = result.files;
-      }
+        })),
+      );
       lockSkill(
         updatedLock,
         install.name,
         normalizeProvenancePaths(install.source),
         install.installMode,
-        lockFiles,
+        sourcePkg.files,
       );
     }
 
     for (const update of plan.update) {
       const sourceDir = resolved.find((r) => r.name === update.name)!.location;
       const sourcePkg = prepared.find((p) => p.name === update.name)!;
-      let lockFiles = sourcePkg.files;
-      for (const { targetRoot } of driftReports) {
-        const result = await materialize({
+      await materializeBatch(
+        driftReports.map(({ targetRoot }) => ({
           skillName: update.name,
           sourcePath: sourceDir,
           targetRoot,
           mode: update.installMode,
           sourceFiles: sourcePkg.files,
-        });
-        lockFiles = result.files;
-      }
+        })),
+      );
       lockSkill(
         updatedLock,
         update.name,
         normalizeProvenancePaths(update.source),
         update.installMode,
-        lockFiles,
+        sourcePkg.files,
       );
     }
 
@@ -249,23 +253,21 @@ export async function syncOperation(opts: SyncOptions): Promise<SyncResult> {
         const sourceDir = resolved.find((r) => r.name === conflict.name)!.location;
         const sourcePkg = prepared.find((p) => p.name === conflict.name)!;
         const installMode = manifest.overrides[conflict.name]?.installMode ?? manifest.installMode;
-        let lockFiles = sourcePkg.files;
-        for (const { targetRoot } of driftReports) {
-          const result = await materialize({
+        await materializeBatch(
+          driftReports.map(({ targetRoot }) => ({
             skillName: conflict.name,
             sourcePath: sourceDir,
             targetRoot,
             mode: installMode,
             sourceFiles: sourcePkg.files,
-          });
-          lockFiles = result.files;
-        }
+          })),
+        );
         lockSkill(
           updatedLock,
           conflict.name,
           normalizeProvenancePaths(sourcePkg.source),
           installMode,
-          lockFiles,
+          sourcePkg.files,
         );
       }
     }
@@ -531,7 +533,8 @@ export async function instructionAuditOperation(
   try {
     const manifest = await readManifest(projectRoot);
     configuredTargets = Object.keys(manifest.targets).filter(isInstructionAgent);
-  } catch {
+  } catch (err) {
+    if (!(err instanceof ManifestNotFoundError)) throw err;
     configuredTargets = [];
   }
 
@@ -635,6 +638,83 @@ export async function doctorOperation(projectRoot: string): Promise<DoctorResult
           status: "warn",
           message: `${cfg.dir} does not exist yet`,
         });
+      }
+    }
+
+    // Check collisions between roots known to be aliases for the same runtime.
+    const KNOWN_VENDOR_PATHS = [
+      { name: "claude", dir: ".claude/skills" },
+      { name: "codex", dir: ".codex/skills" },
+      { name: "gemini", dir: ".gemini/skills" },
+      { name: "agents", dir: ".agents/skills" },
+      { name: "generic-mcp", dir: ".agent/skills" },
+    ];
+    const COLLISION_PAIRS = [
+      ["codex", "agents"],
+      ["gemini", "agents"],
+    ] as const;
+    const configuredDirs = new Set(
+      Object.values(manifest.targets).map((t) => resolvePath(projectRoot, t.dir)),
+    );
+
+    const discoverableRoots: {
+      name: string;
+      root: string;
+      dir: string;
+      configured: boolean;
+    }[] = [];
+
+    for (const vendor of KNOWN_VENDOR_PATHS) {
+      const vendorPath = resolvePath(projectRoot, vendor.dir);
+      const isConfigured = configuredDirs.has(vendorPath);
+      try {
+        await access(vendorPath, constants.R_OK);
+        discoverableRoots.push({
+          name: vendor.name,
+          root: vendorPath,
+          dir: vendor.dir,
+          configured: isConfigured,
+        });
+      } catch {
+        // Directory does not exist on disk, clean.
+      }
+    }
+
+    for (const [leftName, rightName] of COLLISION_PAIRS) {
+      const leftRoot = discoverableRoots.find((root) => root.name === leftName);
+      const rightRoot = discoverableRoots.find((root) => root.name === rightName);
+      if (!leftRoot || !rightRoot) continue;
+
+      const leftSkills = await listInstalledSkillNames(leftRoot.root);
+      const rightSkills = new Set(await listInstalledSkillNames(rightRoot.root));
+      for (const skillName of leftSkills) {
+        if (!rightSkills.has(skillName)) continue;
+        const check = `collision:${leftName}:${rightName}:${skillName}`;
+        if (!leftRoot.configured || !rightRoot.configured) {
+          checks.push({
+            check,
+            status: "warn",
+            message: `Skill "${skillName}" is present in both ${leftRoot.dir} and ${rightRoot.dir} while at least one root is unconfigured; remove the duplicate or configure both roots`,
+          });
+          continue;
+        }
+
+        let different = false;
+        try {
+          different = skillFilesDiffer(
+            await hashSkillDirectory(join(leftRoot.root, skillName)),
+            await hashSkillDirectory(join(rightRoot.root, skillName)),
+          );
+        } catch {
+          different = true;
+        }
+        if (different) {
+          checks.push({
+            check,
+            status: "error",
+            message: `Conflicting skill "${skillName}" has different content in ${leftRoot.dir} and ${rightRoot.dir}; resolve the mismatch`,
+          });
+        }
       }
     }
   }
@@ -887,10 +967,11 @@ export async function settingsGenerateOperation(
   let manifest: Manifest | undefined;
   try {
     manifest = await readManifest(projectRoot);
-    lockFile = await readLockFile(projectRoot);
-  } catch {
+  } catch (err) {
+    if (!(err instanceof ManifestNotFoundError)) throw err;
     return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };
   }
+  lockFile = await readLockFile(projectRoot);
 
   if (!lockFile || !manifest) {
     return { agent, suggestedFragment: {}, totalRequired: [], missingCount: 0, gaps: [] };

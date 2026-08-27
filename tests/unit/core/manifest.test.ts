@@ -57,10 +57,13 @@ project_registry:
     expect(manifest.projectRegistry.includeWorktrees).toBe(true);
   });
 
-  it.each(["../skills", "/skills", "skills/../other", "skills\\nested"])(
-    "rejects unsafe git source subdir %j",
-    (subdir) => {
-      const yaml = `
+  it.each([
+    "../skills",
+    "/skills",
+    "skills/../other",
+    "skills\\nested",
+  ])("rejects unsafe git source subdir %j", (subdir) => {
+    const yaml = `
 version: 1
 sources:
   - name: team
@@ -69,9 +72,8 @@ sources:
     subdir: ${JSON.stringify(subdir)}
 skills: [code]
 `;
-      expect(() => parseManifest(yaml)).toThrow(/subdir/);
-    },
-  );
+    expect(() => parseManifest(yaml)).toThrow(/subdir/);
+  });
 
   it("rejects subdir on a non-git source", () => {
     const yaml = `
@@ -136,6 +138,16 @@ skills:
     expect(() => parseManifest(yaml)).toThrow("Unsupported manifest version");
   });
 
+  it.each(["42", "null", "{}"])("rejects non-string skill entry %s", (entry) => {
+    const yaml = `
+version: 1
+skills:
+  - code
+  - ${entry}
+`;
+    expect(() => parseManifest(yaml)).toThrow("skills[1] must be a string");
+  });
+
   it("parses object-form targets with tracked + ignore", () => {
     const yaml = `
 version: 1
@@ -170,6 +182,18 @@ targets:
     tracked: true
 `;
     expect(() => parseManifest(yaml)).toThrow('Target "claude" must have a string "dir" field');
+  });
+
+  it("rejects a non-string target exclusion", () => {
+    const yaml = `
+version: 1
+skills: [code]
+targets:
+  claude:
+    dir: .claude/skills
+    ignore: [blog, 42]
+`;
+    expect(() => parseManifest(yaml)).toThrow("targets.claude.ignore[1] must be a string");
   });
 });
 

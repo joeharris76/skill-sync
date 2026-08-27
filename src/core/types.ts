@@ -109,7 +109,7 @@ export interface SourceProvenance {
 
 /** A file within a skill package. */
 export interface SkillFile {
-  /** Relative path within the skill directory, e.g. "references/compare.md". */
+  /** POSIX relative path within the skill directory, e.g. "references/compare.md". */
   relativePath: string;
   size: number;
   sha256: string;

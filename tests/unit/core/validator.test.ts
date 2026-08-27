@@ -10,7 +10,10 @@ describe("validateSkillPackage", () => {
   it("passes for a valid skill", async () => {
     const skillDir = join(tmpBase, "valid");
     await mkdir(skillDir, { recursive: true });
-    await writeFile(join(skillDir, "SKILL.md"), "---\nname: valid\ndescription: A valid skill\n---\n# Valid\n");
+    await writeFile(
+      join(skillDir, "SKILL.md"),
+      "---\nname: valid\ndescription: A valid skill\n---\n# Valid\n",
+    );
 
     const result = await validateSkillPackage(skillDir);
     expect(result.valid).toBe(true);
@@ -40,7 +43,10 @@ describe("validateSkillPackage", () => {
   it("fails on non-portable paths", async () => {
     const skillDir = join(tmpBase, "nonportable");
     await mkdir(skillDir, { recursive: true });
-    await writeFile(join(skillDir, "SKILL.md"), "---\nname: np\ndescription: test\n---\nSee /Users/joe/code\n");
+    await writeFile(
+      join(skillDir, "SKILL.md"),
+      "---\nname: np\ndescription: test\n---\nSee /Users/joe/code\n",
+    );
 
     const result = await validateSkillPackage(skillDir);
     expect(result.valid).toBe(false);
@@ -63,6 +69,24 @@ describe("validateSkillPackage", () => {
     expect(result.diagnostics[0]!.rule).toBe("load-error");
   });
 
+  it("fails with a contextual diagnostic for an invalid dependency path", async () => {
+    const skillDir = join(tmpBase, "invalid-dependency");
+    await mkdir(skillDir, { recursive: true });
+    await writeFile(
+      join(skillDir, "SKILL.md"),
+      "---\nname: invalid-dependency\ndescription: test\n---\n",
+    );
+    await writeFile(join(skillDir, "skill.yaml"), 'depends: ["../escape"]\n');
+
+    const result = await validateSkillPackage(skillDir);
+
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics[0]).toEqual(
+      expect.objectContaining({ rule: "load-error", severity: "error" }),
+    );
+    expect(result.diagnostics[0]!.message).toContain("Invalid depends[0]");
+  });
+
   afterAll(async () => {
     await rm(tmpBase, { recursive: true, force: true });
   });
@@ -72,7 +96,10 @@ describe("validateManifest", () => {
   it("passes for a valid manifest", async () => {
     const path = join(tmpBase, "valid.yaml");
     await mkdir(tmpBase, { recursive: true });
-    await writeFile(path, "version: 1\nsources:\n  - name: test\n    type: local\n    path: /tmp\nskills:\n  - code\ntargets:\n  claude: .claude/skills\n");
+    await writeFile(
+      path,
+      "version: 1\nsources:\n  - name: test\n    type: local\n    path: /tmp\nskills:\n  - code\ntargets:\n  claude: .claude/skills\n",
+    );
 
     const result = await validateManifest(path);
     expect(result.valid).toBe(true);
@@ -89,7 +116,10 @@ describe("validateManifest", () => {
 
   it("warns on missing skills", async () => {
     const path = join(tmpBase, "no-skills.yaml");
-    await writeFile(path, "version: 1\nsources:\n  - name: test\n    type: local\n    path: /tmp\nskills: []\ntargets:\n  claude: .claude/skills\n");
+    await writeFile(
+      path,
+      "version: 1\nsources:\n  - name: test\n    type: local\n    path: /tmp\nskills: []\ntargets:\n  claude: .claude/skills\n",
+    );
 
     const result = await validateManifest(path);
     expect(result.diagnostics.some((d) => d.rule === "no-skills")).toBe(true);
@@ -106,7 +136,10 @@ describe("validateManifest", () => {
 
   it("warns on symlink install mode", async () => {
     const path = join(tmpBase, "symlink.yaml");
-    await writeFile(path, "version: 1\nsources:\n  - name: test\n    type: local\n    path: /tmp\nskills:\n  - x\ntargets:\n  claude: .claude/skills\ninstall_mode: symlink\n");
+    await writeFile(
+      path,
+      "version: 1\nsources:\n  - name: test\n    type: local\n    path: /tmp\nskills:\n  - x\ntargets:\n  claude: .claude/skills\ninstall_mode: symlink\n",
+    );
 
     const result = await validateManifest(path);
     expect(result.diagnostics.some((d) => d.rule === "non-portable-install-mode")).toBe(true);

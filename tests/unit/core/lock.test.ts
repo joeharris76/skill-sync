@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createLockFile,
   lockSkill,
+  parseLockFile,
   unlockSkill,
   getLockedSkill,
 } from "../../../src/core/lock.js";
@@ -76,5 +77,29 @@ describe("LockFile", () => {
     expect(roundTripped!.source.ref).toBe("main");
     expect(roundTripped!.installMode).toBe("copy");
     expect(roundTripped!.files["SKILL.md"]!.sha256).toBe("abc123");
+  });
+
+  it("normalizes legacy Windows file keys", () => {
+    const lock = createLockFile();
+    lockSkill(lock, "code", testProvenance, "mirror", [
+      { relativePath: "references\\compare.md", sha256: "abc", size: 3 },
+    ]);
+
+    const parsed = parseLockFile(JSON.stringify(lock));
+
+    expect(parsed.skills.code!.files["references/compare.md"]).toEqual({
+      sha256: "abc",
+      size: 3,
+    });
+  });
+
+  it("rejects legacy keys that collide after normalization", () => {
+    const lock = createLockFile();
+    lockSkill(lock, "code", testProvenance, "mirror", [
+      { relativePath: "references/compare.md", sha256: "abc", size: 3 },
+      { relativePath: "references\\compare.md", sha256: "def", size: 3 },
+    ]);
+
+    expect(() => parseLockFile(JSON.stringify(lock))).toThrow("colliding paths");
   });
 });

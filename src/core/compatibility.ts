@@ -38,9 +38,11 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
   gemini: {
     label: "Gemini CLI",
     defaultSkillDir: ".gemini/skills",
-    readsFrontmatter: true, // assumed parity with Claude/Codex; verify against Gemini CLI docs
+    // Gemini discovers only SKILL.md at the root or one directory below it.
+    // https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/skills/skillLoader.ts
+    readsFrontmatter: true,
     supportsAgentsMd: false,
-    unsupportedFeatures: ["allowed-tools"],
+    unsupportedFeatures: ["allowed-tools", "nested-skills"],
   },
   antigravity: {
     label: "Antigravity CLI",
@@ -58,6 +60,21 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
   },
 };
 
+/** Resolve an AgentTarget from a target key and/or directory path. */
+export function resolveAgentTarget(targetKey: string, dir?: string): AgentTarget | null {
+  if (targetKey in AGENT_TARGETS) return targetKey as AgentTarget;
+  if (!dir) return null;
+  const segments = dir.replace(/\\/g, "/").replace(/\/+$/, "").split("/");
+  const vendorRoot = segments.slice(-2).join("/");
+  const targetsByRoot: Record<string, AgentTarget> = {
+    ".claude/skills": "claude",
+    ".codex/skills": "codex",
+    ".gemini/skills": "gemini",
+    ".agent/skills": "generic-mcp",
+  };
+  return targetsByRoot[vendorRoot] ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Compatibility Checking
 // ---------------------------------------------------------------------------
@@ -66,17 +83,22 @@ export const AGENT_TARGETS: Record<AgentTarget, AgentTargetConfig> = {
  * Check a skill package's compatibility with a specific agent target.
  * Returns diagnostics for unsupported features or missing metadata.
  */
-export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): ValidationDiagnostic[] {
+export function checkCompatibility(
+  pkg: SkillPackage,
+  target: AgentTarget,
+  skillPath?: string,
+): ValidationDiagnostic[] {
   const diagnostics: ValidationDiagnostic[] = [];
   const config = AGENT_TARGETS[target];
+  const effectiveSkillName = skillPath ?? pkg.name;
 
   // Check declared target compatibility
   if (pkg.meta?.targets && pkg.meta.targets[target] === false) {
     diagnostics.push({
       rule: "target-declared-incompatible",
       severity: "error",
-      message: `Skill "${pkg.name}" declares itself incompatible with ${config.label}`,
-      skill: pkg.name,
+      message: `Skill "${effectiveSkillName}" declares itself incompatible with ${config.label}`,
+      skill: effectiveSkillName,
     });
   }
 
@@ -87,7 +109,7 @@ export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): Vali
         rule: "unsupported-feature",
         severity: "warning",
         message: `"allowed-tools" in SKILL.md is not supported by ${config.label} and will be ignored`,
-        skill: pkg.name,
+        skill: effectiveSkillName,
       });
     }
     if (feature === "scripts/") {
@@ -97,9 +119,17 @@ export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): Vali
           rule: "unsupported-feature",
           severity: "warning",
           message: `scripts/ directory is not executable by ${config.label} — scripts will be available as resources only`,
-          skill: pkg.name,
+          skill: effectiveSkillName,
         });
       }
+    }
+    if (feature === "nested-skills" && effectiveSkillName.includes("/")) {
+      diagnostics.push({
+        rule: "unsupported-feature",
+        severity: "error",
+        message: `Nested skill directory "${effectiveSkillName}" is not discovered by ${config.label} (supports 1-level depth only)`,
+        skill: effectiveSkillName,
+      });
     }
   }
 
@@ -110,7 +140,7 @@ export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): Vali
         rule: "missing-frontmatter-name",
         severity: "warning",
         message: `${config.label} expects "name" in SKILL.md frontmatter for discovery`,
-        skill: pkg.name,
+        skill: effectiveSkillName,
       });
     }
     if (!pkg.skillMd.description) {
@@ -118,7 +148,7 @@ export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): Vali
         rule: "missing-frontmatter-description",
         severity: "warning",
         message: `${config.label} expects "description" in SKILL.md frontmatter for routing`,
-        skill: pkg.name,
+        skill: effectiveSkillName,
       });
     }
   }
@@ -132,11 +162,13 @@ export function checkCompatibility(pkg: SkillPackage, target: AgentTarget): Vali
 export function checkAllTargetCompatibility(
   pkg: SkillPackage,
   targets: Record<string, TargetConfig>,
+  skillPath?: string,
 ): ValidationDiagnostic[] {
   const diagnostics: ValidationDiagnostic[] = [];
-  for (const targetKey of Object.keys(targets)) {
-    if (targetKey in AGENT_TARGETS) {
-      diagnostics.push(...checkCompatibility(pkg, targetKey as AgentTarget));
+  for (const [targetKey, targetCfg] of Object.entries(targets)) {
+    const resolved = resolveAgentTarget(targetKey, targetCfg.dir);
+    if (resolved) {
+      diagnostics.push(...checkCompatibility(pkg, resolved, skillPath));
     }
   }
   return diagnostics;

@@ -1,7 +1,14 @@
-import { describe, it, expect } from "vitest";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { expandTilde, relativeInside, resolvePath, toTildePath } from "../../../src/core/paths.js";
+import { describe, expect, it } from "vitest";
+import {
+  expandTilde,
+  normalizeRepositorySubdir,
+  normalizeSkillName,
+  relativeInside,
+  resolvePath,
+  toTildePath,
+} from "../../../src/core/paths.js";
 
 describe("expandTilde", () => {
   it("expands a bare ~ to the home directory", () => {
@@ -93,3 +100,35 @@ describe("relativeInside", () => {
     expect(relativeInside("/repo", "/repo/.codex/skills")).toBe(".codex/skills");
   });
 });
+
+describe("normalizeSkillName", () => {
+  it("normalizes single-segment and nested skill names", () => {
+    expect(normalizeSkillName("code")).toBe("code");
+    expect(normalizeSkillName("SHARED/change-framework")).toBe("SHARED/change-framework");
+    expect(normalizeSkillName("nested/sub/skill")).toBe("nested/sub/skill");
+  });
+
+  it("strips trailing slashes", () => {
+    expect(normalizeSkillName("code/")).toBe("code");
+    expect(normalizeSkillName("SHARED/change-framework/")).toBe("SHARED/change-framework");
+  });
+
+  it("rejects empty or whitespace-only names", () => {
+    expect(() => normalizeSkillName("")).toThrow("non-empty");
+    expect(() => normalizeSkillName("  ")).toThrow("non-empty");
+    expect(() => normalizeSkillName(" code ")).toThrow("non-empty");
+  });
+
+  it("rejects path traversal segments", () => {
+    expect(() => normalizeSkillName("../escape")).toThrow("traversal segments");
+    expect(() => normalizeSkillName("foo/../bar")).toThrow("traversal segments");
+    expect(() => normalizeSkillName("foo/./bar")).toThrow("traversal segments");
+  });
+
+  it("rejects absolute paths and Windows drive letters", () => {
+    expect(() => normalizeSkillName("/abs/skill")).toThrow("relative path");
+    expect(() => normalizeSkillName("C:/skill")).toThrow("relative path");
+    expect(() => normalizeSkillName("foo\\bar")).toThrow("relative path");
+  });
+});
+

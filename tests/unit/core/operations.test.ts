@@ -18,6 +18,7 @@ vi.mock("node:os", async () => {
 
 import {
   doctorOperation,
+  instructionAuditOperation,
   pinOperation,
   unpinOperation,
   pruneOperation,
@@ -148,23 +149,17 @@ describe("pinOperation", () => {
   });
 
   it("throws for local sources without revision", async () => {
-    await expect(pinOperation(projectRoot, "test")).rejects.toThrow(
-      /sourced from local/,
-    );
+    await expect(pinOperation(projectRoot, "test")).rejects.toThrow(/sourced from local/);
   });
 
   it("throws when no lock file exists", async () => {
     const emptyRoot = await setupProject("pin-no-lock-" + Date.now());
     await writeManifest(emptyRoot);
-    await expect(pinOperation(emptyRoot, "code")).rejects.toThrow(
-      /No lock file/,
-    );
+    await expect(pinOperation(emptyRoot, "code")).rejects.toThrow(/No lock file/);
   });
 
   it("throws for non-installed skill", async () => {
-    await expect(pinOperation(projectRoot, "nonexistent")).rejects.toThrow(
-      /not installed/,
-    );
+    await expect(pinOperation(projectRoot, "nonexistent")).rejects.toThrow(/not installed/);
   });
 });
 
@@ -243,7 +238,9 @@ describe("pruneOperation", () => {
     // Manifest only declares "code", but lock has "code" and "test"
     const manifest: Record<string, unknown> = {
       version: 1,
-      sources: [{ name: "team", type: "git", url: "https://github.com/org/skills.git", ref: "main" }],
+      sources: [
+        { name: "team", type: "git", url: "https://github.com/org/skills.git", ref: "main" },
+      ],
       skills: ["code"],
       targets: { claude: ".claude/skills" },
       install_mode: "mirror",
@@ -269,14 +266,22 @@ describe("pruneOperation", () => {
 // SyncOperation — local source scenarios
 // ---------------------------------------------------------------------------
 
-async function makeLocalSkillSource(root: string, skillName: string, content = `---\nname: ${skillName}\ndescription: ${skillName} skill\n---\n# ${skillName}\n`): Promise<string> {
+async function makeLocalSkillSource(
+  root: string,
+  skillName: string,
+  content = `---\nname: ${skillName}\ndescription: ${skillName} skill\n---\n# ${skillName}\n`,
+): Promise<string> {
   const skillDir = join(root, skillName);
   await mkdir(skillDir, { recursive: true });
   await writeFile(join(skillDir, "SKILL.md"), content);
   return root;
 }
 
-async function makeConsumerProject(name: string, sourceRoot: string, skills: string[]): Promise<string> {
+async function makeConsumerProject(
+  name: string,
+  sourceRoot: string,
+  skills: string[],
+): Promise<string> {
   const projectRoot = join(tmpBase, name);
   await mkdir(projectRoot, { recursive: true });
   const manifest: Record<string, unknown> = {
@@ -346,7 +351,9 @@ describe("syncOperation — skipped skills", () => {
     mockedOs.homeDir = tmpBase;
     await makeLocalSkillSource(firstSource, "code", content);
     await makeLocalSkillSource(secondSource, "code", content);
-    const projectRoot = await makeConsumerProject("metadata-project-" + Date.now(), firstSource, ["code"]);
+    const projectRoot = await makeConsumerProject("metadata-project-" + Date.now(), firstSource, [
+      "code",
+    ]);
 
     await syncOperation({ projectRoot });
     const manifest = {
@@ -373,7 +380,9 @@ describe("syncOperation — skipped skills", () => {
     const versionA = "---\nname: code\ndescription: code skill\n---\n# Version A\n";
     await makeLocalSkillSource(sourceRoot, "code", versionA);
 
-    const projectRoot = await makeConsumerProject("skipped-project-" + Date.now(), sourceRoot, ["code"]);
+    const projectRoot = await makeConsumerProject("skipped-project-" + Date.now(), sourceRoot, [
+      "code",
+    ]);
 
     // First sync installs version A; lock records version A hashes
     await syncOperation({ projectRoot });
@@ -457,7 +466,9 @@ describe("syncOperation — untracked target conflict", () => {
     await mkdir(sourceRoot, { recursive: true });
     await makeLocalSkillSource(sourceRoot, "code");
 
-    const projectRoot = await makeConsumerProject("untracked-project-" + Date.now(), sourceRoot, ["code"]);
+    const projectRoot = await makeConsumerProject("untracked-project-" + Date.now(), sourceRoot, [
+      "code",
+    ]);
     const targetSkillDir = join(projectRoot, ".claude", "skills", "code");
     await mkdir(targetSkillDir, { recursive: true });
     await writeFile(
@@ -545,7 +556,8 @@ describe("syncOperation — before_sync hooks", () => {
         targets: { claude: ".claude/skills" },
         install_mode: "mirror",
         hooks: {
-          before_sync: "node -e \"const fs=require('fs'); const p='hook-count.txt'; const n=fs.existsSync(p) ? Number(fs.readFileSync(p, 'utf8')) : 0; fs.writeFileSync(p, String(n + 1));\"",
+          before_sync:
+            "node -e \"const fs=require('fs'); const p='hook-count.txt'; const n=fs.existsSync(p) ? Number(fs.readFileSync(p, 'utf8')) : 0; fs.writeFileSync(p, String(n + 1));\"",
         },
       }),
     );
@@ -600,7 +612,9 @@ describe("syncOperation — registerProjectInSources", () => {
     };
     await writeFile(join(sourceRoot, "..", "skill-sync.yaml"), stringifyYaml(sourceManifest));
 
-    const projectRoot = await makeConsumerProject("reg-consumer-" + Date.now(), sourceRoot, ["code"]);
+    const projectRoot = await makeConsumerProject("reg-consumer-" + Date.now(), sourceRoot, [
+      "code",
+    ]);
 
     await syncOperation({ projectRoot });
 
@@ -624,19 +638,25 @@ describe("syncOperation — registerProjectInSources", () => {
     };
     await writeFile(join(sourceRoot, "..", "skill-sync.yaml"), stringifyYaml(sourceManifest));
 
-    const projectRoot = await makeConsumerProject("dedup-consumer-" + Date.now(), sourceRoot, ["code"]);
+    const projectRoot = await makeConsumerProject("dedup-consumer-" + Date.now(), sourceRoot, [
+      "code",
+    ]);
     const sourceParent = join(sourceRoot, "..");
 
     // First sync should add the entry
     await syncOperation({ projectRoot });
     const afterFirst = await readManifest(sourceParent);
-    const entriesAfterFirst = (afterFirst.projects ?? []).filter((p) => p.includes("dedup-consumer"));
+    const entriesAfterFirst = (afterFirst.projects ?? []).filter((p) =>
+      p.includes("dedup-consumer"),
+    );
     expect(entriesAfterFirst).toHaveLength(1);
 
     // Second sync should not add a duplicate
     await syncOperation({ projectRoot });
     const afterSecond = await readManifest(sourceParent);
-    const entriesAfterSecond = (afterSecond.projects ?? []).filter((p) => p.includes("dedup-consumer"));
+    const entriesAfterSecond = (afterSecond.projects ?? []).filter((p) =>
+      p.includes("dedup-consumer"),
+    );
     expect(entriesAfterSecond).toHaveLength(1);
   });
 
@@ -646,7 +666,11 @@ describe("syncOperation — registerProjectInSources", () => {
     await makeLocalSkillSource(sourceRoot, "code");
     // Deliberately no skill-sync.yaml in parent
 
-    const projectRoot = await makeConsumerProject("no-manifest-consumer-" + Date.now(), sourceRoot, ["code"]);
+    const projectRoot = await makeConsumerProject(
+      "no-manifest-consumer-" + Date.now(),
+      sourceRoot,
+      ["code"],
+    );
 
     const result = await syncOperation({ projectRoot });
     expect(result.applied).toBe(true);
@@ -744,6 +768,22 @@ describe("syncOperation — registerProjectInSources", () => {
   });
 });
 
+describe("manifest error boundaries", () => {
+  it("instruction audit does not treat a malformed manifest as absent", async () => {
+    const projectRoot = await setupProject("instruction-audit-invalid-manifest-" + Date.now());
+    await writeFile(join(projectRoot, "skill-sync.yaml"), "version: 1\nskills: [../escape]\n");
+
+    await expect(instructionAuditOperation({ projectRoot })).rejects.toThrow("traversal segments");
+  });
+
+  it("settings generation does not treat a malformed manifest as absent", async () => {
+    const projectRoot = await setupProject("settings-invalid-manifest-" + Date.now());
+    await writeFile(join(projectRoot, "skill-sync.yaml"), "version: 1\nskills: [../escape]\n");
+
+    await expect(settingsGenerateOperation({ projectRoot })).rejects.toThrow("traversal segments");
+  });
+});
+
 describe("doctorOperation", () => {
   it("lists all valid local Codex instruction paths when no project file exists", async () => {
     const projectRoot = await setupProject("doctor-codex-no-local-" + Date.now());
@@ -820,9 +860,7 @@ describe("doctorOperation", () => {
     );
 
     const result = await doctorOperation(projectRoot);
-    const settingsCheck = result.checks.find(
-      (c) => c.check === "settings-requirements:claude",
-    );
+    const settingsCheck = result.checks.find((c) => c.check === "settings-requirements:claude");
     expect(settingsCheck?.status).toBe("ok");
   });
 
@@ -886,7 +924,14 @@ describe("doctorOperation", () => {
     );
     await writeFile(
       join(operatorDir, "skill.yaml"),
-      ["tags: []", "depends: []", "targets: {}", "compatibility:", "  skill-sync:", "    min_version: 0.1.0"].join("\n"),
+      [
+        "tags: []",
+        "depends: []",
+        "targets: {}",
+        "compatibility:",
+        "  skill-sync:",
+        "    min_version: 0.1.0",
+      ].join("\n"),
     );
     await writeFile(
       join(projectRoot, "skill-sync.yaml"),
@@ -901,6 +946,111 @@ describe("doctorOperation", () => {
 
     const result = await doctorOperation(projectRoot);
     expect(result.checks.find((c) => c.check === "operator:claude")?.status).toBe("ok");
+  });
+
+  it("does not warn for a unique hand-authored vendor directory", async () => {
+    const projectRoot = await setupProject("doctor-legacy-root-" + Date.now());
+    await mkdir(join(projectRoot, ".codex", "skills"), { recursive: true });
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    expect(result.checks.some((check) => check.check.startsWith("legacy-root:"))).toBe(false);
+    expect(result.checks.some((check) => check.check.startsWith("collision:"))).toBe(false);
+  });
+
+  it("reports error for conflicting skill content across .codex/skills and .agents/skills", async () => {
+    const projectRoot = await setupProject("doctor-collision-" + Date.now());
+    const codexDir = join(projectRoot, ".codex", "skills", "test-skill");
+    const agentsDir = join(projectRoot, ".agents", "skills", "test-skill");
+    await mkdir(codexDir, { recursive: true });
+    await mkdir(agentsDir, { recursive: true });
+    await writeFile(join(codexDir, "SKILL.md"), "---\nname: test-skill\ndescription: A\n---");
+    await writeFile(join(agentsDir, "SKILL.md"), "---\nname: test-skill\ndescription: B\n---");
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["test-skill"],
+        targets: {
+          codex: ".codex/skills",
+          agents: ".agents/skills",
+        },
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const collisionCheck = result.checks.find(
+      (c) => c.check === "collision:codex:agents:test-skill",
+    );
+    expect(collisionCheck).toBeDefined();
+    expect(collisionCheck?.status).toBe("error");
+    expect(collisionCheck?.message).toContain(".codex/skills");
+    expect(collisionCheck?.message).toContain(".agents/skills");
+  });
+
+  it("warns when a skill exists in an unconfigured legacy root and an active root", async () => {
+    const projectRoot = await setupProject("doctor-legacy-collision-" + Date.now());
+    const codexDir = join(projectRoot, ".codex", "skills", "test-skill");
+    const agentsDir = join(projectRoot, ".agents", "skills", "test-skill");
+    await mkdir(codexDir, { recursive: true });
+    await mkdir(agentsDir, { recursive: true });
+    await writeFile(join(codexDir, "SKILL.md"), "---\nname: test-skill\ndescription: A\n---");
+    await writeFile(join(agentsDir, "SKILL.md"), "---\nname: test-skill\ndescription: A\n---");
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["test-skill"],
+        targets: {
+          agents: ".agents/skills",
+        },
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+    const collisionCheck = result.checks.find(
+      (c) => c.check === "collision:codex:agents:test-skill",
+    );
+    expect(collisionCheck).toBeDefined();
+    expect(collisionCheck?.status).toBe("warn");
+    expect(collisionCheck?.message).toContain("at least one root is unconfigured");
+  });
+
+  it("reports Gemini collisions with the shared .agents alias", async () => {
+    const projectRoot = await setupProject("doctor-gemini-agents-collision-" + Date.now());
+    const geminiDir = join(projectRoot, ".gemini", "skills", "test-skill");
+    const agentsDir = join(projectRoot, ".agents", "skills", "test-skill");
+    await mkdir(geminiDir, { recursive: true });
+    await mkdir(agentsDir, { recursive: true });
+    await writeFile(join(geminiDir, "SKILL.md"), "---\nname: test-skill\ndescription: A\n---");
+    await writeFile(join(agentsDir, "SKILL.md"), "---\nname: test-skill\ndescription: B\n---");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: ["test-skill"],
+        targets: { gemini: ".gemini/skills", shared: ".agents/skills" },
+      }),
+    );
+
+    const result = await doctorOperation(projectRoot);
+
+    expect(
+      result.checks.find((check) => check.check === "collision:gemini:agents:test-skill")?.status,
+    ).toBe("error");
   });
 });
 

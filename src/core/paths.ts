@@ -62,7 +62,16 @@ export function relativeInside(projectRoot: string, target: string): string | nu
   const root = resolve(projectRoot);
   const abs = resolvePath(projectRoot, target);
   const rel = relative(root, abs);
-  if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) return null;
+  if (
+    rel === "" ||
+    rel === ".." ||
+    rel.startsWith(`..${sep}`) ||
+    rel.startsWith("../") ||
+    rel.startsWith("..\\") ||
+    isAbsolute(rel)
+  ) {
+    return null;
+  }
   return rel.split(sep).join("/");
 }
 
@@ -80,6 +89,26 @@ export function normalizeRepositorySubdir(subdir: string): string {
   const normalized = posix.normalize(subdir).replace(/\/$/, "");
   if (normalized === ".") {
     throw new Error("Git source subdir must name a directory below the repository root");
+  }
+  return normalized;
+}
+
+/** Validate and normalize a skill name or relative path from a manifest. */
+export function normalizeSkillName(name: string): string {
+  if (!name || name !== name.trim()) {
+    throw new Error("Skill name must be a non-empty string");
+  }
+  if (name.includes("\\") || posix.isAbsolute(name) || /^[A-Za-z]:\//.test(name)) {
+    throw new Error(`Skill name must be a relative path: "${name}"`);
+  }
+  const clean = name.replace(/\/+$/, "");
+  const segments = clean.split("/");
+  if (segments.some((segment) => segment === ".." || segment === "." || segment === "")) {
+    throw new Error(`Skill name must not contain empty or traversal segments: "${name}"`);
+  }
+  const normalized = posix.normalize(clean);
+  if (normalized === "." || normalized === "") {
+    throw new Error(`Invalid skill name: "${name}"`);
   }
   return normalized;
 }

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import { normalizeRepositorySubdir } from "./paths.js";
+import { normalizeRepositorySubdir, normalizeSkillName } from "./paths.js";
 import type {
   InstallMode,
   Manifest,
@@ -121,7 +121,12 @@ function parseSources(raw: unknown): SourceConfig[] {
 
 function parseSkills(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((s): s is string => typeof s === "string");
+  return raw.map((skill, index) => {
+    if (typeof skill !== "string") {
+      throw new Error(`skills[${index}] must be a string`);
+    }
+    return normalizeSkillName(skill);
+  });
 }
 
 function parseTargets(raw: unknown): Record<string, TargetConfig> {
@@ -143,9 +148,12 @@ function parseTargets(raw: unknown): Record<string, TargetConfig> {
       const cfg: TargetConfig = { dir: o.dir };
       if (o.tracked === true) cfg.tracked = true;
       if (Array.isArray(o.ignore)) {
-        const ignore = o.ignore.filter(
-          (s): s is string => typeof s === "string" && s.trim().length > 0,
-        );
+        const ignore = o.ignore.map((skill, index) => {
+          if (typeof skill !== "string") {
+            throw new Error(`targets.${key}.ignore[${index}] must be a string`);
+          }
+          return normalizeSkillName(skill);
+        });
         if (ignore.length > 0) cfg.ignore = ignore;
       }
       result[key] = cfg;
@@ -199,7 +207,7 @@ function parseConfig(raw: unknown): Record<string, Record<string, unknown>> {
   const result: Record<string, Record<string, unknown>> = {};
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
     if (val && typeof val === "object") {
-      result[key] = val as Record<string, unknown>;
+      result[normalizeSkillName(key)] = val as Record<string, unknown>;
     }
   }
   return result;
@@ -216,7 +224,7 @@ function parseOverrides(
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
     if (val && typeof val === "object") {
       const o = val as Record<string, unknown>;
-      result[key] = {
+      result[normalizeSkillName(key)] = {
         installMode:
           typeof o.install_mode === "string" &&
           VALID_INSTALL_MODES.has(o.install_mode as InstallMode)

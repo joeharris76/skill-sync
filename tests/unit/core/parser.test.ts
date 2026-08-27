@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  parseSkillMdFrontmatter,
-  parseSkillSyncMeta,
-} from "../../../src/core/parser.js";
+import { parseSkillMdFrontmatter, parseSkillSyncMeta } from "../../../src/core/parser.js";
 
 describe("parseSkillMdFrontmatter", () => {
   it("parses standard SKILL.md frontmatter", () => {
@@ -65,10 +62,7 @@ targets:
     const meta = parseSkillSyncMeta(content);
     expect(meta.tags).toEqual(["python", "backend"]);
     expect(meta.category).toBe("development");
-    expect(meta.depends).toEqual([
-      "SHARED/commit-framework",
-      "SHARED/verify-framework",
-    ]);
+    expect(meta.depends).toEqual(["SHARED/commit-framework", "SHARED/verify-framework"]);
     expect(meta.configInputs).toHaveLength(1);
     expect(meta.configInputs[0]!.key).toBe("test.runner");
     expect(meta.targets.claude).toBe(true);
@@ -82,6 +76,13 @@ targets:
     expect(meta.configInputs).toEqual([]);
     expect(meta.targets).toEqual({});
     expect(meta.settingsRequirements).toBeUndefined();
+  });
+
+  it("rejects malformed dependency paths with field context", () => {
+    expect(() => parseSkillSyncMeta('depends: ["../escape"]')).toThrow(
+      'Invalid depends[0] value "../escape"',
+    );
+    expect(() => parseSkillSyncMeta("depends: [42]")).toThrow("depends[0] must be a string");
   });
 
   it("parses settings_requirements with permissions.allow", () => {
