@@ -2,7 +2,7 @@
 
 Use for adversarial draft review.
 
-Apply `SHARED/review-protocol/references/adversarial-review.md` with `change`
+Apply `shared-review-protocol/references/adversarial-review.md` with `change`
 scope. This file adds the blog-specific rubric and readiness score.
 
 ## Rubric

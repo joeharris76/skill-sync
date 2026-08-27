@@ -1,6 +1,6 @@
 depends:
-  - SHARED/change-framework
-  - SHARED/review-protocol
+  - shared-change-framework
+  - shared-review-protocol
 tags:
   - writing
   - blog
