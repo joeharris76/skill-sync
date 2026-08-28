@@ -158,10 +158,10 @@ skills:
     expect(() => parseManifest(`version: 1\n${body}\n`)).toThrow("loader-owned");
   });
 
-  it("does not reserve case variants of .system", () => {
-    expect(parseManifest("version: 1\nskills: [.System/imagegen]\n").skills).toEqual([
-      ".System/imagegen",
-    ]);
+  it("rejects case-fold aliases of .system in managed identities", () => {
+    expect(() => parseManifest("version: 1\nskills: [.System/imagegen]\n")).toThrow(
+      "loader-owned",
+    );
   });
 
   it("parses object-form targets with tracked + ignore", () => {

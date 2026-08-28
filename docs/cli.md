@@ -59,7 +59,8 @@ intentionally absent snapshot is not mislabeled as tracked drift.
 
 The exact top-level `.system/` namespace is loader-owned and omitted from
 status, readiness, and tracked-snapshot verification. Other paths, including
-case variants, remain ordinary managed inventory.
+case variants, remain ordinary read-side inventory. Mutation commands reject
+case-fold aliases of `.system/` before writing.
 
 ### `skill-sync validate`
 

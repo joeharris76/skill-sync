@@ -105,9 +105,11 @@ describe("LockFile", () => {
 
   it("rejects loader-owned skill identities but preserves package-relative files", () => {
     const lock = createLockFile();
-    expect(() => lockSkill(lock, ".system/imagegen", testProvenance, "mirror", testFiles)).toThrow(
-      "loader-owned",
-    );
+    for (const name of [".system/imagegen", ".System/imagegen"]) {
+      expect(() => lockSkill(lock, name, testProvenance, "mirror", testFiles)).toThrow(
+        "loader-owned",
+      );
+    }
     expect(() =>
       parseLockFile(
         JSON.stringify({

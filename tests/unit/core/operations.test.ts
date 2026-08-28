@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { writeFile, mkdir, rm as fsRm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -32,6 +33,10 @@ import { existsSync } from "node:fs";
 
 const tmpBase = join(tmpdir(), "skill-sync-operations-test-" + Date.now());
 const execFileAsync = promisify(execFile);
+
+function sha256(content: Uint8Array): string {
+  return createHash("sha256").update(content).digest("hex");
+}
 
 async function removeTestTree(path: string): Promise<void> {
   await fsRm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
@@ -268,7 +273,9 @@ describe("pruneOperation", () => {
     const ordinaryExtra = join(targetRoot, "obsolete");
     await mkdir(join(systemSkill, ".."), { recursive: true });
     await mkdir(ordinaryExtra, { recursive: true });
-    await writeFile(systemSkill, "# Loader-owned\n");
+    const systemBytes = Buffer.from([0x00, 0x42, 0x4d, 0xff, 0x0a]);
+    await writeFile(systemSkill, systemBytes);
+    const systemHash = sha256(systemBytes);
     await writeFile(join(ordinaryExtra, "SKILL.md"), "# Obsolete\n");
     await writeFile(
       join(projectRoot, "skill-sync.yaml"),
@@ -284,12 +291,14 @@ describe("pruneOperation", () => {
 
     const preview = await pruneOperation(projectRoot, true);
     expect(preview.pruned).toEqual(["obsolete"]);
-    expect(existsSync(systemSkill)).toBe(true);
+    expect(await readFile(systemSkill)).toEqual(systemBytes);
+    expect(sha256(await readFile(systemSkill))).toBe(systemHash);
 
     const applied = await pruneOperation(projectRoot);
     expect(applied.pruned).toEqual(["obsolete"]);
     expect(existsSync(ordinaryExtra)).toBe(false);
-    expect(existsSync(systemSkill)).toBe(true);
+    expect(await readFile(systemSkill)).toEqual(systemBytes);
+    expect(sha256(await readFile(systemSkill))).toBe(systemHash);
   });
 });
 
@@ -395,11 +404,14 @@ describe("syncOperation — skill removal", () => {
       "SKILL.md",
     );
     await mkdir(join(systemSkill, ".."), { recursive: true });
-    await writeFile(systemSkill, "# Loader-owned\n");
+    const systemBytes = Buffer.from([0x00, 0x42, 0x4d, 0xff, 0x0a]);
+    await writeFile(systemSkill, systemBytes);
+    const systemHash = sha256(systemBytes);
 
     await syncOperation({ projectRoot });
     expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
-    expect(existsSync(systemSkill)).toBe(true);
+    expect(await readFile(systemSkill)).toEqual(systemBytes);
+    expect(sha256(await readFile(systemSkill))).toBe(systemHash);
 
     await writeFile(
       join(projectRoot, "skill-sync.yaml"),
@@ -407,7 +419,8 @@ describe("syncOperation — skill removal", () => {
     );
     await syncOperation({ projectRoot });
     expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(false);
-    expect(existsSync(systemSkill)).toBe(true);
+    expect(await readFile(systemSkill)).toEqual(systemBytes);
+    expect(sha256(await readFile(systemSkill))).toBe(systemHash);
   });
 });
 

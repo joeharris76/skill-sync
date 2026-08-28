@@ -8,6 +8,16 @@ import { createServer, listInstalledSkills, runValidation } from "../../../src/m
 
 const tmpBase = join(tmpdir(), "skill-sync-mcp-test");
 type TestMcpServer = ReturnType<typeof createServer> & {
+  _registeredResourceTemplates: Record<
+    string,
+    {
+      readCallback: (
+        uri: URL,
+        variables: Record<string, string | string[]>,
+        extra: unknown,
+      ) => Promise<unknown>;
+    }
+  >;
   _registeredPrompts: Record<
     string,
     {
@@ -773,6 +783,29 @@ describe("MCP prompt: use-skill", () => {
 
     expect(text).toContain("not found");
   });
+
+  it.each([".system", ".system/imagegen", ".System", ".SYSTEM/imagegen", ".ſystem/imagegen"])(
+    "rejects loader-owned alias %s across direct resource and prompt routes",
+    async (name) => {
+      const missingProject = join(tmpBase, `reserved-direct-${Date.now()}`);
+      const server = createServer(missingProject) as TestMcpServer;
+      const skillResource = server._registeredResourceTemplates.skill!;
+      const skillFileResource = server._registeredResourceTemplates["skill-file"]!;
+      const prompt = server._registeredPrompts["use-skill"]!;
+
+      await expect(
+        skillResource.readCallback(new URL("skill://reserved"), { name }, {}),
+      ).rejects.toThrow("loader-owned");
+      await expect(
+        skillFileResource.readCallback(
+          new URL("skill://reserved/SKILL.md"),
+          { name, path: "SKILL.md" },
+          {},
+        ),
+      ).rejects.toThrow("loader-owned");
+      await expect(prompt.callback({ name }, {})).rejects.toThrow("loader-owned");
+    },
+  );
 });
 
 describe("MCP exported helpers", () => {

@@ -86,9 +86,11 @@ targets:
   });
 
   it("rejects dependencies in the loader-owned namespace", () => {
-    expect(() => parseSkillSyncMeta('depends: [".system/imagegen"]')).toThrow(
-      'Invalid depends[0] value ".system/imagegen": Skill name must not use loader-owned',
-    );
+    for (const name of [".system/imagegen", ".System/imagegen"]) {
+      expect(() => parseSkillSyncMeta(`depends: ["${name}"]`)).toThrow(
+        `Invalid depends[0] value "${name}": Skill name must not use loader-owned`,
+      );
+    }
   });
 
   it("parses settings_requirements with permissions.allow", () => {

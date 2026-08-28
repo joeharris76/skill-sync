@@ -143,12 +143,20 @@ describe("loader-owned store paths", () => {
     expect(isLoaderOwnedStorePath(".systematic/SKILL.md")).toBe(false);
   });
 
-  it("rejects loader-owned managed skill identities without changing other names", () => {
-    expect(() => normalizeManagedSkillName(".system")).toThrow("loader-owned");
-    expect(() => normalizeManagedSkillName(".system/imagegen")).toThrow("loader-owned");
-    expect(normalizeManagedSkillName(".System/imagegen")).toBe(".System/imagegen");
+  it("rejects case-fold aliases of loader-owned managed skill identities", () => {
+    for (const name of [
+      ".system",
+      ".system/imagegen",
+      ".System",
+      ".SYSTEM/imagegen",
+      ".ſystem/imagegen",
+    ]) {
+      expect(() => normalizeManagedSkillName(name)).toThrow("loader-owned");
+    }
     expect(normalizeManagedSkillName("SHARED/change-framework")).toBe(
       "SHARED/change-framework",
     );
+    expect(normalizeManagedSkillName(".systematic/example")).toBe(".systematic/example");
+    expect(normalizeManagedSkillName("nested/.System/example")).toBe("nested/.System/example");
   });
 });

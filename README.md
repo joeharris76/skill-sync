@@ -93,7 +93,9 @@ Sync behavior:
 
 The exact top-level `.system/` namespace is reserved for loader-owned content.
 Skill-sync preserves it and excludes it from managed inventory, drift, pruning,
-and tracked-snapshot verification; managed skill packages remain exact.
+and tracked-snapshot verification; managed skill packages remain exact. Case
+variants remain visible to read-side checks but are rejected as managed names
+before any write.
 
 ## Portability And Overrides
 

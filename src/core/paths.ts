@@ -124,7 +124,7 @@ export function normalizeSkillName(name: string): string {
 /** Validate a skill identity that skill-sync may manage in a target store. */
 export function normalizeManagedSkillName(name: string): string {
   const normalized = normalizeSkillName(name);
-  if (isLoaderOwnedStorePath(normalized)) {
+  if (normalized.split("/", 1)[0]?.normalize("NFKC").toLowerCase() === LOADER_OWNED_STORE_ENTRY) {
     throw new Error(
       `Skill name must not use loader-owned top-level namespace "${LOADER_OWNED_STORE_ENTRY}": "${name}"`,
     );

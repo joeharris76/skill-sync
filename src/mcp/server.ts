@@ -16,7 +16,7 @@ import {
   unpinOperation,
 } from "../core/operations.js";
 import { loadSkillPackage } from "../core/parser.js";
-import { resolvePath } from "../core/paths.js";
+import { normalizeManagedSkillName, resolvePath } from "../core/paths.js";
 import { validatePortability } from "../core/portability.js";
 import type { SkillPackage, ValidationDiagnostic } from "../core/types.js";
 
@@ -641,10 +641,11 @@ export async function runValidation(projectRoot: string): Promise<ValidationDiag
 }
 
 async function findSkillRoot(projectRoot: string, skillName: string): Promise<TargetRoot | null> {
+  const normalizedSkillName = normalizeManagedSkillName(skillName);
   const targets = await getTargetRoots(projectRoot);
   for (const target of targets) {
     try {
-      await access(join(target.root, skillName, "SKILL.md"), constants.R_OK);
+      await access(join(target.root, normalizedSkillName, "SKILL.md"), constants.R_OK);
       return target;
     } catch {
       // Keep searching other targets.

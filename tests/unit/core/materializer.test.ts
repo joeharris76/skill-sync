@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, writeFile, readlink, stat, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, readlink, stat, rm } from "node:fs/promises";
 import { join, tmpdir, resolve } from "node:path";
 import { tmpdir as osTmpdir } from "node:os";
 import { hashSkillDirectory } from "../../../src/core/hasher.js";
@@ -271,21 +271,46 @@ describe("materialize — containment & normalization safety", () => {
     ).rejects.toThrow("relative path");
   });
 
-  it("rejects materializing or removing loader-owned skill identities", async () => {
+  it("rejects loader-owned aliases before materializing or removing from disk", async () => {
     const root = await makeTempDir();
     const { sourcePath, sourceFiles } = await makeSourceSkill(root);
+    const targetRoot = join(root, "missing-target");
+
+    for (const skillName of [
+      ".system/imagegen",
+      ".System/imagegen",
+      ".SYSTEM/imagegen",
+      ".ſystem/imagegen",
+    ]) {
+      await expect(
+        materialize({
+          skillName,
+          sourcePath,
+          targetRoot,
+          mode: "mirror",
+          sourceFiles,
+        }),
+      ).rejects.toThrow("loader-owned");
+
+      await expect(dematerialize(skillName, targetRoot)).rejects.toThrow("loader-owned");
+    }
+    expect(existsSync(targetRoot)).toBe(false);
+  });
+
+  it("preserves .system bytes when a case-fold alias resolves to it", async () => {
+    const root = await makeTempDir();
     const targetRoot = join(root, "target");
+    const systemFile = join(targetRoot, ".system", "imagegen", "SKILL.md");
+    const systemBytes = Buffer.from([0x00, 0x42, 0x4d, 0xff, 0x0a]);
+    await mkdir(join(systemFile, ".."), { recursive: true });
+    await writeFile(systemFile, systemBytes);
 
-    await expect(
-      materialize({
-        skillName: ".system/imagegen",
-        sourcePath,
-        targetRoot,
-        mode: "mirror",
-        sourceFiles,
-      }),
-    ).rejects.toThrow("loader-owned");
+    const aliases = [".System/imagegen", ".ſystem/imagegen"];
+    if (aliases.some((alias) => !existsSync(join(targetRoot, alias, "SKILL.md")))) return;
 
-    await expect(dematerialize(".system/imagegen", targetRoot)).rejects.toThrow("loader-owned");
+    for (const alias of aliases) {
+      await expect(dematerialize(alias, targetRoot)).rejects.toThrow("loader-owned");
+      expect(await readFile(systemFile)).toEqual(systemBytes);
+    }
   });
 });
