@@ -1,4 +1,5 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -639,6 +640,20 @@ describe("MCP tool: prune-skills", () => {
 });
 
 describe("MCP tool: pin-skill / unpin-skill", () => {
+  it.each([".system", ".System/imagegen", ".ſystem/imagegen"])(
+    "rejects loader-owned alias %s before project access",
+    async (skill) => {
+      const missingProject = join(tmpBase, `missing-pin-mcp-${Date.now()}-${Math.random()}`);
+      const server = createServer(missingProject) as TestMcpServer;
+
+      for (const name of ["pin-skill", "unpin-skill"]) {
+        const result = await server._registeredTools[name]!.handler({ skill });
+        expect(JSON.parse(result.content[0]!.text).error).toContain("loader-owned");
+      }
+      expect(existsSync(missingProject)).toBe(false);
+    },
+  );
+
   it("returns error JSON when pin fails for local source", async () => {
     const projectRoot = join(tmpBase, "pin-mcp-" + Date.now());
     await mkdir(projectRoot, { recursive: true });

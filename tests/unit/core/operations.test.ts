@@ -132,7 +132,7 @@ describe("pinOperation", () => {
   });
 
   it("pins a git-sourced skill to its revision", async () => {
-    const result = await pinOperation(projectRoot, "code");
+    const result = await pinOperation(projectRoot, "code/");
     expect(result.pinned).toBe("code");
     expect(result.revision).toBe("abc123def456");
     expect(result.source).toBe("team");
@@ -166,6 +166,15 @@ describe("pinOperation", () => {
   it("throws for non-installed skill", async () => {
     await expect(pinOperation(projectRoot, "nonexistent")).rejects.toThrow(/not installed/);
   });
+
+  it.each([".system", ".System/imagegen", ".ſystem/imagegen"])(
+    "rejects loader-owned alias %s before reading the project",
+    async (skillName) => {
+      const missingRoot = join(tmpBase, `missing-pin-${Date.now()}-${Math.random()}`);
+      await expect(pinOperation(missingRoot, skillName)).rejects.toThrow("loader-owned");
+      expect(existsSync(missingRoot)).toBe(false);
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -185,7 +194,7 @@ describe("unpinOperation", () => {
       code: { install_mode: "copy", revision: "abc123def456", source_name: "team" },
     });
 
-    const result = await unpinOperation(projectRoot, "code");
+    const result = await unpinOperation(projectRoot, "code/");
     expect(result.unpinned).toBe("code");
 
     const manifest = await readManifest(projectRoot);
@@ -220,6 +229,15 @@ describe("unpinOperation", () => {
     const result = await unpinOperation(projectRoot, "code");
     expect(result.unpinned).toBe(false);
   });
+
+  it.each([".system", ".System/imagegen", ".ſystem/imagegen"])(
+    "rejects loader-owned alias %s before reading the project",
+    async (skillName) => {
+      const missingRoot = join(tmpBase, `missing-unpin-${Date.now()}-${Math.random()}`);
+      await expect(unpinOperation(missingRoot, skillName)).rejects.toThrow("loader-owned");
+      expect(existsSync(missingRoot)).toBe(false);
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

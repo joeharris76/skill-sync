@@ -27,7 +27,13 @@ import { createLockFile, lockSkill, readLockFile, writeLockFile } from "./lock.j
 import { ManifestNotFoundError, readManifest, serializeManifest } from "./manifest.js";
 import { dematerialize, materializeBatch } from "./materializer.js";
 import { loadSkillPackage } from "./parser.js";
-import { expandTilde, relativeInside, resolvePath, toTildePath } from "./paths.js";
+import {
+  expandTilde,
+  normalizeManagedSkillName,
+  relativeInside,
+  resolvePath,
+  toTildePath,
+} from "./paths.js";
 import { isPortableMode } from "./portability.js";
 import { resolveSkill } from "./resolver.js";
 import {
@@ -395,6 +401,7 @@ export interface PinResult {
  * any existing `installMode` override.
  */
 export async function pinOperation(projectRoot: string, skillName: string): Promise<PinResult> {
+  const normalizedSkillName = normalizeManagedSkillName(skillName);
   const manifest = await readManifest(projectRoot);
   const lockFile = await readLockFile(projectRoot);
 
@@ -402,27 +409,27 @@ export async function pinOperation(projectRoot: string, skillName: string): Prom
     throw new Error("No lock file found. Run `skill-sync sync` first.");
   }
 
-  const locked = lockFile.skills[skillName];
+  const locked = lockFile.skills[normalizedSkillName];
   if (!locked) {
-    throw new Error(`Skill "${skillName}" is not installed.`);
+    throw new Error(`Skill "${normalizedSkillName}" is not installed.`);
   }
 
   if (locked.source.type !== "git" || !locked.source.revision) {
     throw new Error(
-      `Skill "${skillName}" is sourced from ${locked.source.type} and does not have a fixed revision to pin.`,
+      `Skill "${normalizedSkillName}" is sourced from ${locked.source.type} and does not have a fixed revision to pin.`,
     );
   }
 
-  if (!manifest.overrides[skillName]) {
-    manifest.overrides[skillName] = {};
+  if (!manifest.overrides[normalizedSkillName]) {
+    manifest.overrides[normalizedSkillName] = {};
   }
-  manifest.overrides[skillName]!.sourceName = locked.source.name;
-  manifest.overrides[skillName]!.revision = locked.source.revision;
+  manifest.overrides[normalizedSkillName]!.sourceName = locked.source.name;
+  manifest.overrides[normalizedSkillName]!.revision = locked.source.revision;
 
   await writeFile(join(projectRoot, "skill-sync.yaml"), serializeManifest(manifest), "utf-8");
 
   return {
-    pinned: skillName,
+    pinned: normalizedSkillName,
     revision: locked.source.revision,
     source: locked.source.name,
   };
@@ -445,13 +452,14 @@ export interface UnpinResult {
  * no fields remain.
  */
 export async function unpinOperation(projectRoot: string, skillName: string): Promise<UnpinResult> {
+  const normalizedSkillName = normalizeManagedSkillName(skillName);
   const manifest = await readManifest(projectRoot);
 
-  const override = manifest.overrides[skillName];
+  const override = manifest.overrides[normalizedSkillName];
   if (!override?.revision) {
     return {
       unpinned: false,
-      message: `Skill "${skillName}" is not pinned.`,
+      message: `Skill "${normalizedSkillName}" is not pinned.`,
     };
   }
 
@@ -460,12 +468,12 @@ export async function unpinOperation(projectRoot: string, skillName: string): Pr
 
   // Remove the override entirely if no fields remain
   if (!override.installMode) {
-    delete manifest.overrides[skillName];
+    delete manifest.overrides[normalizedSkillName];
   }
 
   await writeFile(join(projectRoot, "skill-sync.yaml"), serializeManifest(manifest), "utf-8");
 
-  return { unpinned: skillName };
+  return { unpinned: normalizedSkillName };
 }
 
 // ---------------------------------------------------------------------------

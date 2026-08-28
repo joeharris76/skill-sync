@@ -372,6 +372,22 @@ describe("runCli", () => {
     expect(result.stderr).toContain("Usage");
   });
 
+  it.each([".system", ".System/imagegen", ".ſystem/imagegen"])(
+    "pin and unpin reject loader-owned alias %s before project access",
+    async (skillName) => {
+      const parent = await mkdtemp(join(tmpdir(), "skill-sync-cli-reserved-pin-"));
+      const missingProject = join(parent, "missing-project");
+
+      for (const command of ["pin", "unpin"]) {
+        const result = await runCli([command, skillName, "--project", missingProject]);
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("loader-owned");
+      }
+      expect(existsSync(missingProject)).toBe(false);
+      await rm(parent, { recursive: true, force: true });
+    },
+  );
+
   it("pin stores the locked git revision in manifest overrides", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "skill-sync-cli-pin-"));
     await writeFile(
