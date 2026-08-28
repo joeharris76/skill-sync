@@ -557,17 +557,49 @@ describe("runCli", () => {
       ].join("\n"),
       "utf8",
     );
+    const systemSkill = join(
+      projectRoot,
+      ".claude",
+      "skills",
+      ".system",
+      "imagegen",
+      "SKILL.md",
+    );
+    await mkdir(join(systemSkill, ".."), { recursive: true });
+    await writeFile(systemSkill, "# Runtime-owned\n", "utf8");
 
     const result = await runCli(["sync", "--project", projectRoot]);
     expect(result.exitCode).toBe(0);
+    expect(existsSync(systemSkill)).toBe(true);
 
     const gitignore = await readFile(join(projectRoot, ".gitignore"), "utf8");
     // Tracked target is NOT ignored; untracked sibling IS ignored.
     expect(gitignore).not.toContain("/.claude/skills/\n");
     expect(gitignore).toContain("/.codex/skills/");
+    expect(gitignore).toContain("/.claude/skills/.system/");
     // Tracked tree gets -text so committed bytes survive EOL normalization.
     const gitattributes = await readFile(join(projectRoot, ".gitattributes"), "utf8");
     expect(gitattributes).toContain("/.claude/skills/** -text");
+
+    const status = JSON.parse(
+      (await runCli(["status", "--json", "--project", projectRoot])).stdout ?? "{}",
+    );
+    expect(status.targets[0].summary.extra).toBe(0);
+    expect(status.targets[0].readiness.trackedSnapshot.status).toBe("clean");
+
+    const doctor = JSON.parse(
+      (await runCli(["doctor", "--json", "--project", projectRoot])).stdout ?? "{}",
+    );
+    expect(doctor.readiness.trackedSnapshots).toBe("clean");
+    expect(
+      doctor.checks.some((check: { check: string }) => check.check === "extra:claude"),
+    ).toBe(false);
+
+    expect((await runCli(["verify", "--project", projectRoot])).exitCode).toBe(0);
+    expect((await runCli(["prune", "--dry-run", "--project", projectRoot])).stdout).toContain(
+      "Nothing to prune",
+    );
+    expect(existsSync(systemSkill)).toBe(true);
 
     await rm(projectRoot, { recursive: true, force: true });
   });

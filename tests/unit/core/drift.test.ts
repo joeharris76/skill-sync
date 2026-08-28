@@ -1,5 +1,9 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { detectDrift, detectTargetReadiness } from "../../../src/core/drift.js";
+import {
+  detectDrift,
+  detectTargetReadiness,
+  listInstalledSkillNames,
+} from "../../../src/core/drift.js";
 import type { LockFile } from "../../../src/core/types.js";
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -75,6 +79,24 @@ describe("detectDrift", () => {
     const lockFile: LockFile = { version: 1, lockedAt: "", skills: {} };
     const report = await detectDrift(targetRoot, lockFile);
     expect(report.extra).toContain("SHARED/verify-framework");
+  });
+
+  it("omits the exact loader-owned namespace before recursion", async () => {
+    const targetRoot = join(tmpBase, "loader-owned");
+    await writeFileWithHash(join(targetRoot, ".system", "imagegen"), "SKILL.md", "# System");
+    await writeFileWithHash(join(targetRoot, "nested", ".system"), "SKILL.md", "# Nested");
+
+    const installed = await listInstalledSkillNames(targetRoot);
+    expect(installed).not.toContain(".system/imagegen");
+    expect(installed).toContain("nested/.system");
+
+    const report = await detectDrift(targetRoot, { version: 1, lockedAt: "", skills: {} });
+    expect(report.extra).toContain("nested/.system");
+    expect(report.extra).not.toContain(".system/imagegen");
+
+    const variantRoot = join(tmpBase, "loader-owned-case-variant");
+    await writeFileWithHash(join(variantRoot, ".System", "visible"), "SKILL.md", "# Visible");
+    expect(await listInstalledSkillNames(variantRoot)).toContain(".System/visible");
   });
 
   it("reports missing skills", async () => {

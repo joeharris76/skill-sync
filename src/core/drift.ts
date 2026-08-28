@@ -2,6 +2,7 @@ import type { Dirent } from "node:fs";
 import { access, constants, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { sha256File } from "./hasher.js";
+import { isLoaderOwnedStorePath } from "./paths.js";
 import type { DriftReport, LockFile } from "./types.js";
 
 export interface TargetReadiness {
@@ -136,6 +137,7 @@ export async function listInstalledSkillNames(targetRoot: string, prefix = ""): 
     if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
 
     const skillPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (prefix === "" && isLoaderOwnedStorePath(skillPath)) continue;
     const fullPath = join(targetRoot, skillPath);
 
     // Check if this directory contains a SKILL.md (is a skill)

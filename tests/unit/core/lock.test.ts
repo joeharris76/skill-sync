@@ -102,4 +102,31 @@ describe("LockFile", () => {
 
     expect(() => parseLockFile(JSON.stringify(lock))).toThrow("colliding paths");
   });
+
+  it("rejects loader-owned skill identities but preserves package-relative files", () => {
+    const lock = createLockFile();
+    expect(() => lockSkill(lock, ".system/imagegen", testProvenance, "mirror", testFiles)).toThrow(
+      "loader-owned",
+    );
+    expect(() =>
+      parseLockFile(
+        JSON.stringify({
+          version: 1,
+          lockedAt: "",
+          skills: {
+            ".system/imagegen": {
+              source: testProvenance,
+              installMode: "mirror",
+              files: {},
+            },
+          },
+        }),
+      ),
+    ).toThrow("loader-owned");
+
+    lockSkill(lock, "code", testProvenance, "mirror", [
+      { relativePath: ".system/example.md", sha256: "abc", size: 3 },
+    ]);
+    expect(parseLockFile(JSON.stringify(lock)).skills.code!.files[".system/example.md"]).toBeDefined();
+  });
 });

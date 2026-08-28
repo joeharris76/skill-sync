@@ -85,6 +85,12 @@ targets:
     expect(() => parseSkillSyncMeta("depends: [42]")).toThrow("depends[0] must be a string");
   });
 
+  it("rejects dependencies in the loader-owned namespace", () => {
+    expect(() => parseSkillSyncMeta('depends: [".system/imagegen"]')).toThrow(
+      'Invalid depends[0] value ".system/imagegen": Skill name must not use loader-owned',
+    );
+  });
+
   it("parses settings_requirements with permissions.allow", () => {
     const content = `
 tags: []

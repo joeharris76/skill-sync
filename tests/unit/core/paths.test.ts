@@ -3,6 +3,8 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   expandTilde,
+  isLoaderOwnedStorePath,
+  normalizeManagedSkillName,
   normalizeRepositorySubdir,
   normalizeSkillName,
   relativeInside,
@@ -132,3 +134,21 @@ describe("normalizeSkillName", () => {
   });
 });
 
+describe("loader-owned store paths", () => {
+  it("recognizes only the exact top-level .system namespace", () => {
+    expect(isLoaderOwnedStorePath(".system")).toBe(true);
+    expect(isLoaderOwnedStorePath(".system/imagegen/SKILL.md")).toBe(true);
+    expect(isLoaderOwnedStorePath(".System/imagegen/SKILL.md")).toBe(false);
+    expect(isLoaderOwnedStorePath("nested/.system/SKILL.md")).toBe(false);
+    expect(isLoaderOwnedStorePath(".systematic/SKILL.md")).toBe(false);
+  });
+
+  it("rejects loader-owned managed skill identities without changing other names", () => {
+    expect(() => normalizeManagedSkillName(".system")).toThrow("loader-owned");
+    expect(() => normalizeManagedSkillName(".system/imagegen")).toThrow("loader-owned");
+    expect(normalizeManagedSkillName(".System/imagegen")).toBe(".System/imagegen");
+    expect(normalizeManagedSkillName("SHARED/change-framework")).toBe(
+      "SHARED/change-framework",
+    );
+  });
+});

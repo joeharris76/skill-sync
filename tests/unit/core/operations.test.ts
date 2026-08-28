@@ -260,6 +260,37 @@ describe("pruneOperation", () => {
     const result = await pruneOperation(projectRoot);
     expect(result.pruned).toEqual([]);
   });
+
+  it("preserves loader-owned .system during prune dry-run and apply", async () => {
+    const projectRoot = join(tmpBase, "prune-loader-owned-" + Date.now());
+    const targetRoot = join(projectRoot, ".claude", "skills");
+    const systemSkill = join(targetRoot, ".system", "imagegen", "SKILL.md");
+    const ordinaryExtra = join(targetRoot, "obsolete");
+    await mkdir(join(systemSkill, ".."), { recursive: true });
+    await mkdir(ordinaryExtra, { recursive: true });
+    await writeFile(systemSkill, "# Loader-owned\n");
+    await writeFile(join(ordinaryExtra, "SKILL.md"), "# Obsolete\n");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+    await writeLockFile(projectRoot, { version: 1, lockedAt: "", skills: {} });
+
+    const preview = await pruneOperation(projectRoot, true);
+    expect(preview.pruned).toEqual(["obsolete"]);
+    expect(existsSync(systemSkill)).toBe(true);
+
+    const applied = await pruneOperation(projectRoot);
+    expect(applied.pruned).toEqual(["obsolete"]);
+    expect(existsSync(ordinaryExtra)).toBe(false);
+    expect(existsSync(systemSkill)).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -339,6 +370,44 @@ describe("syncOperation — skill removal", () => {
     const lock = await readLockFile(projectRoot);
     expect(lock!.skills["test"]).toBeUndefined();
     expect(lock!.skills["code"]).toBeDefined();
+  });
+
+  it("preserves loader-owned .system across install and removal", async () => {
+    const sourceRoot = join(tmpBase, "loader-owned-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    const projectRoot = join(tmpBase, "loader-owned-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    const manifest = {
+      version: 1,
+      sources: [{ name: "local", type: "local", path: sourceRoot }],
+      skills: ["code"],
+      targets: { claude: ".claude/skills" },
+      install_mode: "mirror",
+    };
+    await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml(manifest));
+    const systemSkill = join(
+      projectRoot,
+      ".claude",
+      "skills",
+      ".system",
+      "imagegen",
+      "SKILL.md",
+    );
+    await mkdir(join(systemSkill, ".."), { recursive: true });
+    await writeFile(systemSkill, "# Loader-owned\n");
+
+    await syncOperation({ projectRoot });
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
+    expect(existsSync(systemSkill)).toBe(true);
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({ ...manifest, skills: [] }),
+    );
+    await syncOperation({ projectRoot });
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(false);
+    expect(existsSync(systemSkill)).toBe(true);
   });
 });
 

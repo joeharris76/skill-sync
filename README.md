@@ -91,6 +91,10 @@ Sync behavior:
 - plan-then-apply model with lock file updated after successful materialization
 - promotion workflows for moving project-local refinements back to a shared source
 
+The exact top-level `.system/` namespace is reserved for loader-owned content.
+Skill-sync preserves it and excludes it from managed inventory, drift, pruning,
+and tracked-snapshot verification; managed skill packages remain exact.
+
 ## Portability And Overrides
 
 Portability is a first-class requirement.

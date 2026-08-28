@@ -4,7 +4,11 @@ import { mkdtemp, mkdir, writeFile, readlink, stat, rm } from "node:fs/promises"
 import { join, tmpdir, resolve } from "node:path";
 import { tmpdir as osTmpdir } from "node:os";
 import { hashSkillDirectory } from "../../../src/core/hasher.js";
-import { materialize, materializeBatch } from "../../../src/core/materializer.js";
+import {
+  dematerialize,
+  materialize,
+  materializeBatch,
+} from "../../../src/core/materializer.js";
 
 const SOURCE_CONTENT = "---\nname: code\ndescription: Code skill\n---\n# Code\n";
 const REF_CONTENT = "# Compare reference\n";
@@ -265,5 +269,23 @@ describe("materialize — containment & normalization safety", () => {
         sourceFiles,
       }),
     ).rejects.toThrow("relative path");
+  });
+
+  it("rejects materializing or removing loader-owned skill identities", async () => {
+    const root = await makeTempDir();
+    const { sourcePath, sourceFiles } = await makeSourceSkill(root);
+    const targetRoot = join(root, "target");
+
+    await expect(
+      materialize({
+        skillName: ".system/imagegen",
+        sourcePath,
+        targetRoot,
+        mode: "mirror",
+        sourceFiles,
+      }),
+    ).rejects.toThrow("loader-owned");
+
+    await expect(dematerialize(".system/imagegen", targetRoot)).rejects.toThrow("loader-owned");
   });
 });

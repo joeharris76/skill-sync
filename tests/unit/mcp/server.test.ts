@@ -809,6 +809,37 @@ describe("MCP exported helpers", () => {
     expect(codeSkills).toHaveLength(1);
   });
 
+  it("omits exact loader-owned .system content from discovery", async () => {
+    const projectRoot = join(tmpBase, "loader-owned-discovery-" + Date.now());
+    const targetRoot = join(projectRoot, ".claude", "skills");
+    const systemSkill = join(targetRoot, ".system", "imagegen");
+    const visibleSkill = join(targetRoot, "visible");
+    await mkdir(systemSkill, { recursive: true });
+    await mkdir(visibleSkill, { recursive: true });
+    await writeFile(
+      join(systemSkill, "SKILL.md"),
+      "---\nname: imagegen\ndescription: Runtime-owned\n---\n",
+    );
+    await writeFile(
+      join(visibleSkill, "SKILL.md"),
+      "---\nname: visible\ndescription: Visible skill\n---\n",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    const names = (await listInstalledSkills(projectRoot)).map((skill) => skill.name);
+    expect(names).not.toContain("imagegen");
+    expect(names).toContain("visible");
+  });
+
   it("runValidation returns manifest-error diagnostic when manifest is missing", async () => {
     const projectRoot = join(tmpBase, "run-validation-no-manifest-" + Date.now());
     await mkdir(projectRoot, { recursive: true });

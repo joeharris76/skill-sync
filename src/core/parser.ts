@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { hashSkillDirectory } from "./hasher.js";
-import { normalizeSkillName } from "./paths.js";
+import { normalizeManagedSkillName } from "./paths.js";
 import type {
   ConfigInput,
   SettingsRequirements,
@@ -72,7 +72,7 @@ function parseDependencies(raw: unknown): string[] {
       throw new Error(`depends[${index}] must be a string`);
     }
     try {
-      return normalizeSkillName(dependency);
+      return normalizeManagedSkillName(dependency);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(`Invalid depends[${index}] value "${dependency}": ${message}`);

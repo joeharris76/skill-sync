@@ -82,11 +82,12 @@ export function planGitTracking(
       continue;
     }
 
-    // Tracked: do NOT ignore the dir. Ignore only the excluded skills, and mark
-    // the whole tree as `-text` so committed bytes survive EOL normalization
-    // (the SHA gate hashes committed bytes).
+    // Tracked: do NOT ignore the dir. Ignore the loader-owned namespace and
+    // excluded skills, and mark the whole tree as `-text` so committed bytes
+    // survive EOL normalization (the SHA gate hashes committed bytes).
     trackedRels.push(rel);
     attributeLines.push(`/${rel}/** -text`);
+    ignoreLines.push(`/${rel}/.system/`);
     for (const skill of [...(cfg.ignore ?? [])].sort()) {
       ignoreLines.push(`/${rel}/${skill}/`);
     }
