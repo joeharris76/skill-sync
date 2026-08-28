@@ -1,4 +1,5 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -8,6 +9,16 @@ import { createServer, listInstalledSkills, runValidation } from "../../../src/m
 
 const tmpBase = join(tmpdir(), "skill-sync-mcp-test");
 type TestMcpServer = ReturnType<typeof createServer> & {
+  _registeredResourceTemplates: Record<
+    string,
+    {
+      readCallback: (
+        uri: URL,
+        variables: Record<string, string | string[]>,
+        extra: unknown,
+      ) => Promise<unknown>;
+    }
+  >;
   _registeredPrompts: Record<
     string,
     {
@@ -629,6 +640,20 @@ describe("MCP tool: prune-skills", () => {
 });
 
 describe("MCP tool: pin-skill / unpin-skill", () => {
+  it.each([".system", ".System/imagegen", ".ſystem/imagegen"])(
+    "rejects loader-owned alias %s before project access",
+    async (skill) => {
+      const missingProject = join(tmpBase, `missing-pin-mcp-${Date.now()}-${Math.random()}`);
+      const server = createServer(missingProject) as TestMcpServer;
+
+      for (const name of ["pin-skill", "unpin-skill"]) {
+        const result = await server._registeredTools[name]!.handler({ skill });
+        expect(JSON.parse(result.content[0]!.text).error).toContain("loader-owned");
+      }
+      expect(existsSync(missingProject)).toBe(false);
+    },
+  );
+
   it("returns error JSON when pin fails for local source", async () => {
     const projectRoot = join(tmpBase, "pin-mcp-" + Date.now());
     await mkdir(projectRoot, { recursive: true });
@@ -773,6 +798,29 @@ describe("MCP prompt: use-skill", () => {
 
     expect(text).toContain("not found");
   });
+
+  it.each([".system", ".system/imagegen", ".System", ".SYSTEM/imagegen", ".ſystem/imagegen"])(
+    "rejects loader-owned alias %s across direct resource and prompt routes",
+    async (name) => {
+      const missingProject = join(tmpBase, `reserved-direct-${Date.now()}`);
+      const server = createServer(missingProject) as TestMcpServer;
+      const skillResource = server._registeredResourceTemplates.skill!;
+      const skillFileResource = server._registeredResourceTemplates["skill-file"]!;
+      const prompt = server._registeredPrompts["use-skill"]!;
+
+      await expect(
+        skillResource.readCallback(new URL("skill://reserved"), { name }, {}),
+      ).rejects.toThrow("loader-owned");
+      await expect(
+        skillFileResource.readCallback(
+          new URL("skill://reserved/SKILL.md"),
+          { name, path: "SKILL.md" },
+          {},
+        ),
+      ).rejects.toThrow("loader-owned");
+      await expect(prompt.callback({ name }, {})).rejects.toThrow("loader-owned");
+    },
+  );
 });
 
 describe("MCP exported helpers", () => {
@@ -807,6 +855,37 @@ describe("MCP exported helpers", () => {
     const codeSkills = skills.filter((s) => s.name === "code");
     // Should appear only once despite being in two targets
     expect(codeSkills).toHaveLength(1);
+  });
+
+  it("omits exact loader-owned .system content from discovery", async () => {
+    const projectRoot = join(tmpBase, "loader-owned-discovery-" + Date.now());
+    const targetRoot = join(projectRoot, ".claude", "skills");
+    const systemSkill = join(targetRoot, ".system", "imagegen");
+    const visibleSkill = join(targetRoot, "visible");
+    await mkdir(systemSkill, { recursive: true });
+    await mkdir(visibleSkill, { recursive: true });
+    await writeFile(
+      join(systemSkill, "SKILL.md"),
+      "---\nname: imagegen\ndescription: Runtime-owned\n---\n",
+    );
+    await writeFile(
+      join(visibleSkill, "SKILL.md"),
+      "---\nname: visible\ndescription: Visible skill\n---\n",
+    );
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+
+    const names = (await listInstalledSkills(projectRoot)).map((skill) => skill.name);
+    expect(names).not.toContain("imagegen");
+    expect(names).toContain("visible");
   });
 
   it("runValidation returns manifest-error diagnostic when manifest is missing", async () => {

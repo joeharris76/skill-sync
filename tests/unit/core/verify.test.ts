@@ -108,6 +108,35 @@ describe("verifyTrackedTargets", () => {
     expect(report.issues.some((i) => i.kind === "stray-path")).toBe(true);
   });
 
+  it("excludes loader-owned .system before walking the tracked snapshot", async () => {
+    const lock = await lockFromDisk();
+    await mkdir(join(targetRoot, ".system", "imagegen"), { recursive: true });
+    await writeFile(join(targetRoot, ".system", "imagegen", "SKILL.md"), "RUNTIME-OWNED", "utf-8");
+
+    const report = await verifyTrackedTargets(
+      projectRoot,
+      manifestWith({ dir: ".claude/skills", tracked: true }),
+      lock,
+    );
+
+    expect(report.ok).toBe(true);
+    expect(report.issues).toEqual([]);
+  });
+
+  it("does not hide case variants of the loader-owned namespace", async () => {
+    const lock = await lockFromDisk();
+    await mkdir(join(targetRoot, ".System"), { recursive: true });
+    await writeFile(join(targetRoot, ".System", "stray.md"), "VISIBLE", "utf-8");
+
+    const report = await verifyTrackedTargets(
+      projectRoot,
+      manifestWith({ dir: ".claude/skills", tracked: true }),
+      lock,
+    );
+
+    expect(report.issues.some((issue) => issue.kind === "stray-path")).toBe(true);
+  });
+
   it("reports a missing skill", async () => {
     const lock = await lockFromDisk();
     await rm(join(targetRoot, "code"), { recursive: true, force: true });

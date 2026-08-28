@@ -10,6 +10,11 @@ code from the consuming agent.
 The key design constraint is consistency: the MCP server and CLI call the same
 `core/` functions. Neither invents its own business logic over the same files.
 
+The exact top-level `.system/` namespace is loader-owned. MCP discovery and
+status omit only that exact path while continuing to report ordinary drift and
+case variants. Direct resource and prompt routes reject `.system/` and its
+case-fold aliases before filesystem access; lifecycle tools cannot manage them.
+
 ## v0 Surface
 
 ### Resources

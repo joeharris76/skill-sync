@@ -73,6 +73,16 @@ skill-sync stays hands-off for repos that never opt in: it manages `.gitignore`
 only once a target is tracked (or a managed block already exists). It never runs
 git — committing the snapshot is the user's explicit step.
 
+### Loader-owned namespace
+
+The exact top-level `.system/` namespace belongs to the agent loader. Skill-sync
+does not inventory, attest, warn about, manage, or prune that tree. Tracked
+targets receive an anchored `.system/` ignore entry. All other target paths and
+all files inside managed skill packages retain exact drift and integrity checks.
+Case variants remain visible to read-side inventory but are rejected as managed
+identities before mutation because they alias `.system/` on case-insensitive
+filesystems.
+
 ### Two-tier integrity
 
 - `skill-sync verify` — OFFLINE gate (no source access): proves every tracked

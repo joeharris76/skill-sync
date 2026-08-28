@@ -9,3 +9,9 @@ tests/.tmp/
 *.tsbuildinfo
 .claude/settings.local.json
 /.antigravitycli
+
+# >>> skill-sync managed (do not edit) >>>
+/.claude/skills/.system/
+/.codex/skills/.system/
+/.gemini/skills/.system/
+# <<< skill-sync managed <<<

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { copyFile, lstat, mkdir, rename, rm, symlink } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { hashSkillDirectory } from "./hasher.js";
-import { normalizeSkillName } from "./paths.js";
+import { normalizeManagedSkillName, normalizeSkillName } from "./paths.js";
 import type { InstallMode, SkillFile } from "./types.js";
 
 function assertContained(parentRoot: string, childPath: string): void {
@@ -94,7 +94,7 @@ export async function materializeBatch(
 }
 
 async function prepareMaterialization(opts: MaterializeOptions): Promise<PreparedMaterialization> {
-  const normalizedSkill = normalizeSkillName(opts.skillName);
+  const normalizedSkill = normalizeManagedSkillName(opts.skillName);
   const targetDir = join(opts.targetRoot, normalizedSkill);
   assertContained(opts.targetRoot, targetDir);
   await mkdir(dirname(targetDir), { recursive: true });
@@ -209,7 +209,7 @@ async function pathExists(path: string): Promise<boolean> {
  * Remove a materialized skill from a target directory.
  */
 export async function dematerialize(skillName: string, targetRoot: string): Promise<void> {
-  const normalizedSkill = normalizeSkillName(skillName);
+  const normalizedSkill = normalizeManagedSkillName(skillName);
   const targetDir = join(targetRoot, normalizedSkill);
   assertContained(targetRoot, targetDir);
   await rm(targetDir, { recursive: true, force: true });

@@ -1,11 +1,10 @@
-import type { Dirent } from "node:fs";
-import { access, constants, readdir, readFile } from "node:fs/promises";
+import { access, constants, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { checkAllTargetCompatibility } from "../core/compatibility.js";
 import { validateConfigOverrides } from "../core/config-generator.js";
-import { detectDrift } from "../core/drift.js";
+import { detectDrift, listInstalledSkillNames } from "../core/drift.js";
 import { readLockFile } from "../core/lock.js";
 import { ManifestNotFoundError, readManifest } from "../core/manifest.js";
 import {
@@ -17,7 +16,7 @@ import {
   unpinOperation,
 } from "../core/operations.js";
 import { loadSkillPackage } from "../core/parser.js";
-import { resolvePath } from "../core/paths.js";
+import { normalizeManagedSkillName, resolvePath } from "../core/paths.js";
 import { validatePortability } from "../core/portability.js";
 import type { SkillPackage, ValidationDiagnostic } from "../core/types.js";
 
@@ -557,7 +556,7 @@ export async function listInstalledSkills(projectRoot: string): Promise<SkillPac
   const targets = await getTargetRoots(projectRoot);
   const skills = new Map<string, SkillPackage>();
   for (const target of targets) {
-    const skillNames = await discoverSkillNames(target.root);
+    const skillNames = await listInstalledSkillNames(target.root);
     for (const name of skillNames) {
       if (skills.has(name)) continue;
       try {
@@ -569,28 +568,6 @@ export async function listInstalledSkills(projectRoot: string): Promise<SkillPac
     }
   }
   return [...skills.values()];
-}
-
-async function discoverSkillNames(targetRoot: string, prefix = ""): Promise<string[]> {
-  const names: string[] = [];
-  let entries: Dirent[];
-  try {
-    entries = await readdir(join(targetRoot, prefix), { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-    const skillPath = prefix ? `${prefix}/${entry.name}` : entry.name;
-    try {
-      await access(join(targetRoot, skillPath, "SKILL.md"), constants.R_OK);
-      names.push(skillPath);
-    } catch {
-      const nested = await discoverSkillNames(targetRoot, skillPath);
-      names.push(...nested);
-    }
-  }
-  return names;
 }
 
 export async function runValidation(projectRoot: string): Promise<ValidationDiagnostic[]> {
@@ -664,10 +641,11 @@ export async function runValidation(projectRoot: string): Promise<ValidationDiag
 }
 
 async function findSkillRoot(projectRoot: string, skillName: string): Promise<TargetRoot | null> {
+  const normalizedSkillName = normalizeManagedSkillName(skillName);
   const targets = await getTargetRoots(projectRoot);
   for (const target of targets) {
     try {
-      await access(join(target.root, skillName, "SKILL.md"), constants.R_OK);
+      await access(join(target.root, normalizedSkillName, "SKILL.md"), constants.R_OK);
       return target;
     } catch {
       // Keep searching other targets.

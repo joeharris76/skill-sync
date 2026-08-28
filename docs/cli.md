@@ -57,6 +57,11 @@ names the independent `trackedSnapshots`, `localMaterialization`, and
 policy has `state: "ignored"` and a separate `materializationState`, so an
 intentionally absent snapshot is not mislabeled as tracked drift.
 
+The exact top-level `.system/` namespace is loader-owned and omitted from
+status, readiness, and tracked-snapshot verification. Other paths, including
+case variants, remain ordinary read-side inventory. Mutation commands reject
+case-fold aliases of `.system/` before writing.
+
 ### `skill-sync validate`
 
 Validate manifest, installed skills, config overrides, and compatibility.
@@ -112,7 +117,7 @@ currently pinned.
 
 Remove installed skills that are not declared in the project manifest,
 including untracked skills (directories in a target that are not in the
-lock file).
+lock file). Prune never removes the loader-owned top-level `.system/` tree.
 
 | Flag | Short | Description |
 |------|-------|-------------|

@@ -59,12 +59,13 @@ describe("planGitTracking", () => {
     expect(plan.gitattributes).toBe("");
   });
 
-  it("emits no dir ignore for a tracked target, but adds a -text attribute", () => {
+  it("preserves a tracked target while ignoring its loader-owned namespace", () => {
     const targets: Record<string, TargetConfig> = {
       claude: { dir: ".claude/skills", tracked: true },
     };
     const plan = planGitTracking(root, targets, null, null);
-    expect(plan.gitignore).toBe(""); // nothing to ignore
+    expect(plan.gitignore).toContain("/.claude/skills/.system/");
+    expect(plan.gitignore).not.toContain("/.claude/skills/\n");
     expect(plan.gitattributes).toContain("/.claude/skills/** -text");
   });
 
@@ -139,6 +140,7 @@ describe("applyGitTracking (IO)", () => {
     const gi = await readFile(join(tmp, ".gitignore"), "utf-8");
     expect(gi).toContain("/.codex/skills/");
     expect(gi).toContain("/.claude/skills/blog/");
+    expect(gi).toContain("/.claude/skills/.system/");
     const ga = await readFile(join(tmp, ".gitattributes"), "utf-8");
     expect(ga).toContain("/.claude/skills/** -text");
 

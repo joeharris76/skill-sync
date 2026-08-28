@@ -148,6 +148,22 @@ skills:
     expect(() => parseManifest(yaml)).toThrow("skills[1] must be a string");
   });
 
+  it.each([
+    "skills: [.system]",
+    "skills: [.system/imagegen]",
+    "skills: [code]\nconfig:\n  .system: {}",
+    "skills: [code]\noverrides:\n  .system/imagegen: {}",
+    "skills: [code]\ntargets:\n  claude:\n    dir: .claude/skills\n    ignore: [.system]",
+  ])("rejects loader-owned managed identities in manifest fields", (body) => {
+    expect(() => parseManifest(`version: 1\n${body}\n`)).toThrow("loader-owned");
+  });
+
+  it("rejects case-fold aliases of .system in managed identities", () => {
+    expect(() => parseManifest("version: 1\nskills: [.System/imagegen]\n")).toThrow(
+      "loader-owned",
+    );
+  });
+
   it("parses object-form targets with tracked + ignore", () => {
     const yaml = `
 version: 1

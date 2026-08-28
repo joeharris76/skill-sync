@@ -3,7 +3,7 @@ import { join, sep } from "node:path";
 import { generateConfig, serializeProjectConfig } from "./config-generator.js";
 import { hashSkillDirectory } from "./hasher.js";
 import { loadSkillPackage } from "./parser.js";
-import { relativeInside, resolvePath } from "./paths.js";
+import { isLoaderOwnedStorePath, relativeInside, resolvePath } from "./paths.js";
 import type { LockFile, Manifest } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -80,7 +80,9 @@ export async function verifyTrackedTargets(
     // One walk of the whole target tree → every committed file under it.
     let onDisk: Map<string, string>;
     try {
-      const files = await hashSkillDirectory(targetRoot);
+      const files = await hashSkillDirectory(targetRoot, {
+        excludePath: isLoaderOwnedStorePath,
+      });
       onDisk = new Map(files.map((f) => [toPosix(f.relativePath), f.sha256]));
     } catch {
       // Target dir doesn't exist at all → every expected skill is missing.

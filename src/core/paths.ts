@@ -1,6 +1,14 @@
 import { homedir } from "node:os";
 import { isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 
+/** Exact top-level target entry owned by the agent loader, not skill-sync. */
+export const LOADER_OWNED_STORE_ENTRY = ".system";
+
+/** Return true only for the loader-owned top-level entry or one of its descendants. */
+export function isLoaderOwnedStorePath(path: string): boolean {
+  return path === LOADER_OWNED_STORE_ENTRY || path.startsWith(`${LOADER_OWNED_STORE_ENTRY}/`);
+}
+
 /**
  * Expand a leading `~` (home) in a manifest-supplied path.
  *
@@ -109,6 +117,17 @@ export function normalizeSkillName(name: string): string {
   const normalized = posix.normalize(clean);
   if (normalized === "." || normalized === "") {
     throw new Error(`Invalid skill name: "${name}"`);
+  }
+  return normalized;
+}
+
+/** Validate a skill identity that skill-sync may manage in a target store. */
+export function normalizeManagedSkillName(name: string): string {
+  const normalized = normalizeSkillName(name);
+  if (normalized.split("/", 1)[0]?.normalize("NFKC").toLowerCase() === LOADER_OWNED_STORE_ENTRY) {
+    throw new Error(
+      `Skill name must not use loader-owned top-level namespace "${LOADER_OWNED_STORE_ENTRY}": "${name}"`,
+    );
   }
   return normalized;
 }

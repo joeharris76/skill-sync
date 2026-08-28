@@ -97,4 +97,23 @@ describe("packaged skill-sync operator contract", () => {
       }
     }
   });
+
+  it("ignores only the loader-owned namespace in tracked source targets", async () => {
+    const gitignore = await readFile(join(projectRoot, ".gitignore"), "utf8");
+    const begin = "# >>> skill-sync managed (do not edit) >>>";
+    const end = "# <<< skill-sync managed <<<";
+    const managed = gitignore.slice(
+      gitignore.indexOf(begin) + begin.length,
+      gitignore.indexOf(end),
+    );
+
+    expect(managed.trim().split("\n")).toEqual([
+      "/.claude/skills/.system/",
+      "/.codex/skills/.system/",
+      "/.gemini/skills/.system/",
+    ]);
+    expect(gitignore).not.toContain("/.claude/skills/\n");
+    expect(gitignore).not.toContain("/.codex/skills/\n");
+    expect(gitignore).not.toContain("/.gemini/skills/\n");
+  });
 });

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { writeFile, mkdir, rm as fsRm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -32,6 +33,10 @@ import { existsSync } from "node:fs";
 
 const tmpBase = join(tmpdir(), "skill-sync-operations-test-" + Date.now());
 const execFileAsync = promisify(execFile);
+
+function sha256(content: Uint8Array): string {
+  return createHash("sha256").update(content).digest("hex");
+}
 
 async function removeTestTree(path: string): Promise<void> {
   await fsRm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
@@ -127,7 +132,7 @@ describe("pinOperation", () => {
   });
 
   it("pins a git-sourced skill to its revision", async () => {
-    const result = await pinOperation(projectRoot, "code");
+    const result = await pinOperation(projectRoot, "code/");
     expect(result.pinned).toBe("code");
     expect(result.revision).toBe("abc123def456");
     expect(result.source).toBe("team");
@@ -161,6 +166,15 @@ describe("pinOperation", () => {
   it("throws for non-installed skill", async () => {
     await expect(pinOperation(projectRoot, "nonexistent")).rejects.toThrow(/not installed/);
   });
+
+  it.each([".system", ".System/imagegen", ".ſystem/imagegen"])(
+    "rejects loader-owned alias %s before reading the project",
+    async (skillName) => {
+      const missingRoot = join(tmpBase, `missing-pin-${Date.now()}-${Math.random()}`);
+      await expect(pinOperation(missingRoot, skillName)).rejects.toThrow("loader-owned");
+      expect(existsSync(missingRoot)).toBe(false);
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -180,7 +194,7 @@ describe("unpinOperation", () => {
       code: { install_mode: "copy", revision: "abc123def456", source_name: "team" },
     });
 
-    const result = await unpinOperation(projectRoot, "code");
+    const result = await unpinOperation(projectRoot, "code/");
     expect(result.unpinned).toBe("code");
 
     const manifest = await readManifest(projectRoot);
@@ -215,6 +229,15 @@ describe("unpinOperation", () => {
     const result = await unpinOperation(projectRoot, "code");
     expect(result.unpinned).toBe(false);
   });
+
+  it.each([".system", ".System/imagegen", ".ſystem/imagegen"])(
+    "rejects loader-owned alias %s before reading the project",
+    async (skillName) => {
+      const missingRoot = join(tmpBase, `missing-unpin-${Date.now()}-${Math.random()}`);
+      await expect(unpinOperation(missingRoot, skillName)).rejects.toThrow("loader-owned");
+      expect(existsSync(missingRoot)).toBe(false);
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -259,6 +282,41 @@ describe("pruneOperation", () => {
 
     const result = await pruneOperation(projectRoot);
     expect(result.pruned).toEqual([]);
+  });
+
+  it("preserves loader-owned .system during prune dry-run and apply", async () => {
+    const projectRoot = join(tmpBase, "prune-loader-owned-" + Date.now());
+    const targetRoot = join(projectRoot, ".claude", "skills");
+    const systemSkill = join(targetRoot, ".system", "imagegen", "SKILL.md");
+    const ordinaryExtra = join(targetRoot, "obsolete");
+    await mkdir(join(systemSkill, ".."), { recursive: true });
+    await mkdir(ordinaryExtra, { recursive: true });
+    const systemBytes = Buffer.from([0x00, 0x42, 0x4d, 0xff, 0x0a]);
+    await writeFile(systemSkill, systemBytes);
+    const systemHash = sha256(systemBytes);
+    await writeFile(join(ordinaryExtra, "SKILL.md"), "# Obsolete\n");
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({
+        version: 1,
+        sources: [],
+        skills: [],
+        targets: { claude: ".claude/skills" },
+        install_mode: "mirror",
+      }),
+    );
+    await writeLockFile(projectRoot, { version: 1, lockedAt: "", skills: {} });
+
+    const preview = await pruneOperation(projectRoot, true);
+    expect(preview.pruned).toEqual(["obsolete"]);
+    expect(await readFile(systemSkill)).toEqual(systemBytes);
+    expect(sha256(await readFile(systemSkill))).toBe(systemHash);
+
+    const applied = await pruneOperation(projectRoot);
+    expect(applied.pruned).toEqual(["obsolete"]);
+    expect(existsSync(ordinaryExtra)).toBe(false);
+    expect(await readFile(systemSkill)).toEqual(systemBytes);
+    expect(sha256(await readFile(systemSkill))).toBe(systemHash);
   });
 });
 
@@ -339,6 +397,48 @@ describe("syncOperation — skill removal", () => {
     const lock = await readLockFile(projectRoot);
     expect(lock!.skills["test"]).toBeUndefined();
     expect(lock!.skills["code"]).toBeDefined();
+  });
+
+  it("preserves loader-owned .system across install and removal", async () => {
+    const sourceRoot = join(tmpBase, "loader-owned-source-" + Date.now());
+    await mkdir(sourceRoot, { recursive: true });
+    await makeLocalSkillSource(sourceRoot, "code");
+    const projectRoot = join(tmpBase, "loader-owned-project-" + Date.now());
+    await mkdir(projectRoot, { recursive: true });
+    const manifest = {
+      version: 1,
+      sources: [{ name: "local", type: "local", path: sourceRoot }],
+      skills: ["code"],
+      targets: { claude: ".claude/skills" },
+      install_mode: "mirror",
+    };
+    await writeFile(join(projectRoot, "skill-sync.yaml"), stringifyYaml(manifest));
+    const systemSkill = join(
+      projectRoot,
+      ".claude",
+      "skills",
+      ".system",
+      "imagegen",
+      "SKILL.md",
+    );
+    await mkdir(join(systemSkill, ".."), { recursive: true });
+    const systemBytes = Buffer.from([0x00, 0x42, 0x4d, 0xff, 0x0a]);
+    await writeFile(systemSkill, systemBytes);
+    const systemHash = sha256(systemBytes);
+
+    await syncOperation({ projectRoot });
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(true);
+    expect(await readFile(systemSkill)).toEqual(systemBytes);
+    expect(sha256(await readFile(systemSkill))).toBe(systemHash);
+
+    await writeFile(
+      join(projectRoot, "skill-sync.yaml"),
+      stringifyYaml({ ...manifest, skills: [] }),
+    );
+    await syncOperation({ projectRoot });
+    expect(existsSync(join(projectRoot, ".claude", "skills", "code"))).toBe(false);
+    expect(await readFile(systemSkill)).toEqual(systemBytes);
+    expect(sha256(await readFile(systemSkill))).toBe(systemHash);
   });
 });
 

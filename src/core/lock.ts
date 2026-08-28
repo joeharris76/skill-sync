@@ -1,6 +1,6 @@
 import { readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { normalizeSkillName } from "./paths.js";
+import { normalizeManagedSkillName, normalizeSkillName } from "./paths.js";
 import type { InstallMode, LockedSkill, LockFile, SkillFile, SourceProvenance } from "./types.js";
 
 const LOCK_VERSION = 1;
@@ -49,12 +49,13 @@ export function lockSkill(
   installMode: InstallMode,
   files: SkillFile[],
 ): void {
+  const normalizedSkillName = normalizeManagedSkillName(skillName);
   const fileEntries: Record<string, { sha256: string; size: number }> = {};
   for (const f of files) {
     fileEntries[f.relativePath] = { sha256: f.sha256, size: f.size };
   }
 
-  lockFile.skills[skillName] = {
+  lockFile.skills[normalizedSkillName] = {
     source,
     installMode,
     files: fileEntries,
@@ -63,12 +64,12 @@ export function lockSkill(
 
 /** Remove a skill entry from the lock file. */
 export function unlockSkill(lockFile: LockFile, skillName: string): void {
-  delete lockFile.skills[skillName];
+  delete lockFile.skills[normalizeManagedSkillName(skillName)];
 }
 
 /** Get a locked skill entry, or null if not locked. */
 export function getLockedSkill(lockFile: LockFile, skillName: string): LockedSkill | null {
-  return lockFile.skills[skillName] ?? null;
+  return lockFile.skills[normalizeManagedSkillName(skillName)] ?? null;
 }
 
 /** Parse a lock file JSON string into a LockFile. */
@@ -78,6 +79,7 @@ export function parseLockFile(content: string): LockFile {
     throw new Error(`Unsupported lock file version: ${parsed.version} (expected ${LOCK_VERSION})`);
   }
   for (const [skillName, skill] of Object.entries(parsed.skills)) {
+    normalizeManagedSkillName(skillName);
     const normalizedFiles: LockedSkill["files"] = {};
     for (const [relativePath, metadata] of Object.entries(skill.files)) {
       const normalized = normalizeSkillName(relativePath.replaceAll("\\", "/"));
