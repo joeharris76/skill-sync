@@ -2,6 +2,4 @@
 
 # >>> skill-sync managed (do not edit) >>>
 /.claude/skills/** -text
-/.codex/skills/** -text
-/.gemini/skills/** -text
 # <<< skill-sync managed <<<

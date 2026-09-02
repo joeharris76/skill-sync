@@ -11,8 +11,9 @@ Route the request below. Resolve voice before drafting or editing.
 
 ## Guides
 
-Read project `_blog/STYLE_GUIDE.md` and `_blog/VOICE_REFERENCE.md` first, then
-global `~/.claude/blog/*`. If neither exists, proceed and note the gap.
+Read project `_blog/STYLE_GUIDE.md` and `_blog/VOICE_REFERENCE.md` when they
+exist. If they exist, do not load `~/.claude/blog/*`. If they do not exist,
+read global `~/.claude/blog/*`. If neither exists, proceed and note the gap.
 
 ## Critical rules
 

@@ -13,10 +13,12 @@ scope. This file adds the blog-specific rubric and readiness score.
 | Audience | Is the reader clear, and are prerequisites handled? |
 | Evidence | Are technical claims sourced, measured, or reproducible? |
 | Structure | Does each section advance the argument without boilerplate? |
-| Voice | Does it match the voice guide and avoid banned patterns? |
+| Voice | Does the section lead with its purpose and state it once? Does each negative sentence add a fact, legal boundary, or scope condition? Do qualifications sit where they change interpretation? Do repeated caveats serve a new reader job? Identity, neutrality, and no superlatives still apply. |
 | Utility | Does the reader leave with a usable insight, command, or decision? |
 | Risk | What could be misleading, stale, partisan, overclaimed, or underqualified? |
 | Shelf-life | For vendor-response posts, compare outline and source dates; flag a response window beyond the typical 1-2 weeks. |
+
+A single redundant denial ("X is Y. X is not Z") is a Voice fail. A negation that is the news, a legal bound, or a necessary condition is not.
 
 ## Vendor-Response Checks
 

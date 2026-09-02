@@ -6,12 +6,12 @@ sources:
   - name: personal
     type: git
     url: https://github.com/joeharris76/skill-sync-skills.git
-    ref: 104150cffcb2fbfc610c1993803912f42a9b25ed
+    ref: 6580679cca642e704725ce43a20316aa2ff634f2
     subdir: skills
   - name: todo-context-efficiency
     type: git
     url: https://github.com/joeharris76/skill-sync-skills.git
-    ref: e0af1fe8b6751ee7cae42fa7a9adc374d96dd690
+    ref: 6580679cca642e704725ce43a20316aa2ff634f2
     subdir: skills
 skills:
   - bossmode
@@ -29,12 +29,9 @@ targets:
   claude:
     dir: .claude/skills
     tracked: true
-  codex:
-    dir: .codex/skills
-    tracked: true
-  gemini:
-    dir: .gemini/skills
-    tracked: true
+  # .agents/skills is the interoperable workspace root used by Codex, Gemini,
+  # and Antigravity. Keep one generated mirror instead of three copies.
+  agents: .agents/skills
 install_mode: mirror
 overrides:
   skill-sync:
