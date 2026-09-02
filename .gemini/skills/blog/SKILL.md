@@ -17,11 +17,11 @@ global `~/.claude/blog/*`. If neither exists, proceed and note the gap.
 ## Critical rules
 
 - After cleanup, repository write actions use
-  `SHARED/change-framework/SKILL.md` with prefix `docs(blog)` for the required
+  `shared-change-framework/SKILL.md` with prefix `docs(blog)` for the required
   named branch, verification, commit, and approved-plan PR. The `cleanup`
   action handles existing blog changes.
 - `critique`, `editorial-review`, `audit`, and `deformulize` follow
-  `SHARED/review-protocol/SKILL.md` [REVIEW-AUTH-001]. After findings,
+  `shared-review-protocol/SKILL.md` [REVIEW-AUTH-001]. After findings,
   `critique`, `editorial-review`, and `audit` apply its L2 audit.
 - Prefer official or primary sources. Cite research notes, verify unstable
   facts, and never invent results, prices, quotes, benchmarks, or facts.

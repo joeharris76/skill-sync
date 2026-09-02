@@ -6,7 +6,7 @@ sources:
   - name: personal
     type: git
     url: https://github.com/joeharris76/skill-sync-skills.git
-    ref: 72550d9e0a78a73d9ccc6f42a07838247472840e
+    ref: 104150cffcb2fbfc610c1993803912f42a9b25ed
     subdir: skills
   - name: todo-context-efficiency
     type: git
@@ -22,9 +22,9 @@ skills:
   - test
   - todo
   - tidy-perms
-  - SHARED/change-framework
-  - SHARED/investigation-framework
-  - SHARED/review-protocol
+  - shared-change-framework
+  - shared-investigation-framework
+  - shared-review-protocol
 targets:
   claude:
     dir: .claude/skills
