@@ -199,8 +199,10 @@ targets:
     dir: .claude/skills
     tracked: true
     ignore: [blog, substack]
-  codex: .codex/skills         # string form: untracked mirror (gitignored)
+  agents: .agents/skills       # string form: untracked interoperable mirror (gitignored) for Codex/Gemini/Antigravity
   # generic: .agent/skills     # Generic agent path
+  # codex: .codex/skills       # legacy — superseded by agents: .agents/skills
+  # gemini: .gemini/skills     # legacy — superseded by agents: .agents/skills
 
 # Default install mode for this project.
 # Per-skill overrides are possible via the overrides section.

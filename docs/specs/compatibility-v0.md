@@ -13,10 +13,19 @@ from a single project manifest.
 | Target | Label | Default Directory | Reads Frontmatter | AGENTS.md |
 |--------|-------|-------------------|-------------------|-----------|
 | `claude` | Claude Code | `.claude/skills` | Yes | No |
-| `codex` | OpenAI Codex | `.codex/skills` | Yes | Yes |
-| `gemini` | Gemini CLI | `.gemini/skills` | Yes | No |
+| `agents` | Agents (Codex / Gemini / Antigravity) — **canonical** | `.agents/skills` | Yes | Yes (via Codex) |
 | `antigravity` | Antigravity CLI | `.agents/skills` | Yes | No |
+| `codex` | OpenAI Codex — **legacy**, superseded by `agents` | `.codex/skills` (legacy) | Yes | Yes |
+| `gemini` | Gemini CLI — **legacy**, superseded by `agents` | `.gemini/skills` (legacy) | Yes | No |
 | `generic-mcp` | Generic MCP | `.agent/skills` | No | No |
+
+> **Consolidation note:** `agents: .agents/skills` is the single interoperable
+> workspace root for Codex, Gemini, and Antigravity (via symlink / workspace
+> mapping). The `codex` (`.codex/skills`) and `gemini` (`.gemini/skills`) target
+> keys remain recognized for backward compatibility and resolve to the same strict
+> profile as `agents`, but new manifests should use only `agents: .agents/skills`
+> instead of maintaining three separate copies. See `src/core/compatibility.ts`
+> `resolveAgentTarget` for the runtime alias.
 
 ### Compatibility Checking
 

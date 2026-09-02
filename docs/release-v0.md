@@ -24,8 +24,10 @@
 | Symlink install mode | Implemented | Local dev only, not portable |
 | CLI commands | Implemented | sync, status, validate, diff, doctor, pin, unpin, prune, promote |
 | MCP server | Implemented | Read-only: resources, tools, prompts |
-| Claude target | Implemented | .claude/skills |
-| Codex target | Implemented | .codex/skills |
+| Claude target | Implemented | .claude/skills (tracked snapshot) |
+| Agents target (Codex/Gemini/Antigravity) | Implemented | .agents/skills — canonical interoperable mirror |
+| Codex target | Legacy (superseded by `agents`) | .codex/skills — still recognized, maps to strict `agents` profile |
+| Gemini target | Legacy (superseded by `agents`) | .gemini/skills — still recognized, maps to strict `agents` profile |
 | Generic MCP target | Implemented | .agent/skills |
 | Config injection | Implemented | skill-sync.config.yaml generation |
 | Portability validation | Implemented | Non-portable path detection |

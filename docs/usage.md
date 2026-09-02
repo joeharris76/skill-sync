@@ -1,7 +1,7 @@
 # Common Usage
 
-Practical examples of using skill-sync with Claude Code and OpenAI Codex in
-day-to-day workflows.
+Practical examples of using skill-sync with Claude Code and the interoperable
+`.agents/skills` mirror (Codex, Gemini, Antigravity) in day-to-day workflows.
 
 ## Claude Code
 
@@ -162,12 +162,13 @@ The same checks are available via agent prompts for MCP-integrated pipelines:
 
 ---
 
-## OpenAI Codex
+## Codex / Gemini / Antigravity (interoperable mirror)
 
 ### Setting Up a Project
 
-Codex reads skills from `.codex/skills/`. Configure skill-sync to target
-that directory:
+Codex, Gemini CLI, and Antigravity all discover skills from the single
+interoperable workspace root `.agents/skills/`. Configure skill-sync to target
+that directory (via symlink or workspace mapping each runtime resolves it):
 
 ```yaml
 version: 1
@@ -183,7 +184,7 @@ skills:
   - test
 
 targets:
-  codex: .codex/skills
+  agents: .agents/skills
 
 install_mode: mirror
 
@@ -207,12 +208,17 @@ skill-sync sync
 
 > "What skills do I have installed?"
 
-After sync, Codex discovers skills in `.codex/skills/` following its
-standard AGENTS.md discovery mechanism.
+After sync, Codex discovers skills in `.agents/skills/` following its
+standard `AGENTS.md` discovery mechanism, and Gemini/Antigravity resolve the
+same directory via their workspace mapping. Legacy paths `.codex/skills` and
+`.gemini/skills` are still recognized for backward compatibility but are
+superseded by the single `agents: .agents/skills` mirror — use `.agents/skills`
+instead of maintaining three separate copies.
 
-### Dual-Agent Setup (Claude Code + Codex)
+### Dual-Agent Setup (Claude Code + Agents)
 
-For projects where team members use different agents, target both:
+For projects where team members use different agents, target both the tracked
+Claude snapshot and the untracked interoperable mirror:
 
 ```yaml
 version: 1
@@ -235,8 +241,10 @@ skills:
   - SHARED/verify-framework
 
 targets:
-  claude: .claude/skills
-  codex: .codex/skills
+  claude:
+    dir: .claude/skills
+    tracked: true
+  agents: .agents/skills
 
 install_mode: mirror
 
@@ -252,6 +260,9 @@ config:
 
 Running `skill-sync sync` materializes skills into both directories. The same
 skill content is written to both targets -- only the destination path differs.
+`claude` is the tracked snapshot (bare object form with `tracked: true`);
+`agents` is the untracked bare-string mirror (gitignored) shared by
+Codex/Gemini/Antigravity.
 
 Check compatibility for both targets:
 
@@ -266,16 +277,19 @@ skill-sync validate
 
 If a skill uses features one target doesn't support (e.g., `allowed-tools`
 in Claude Code that Codex ignores), skill-sync reports a diagnostic warning
-but still materializes the skill.
+but still materializes the skill. Legacy `codex: .codex/skills` and
+`gemini: .gemini/skills` entries remain valid but now map to the same
+`.agents/skills` interoperable root.
 
 ---
 
-## Gemini CLI
+## Gemini CLI (via .agents/skills)
 
 ### Setting Up a Project
 
-Gemini CLI reads skills from `.gemini/skills/`. Configure skill-sync to target
-that directory:
+Gemini CLI now discovers skills from the shared `.agents/skills/` mirror
+(same directory Codex and Antigravity use). Configure skill-sync with the
+canonical `agents` target:
 
 ```yaml
 version: 1
@@ -292,7 +306,7 @@ skills:
   - SHARED/commit-framework
 
 targets:
-  gemini: .gemini/skills
+  agents: .agents/skills
 
 install_mode: mirror
 
@@ -316,18 +330,21 @@ skill-sync sync
 
 > "What skills do I have installed?"
 
-Gemini CLI reads skills from `.gemini/skills/` and uses a `GEMINI.md` file
-at the project root (or `.gemini/GEMINI.md`) for project-level instructions.
-Use `skill-sync status` to check whether your `GEMINI.md` is present and
-whether it duplicates your global `~/.gemini/GEMINI.md`.
+Gemini CLI reads skills from `.agents/skills/` (legacy `.gemini/skills/` is
+still recognized but superseded) and uses a `GEMINI.md` file at the project
+root (or `.gemini/GEMINI.md`) for project-level instructions. Use
+`skill-sync status` to check whether your `GEMINI.md` is present and whether
+it duplicates your global `~/.gemini/GEMINI.md`.
 
 Gemini CLI scans only one skill-directory level. Do not send namespaced skills
-such as `SHARED/commit-framework` to a Gemini target; validation reports these
-undiscoverable paths as errors.
+such as `SHARED/commit-framework` to an `agents` target; validation reports these
+undiscoverable paths as errors (same shallow-discovery constraint that applied
+to the legacy `gemini: .gemini/skills` target).
 
-### Multi-Agent Setup (Claude Code + Codex + Gemini)
+### Multi-Agent Setup (Claude Code + Agents)
 
-To support all three agents from a single manifest:
+To support Claude Code alongside the shared Codex/Gemini/Antigravity mirror
+from a single manifest:
 
 ```yaml
 version: 1
@@ -344,9 +361,10 @@ skills:
   - todo
 
 targets:
-  claude: .claude/skills
-  codex: .codex/skills
-  gemini: .gemini/skills
+  claude:
+    dir: .claude/skills
+    tracked: true
+  agents: .agents/skills
 
 install_mode: mirror
 
@@ -360,17 +378,21 @@ config:
     typecheck: "uv run ty check"
 ```
 
-Running `skill-sync sync` materializes the same skill content into all three
-target directories. Validate across all targets:
+Running `skill-sync sync` materializes the same skill content into the
+tracked Claude snapshot and the untracked `.agents/skills` mirror. Validate
+across both targets:
 
 ```bash
 skill-sync validate
 ```
 
 Skills that use `allowed-tools` (a Claude Code feature) will produce a
-diagnostic warning for the Gemini and Codex targets but still be materialized.
-Namespaced skills are different: Gemini cannot discover them, so validation
-reports an error.
+diagnostic warning for the `agents` target but still be materialized.
+Namespaced skills are different: the interoperable `agents` target enforces
+the same 1-level discovery as the legacy Gemini path, so validation reports an
+error for `SHARED/*` skills. Legacy `codex: .codex/skills` and
+`gemini: .gemini/skills` entries remain accepted and internally resolve to the
+same strict profile as `agents: .agents/skills`.
 
 ---
 
