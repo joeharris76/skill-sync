@@ -89,7 +89,10 @@ describe("packaged skill-sync operator contract", () => {
 
   it("keeps tracked consumer copies byte-identical", async () => {
     const files = ["SKILL.md", "skill.yaml", "references/operations.md"];
-    for (const target of [".claude", ".agents"]) {
+    // .agents/skills is the untracked whole-dir mirror (ignored via /.agents/skills/)
+    // so it is not materialized on a clean checkout/CI and cannot be asserted
+    // via committed byte-identity; only tracked targets (.claude) are checked here.
+    for (const target of [".claude"] as const) {
       for (const file of files) {
         await expect(
           readFile(join(projectRoot, target, "skills", "skill-sync", file), "utf8"),
