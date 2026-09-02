@@ -89,10 +89,32 @@ describe("packaged skill-sync operator contract", () => {
 
   it("keeps tracked consumer copies byte-identical", async () => {
     const files = ["SKILL.md", "skill.yaml", "references/operations.md"];
+    const manifestRaw = parseYaml(await readFile(join(projectRoot, "skill-sync.yaml"), "utf8")) as Record<
+      string,
+      unknown
+    >;
+    const targetsRaw = (manifestRaw.targets ?? {}) as Record<string, unknown>;
+    const trackedTopDirs = [
+      ...new Set(
+        Object.entries(targetsRaw)
+          .filter(([, value]) => typeof value === "object" && value !== null && (value as Record<string, unknown>).tracked === true)
+          .map(([, value]) => {
+            const dir = (value as Record<string, unknown>).dir as string;
+            const normalized = dir.replace(/^\.\//, "").replace(/^\//, "");
+            return normalized.split("/")[0] ?? dir;
+          })
+          .filter(Boolean),
+      ),
+    ];
     // .agents/skills is the untracked whole-dir mirror (ignored via /.agents/skills/)
     // so it is not materialized on a clean checkout/CI and cannot be asserted
-    // via committed byte-identity; only tracked targets (.claude) are checked here.
-    for (const target of [".claude"] as const) {
+    // via committed byte-identity; only tracked targets derived from skill-sync.yaml
+    // (tracked:true) are checked here.
+    expect(
+      trackedTopDirs.length,
+      "expected at least one tracked target in skill-sync.yaml (tracked:true)",
+    ).toBeGreaterThan(0);
+    for (const target of trackedTopDirs) {
       for (const file of files) {
         await expect(
           readFile(join(projectRoot, target, "skills", "skill-sync", file), "utf8"),
