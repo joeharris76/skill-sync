@@ -18,13 +18,13 @@ After bootstrap, use `_project/scripts/todo` for every tracker command.
 Skill-only actions: `prioritize`, `batch`, `handoff`, and `closeout`; follow their guides, not the CLI.
 
 If one request combines review or validation with close-out, perform the read-only review and stop at findings under
-`SHARED/review-protocol/SKILL.md`. A later user message may authorize `closeout`.
+`shared-review-protocol/SKILL.md`. A later user message may authorize `closeout`.
 
 ### Failures and claims
 
 - Exit code 2 means a general failure.
-- Exit code 4 means the hosted database rejected the credentials. Stop writes, run `todo doctor`, and show the error;
-  the wrapper may first try one token refresh.
+- Exit code 4 means the hosted database rejected the credentials (missing or rejected). Stop writes, run `todo doctor`,
+  and follow the remediation in `docs/operations/hosted-credentials.md` (provision or rotate the credential via `TODO_DB_CREDENTIAL_COMMAND`).
 - Only the holder can run `todo release`; it exits 2 for another actor's claim, and checking `claimed_by` can race.
   `complete` and `drop` may clear any claim. `--actor` prevents mistakes, not impersonation.
 
@@ -33,7 +33,7 @@ If one request combines review or validation with close-out, perform the read-on
 - Read the selected action guide before acting.
 - After specification approval, track it with `todo create` or the supported create-from-spec command.
 - Store tracker state only in the database; do not create tracker files by hand.
-- Commit through `SHARED/change-framework/SKILL.md`.
+- Commit through `shared-change-framework/SKILL.md`.
 - `TODO_DB_URL` may select the hosted database; the CLI never prints its connection string.
 
 ## Actions
