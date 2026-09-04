@@ -15,7 +15,7 @@ import type { CliResult, OutputMode, ParsedArgs } from "../types.js";
 import { alignAgentsCommand } from "./align-agents.js";
 
 const USAGE =
-  "Usage: skill-sync agent-config <capture|validate|restore|align> [--dry-run] [--force] [--json]";
+  "Usage: skill-sync agent-config <capture|validate|restore|align> [--canonical-source <path>] [--dry-run] [--force] [--json]";
 
 export async function agentConfigCommand(args: ParsedArgs): Promise<CliResult> {
   const action = args.positionals[0];

@@ -8,6 +8,7 @@ export const KNOWN_FLAGS: Record<string, { type: "string" | "boolean"; short?: s
   force: { type: "boolean", short: "f" },
   "exit-code": { type: "boolean" },
   agent: { type: "string" },
+  "canonical-source": { type: "string" },
 };
 
 /**

@@ -32,6 +32,6 @@ Read the project-root `skill-sync.yaml`, then read
 - Global: `--json`/`-j`, `--project`/`-p`, `--help`/`-h`.
 - Sync: `--dry-run`/`-n`, `--force`/`-f`.
 - Validate: `--exit-code`. Settings: `--agent`. Prune: `--dry-run`.
-- Agent config: `capture`, `validate`, `restore`, or `align`; supports `--dry-run`,
-  `--force` for restore, and `--json`.
+- Agent config & alignment: `capture`, `validate`, `restore`, or `align`; supports
+  `--canonical-source`, `--dry-run`, `--force` for restore/align, and `--json`.
 - Use `--force` only when source and target ownership is known.

@@ -69,6 +69,7 @@ export {
   isVersionInBounds,
   KNOWN_HARNESS_SPECS,
   parseSemver,
+  serializeHarnessReport,
 } from "./harness-alignment.js";
 // Runtime exports — hasher
 export { hashSkillDirectory, sha256, sha256File } from "./hasher.js";

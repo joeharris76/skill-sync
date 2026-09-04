@@ -1,17 +1,26 @@
-import { lstat, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_CANONICAL_INSTRUCTIONS_SOURCE,
-  type HarnessSpec,
-  type HarnessTarget,
-  KNOWN_HARNESS_SPECS,
   alignTarget,
   checkHarnessVersion,
   compareSemver,
+  DEFAULT_CANONICAL_INSTRUCTIONS_SOURCE,
   ensureHarnessAlignment,
+  type HarnessSpec,
+  type HarnessTarget,
   isVersionInBounds,
+  KNOWN_HARNESS_SPECS,
   parseSemver,
 } from "../../../src/core/harness-alignment.js";
 
@@ -198,8 +207,33 @@ describe("alignTarget", () => {
     expect(forceRes.aligned).toBe(true);
     expect(forceRes.actionTaken).toBe("recreated-symlink");
     expect((await lstat(targetPath)).isSymbolicLink()).toBe(true);
-    const backupContent = await readFile(`${targetPath}.bak`, "utf8");
+    const agentFiles = await readdir(join(tempDir, "agent"));
+    const backupFile = agentFiles.find((f) => f.startsWith("AGENTS.md.bak."));
+    expect(backupFile).toBeDefined();
+    const backupContent = await readFile(join(tempDir, "agent", backupFile!), "utf8");
     expect(backupContent).toBe("# Custom conflicting content\n");
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("refuses to overwrite a directory at the symlink target even with --force", async () => {
+    const tempDir = await createTestDir("skill-sync-align-dir-");
+    const canonicalFile = join(tempDir, "canonical.md");
+    await writeFile(canonicalFile, "# Global Instructions\n", "utf8");
+
+    const targetDir = join(tempDir, "agent-dir");
+    await mkdir(targetDir, { recursive: true });
+
+    const target: HarnessTarget = {
+      id: "dir.target",
+      path: targetDir,
+      kind: "symlink",
+    };
+
+    const res = await alignTarget(target, canonicalFile, { force: true });
+    expect(res.aligned).toBe(false);
+    expect(res.blocked).toBe(true);
+    expect(res.message).toContain("is a directory; cannot replace a directory with a symlink");
 
     await rm(tempDir, { recursive: true, force: true });
   });
@@ -269,7 +303,9 @@ describe("ensureHarnessAlignment", () => {
     const claudeOob = report.outOfBounds.find((o) => o.harnessId === "claude");
     expect(claudeOob).toBeDefined();
     expect(claudeOob?.detectedVersion).toBe("3.0.0");
-    expect(report.summary).toContain("Manual re-confirmation of configuration and update of version checker required");
+    expect(report.summary).toContain(
+      "Manual re-confirmation of configuration and update of version checker required",
+    );
     expect(report.actions).toEqual([]);
 
     await rm(tempDir, { recursive: true, force: true });
@@ -301,9 +337,46 @@ describe("ensureHarnessAlignment", () => {
     const claudePath = join(tempDir, ".claude", "CLAUDE.md");
     const codexPath = join(tempDir, ".codex", "AGENTS.md");
 
-    // Override KNOWN_HARNESS_SPECS targets dynamically for test isolation
+    const testSpecs: HarnessSpec[] = [
+      {
+        id: "claude",
+        name: "Claude Code",
+        binaryCandidates: ["claude"],
+        versionArgs: ["--version"],
+        versionRegex: /(\d+\.\d+\.\d+)/,
+        knownVersion: "2.1.259",
+        minVersion: "2.0.0",
+        maxVersion: "2.3.0",
+        targets: [
+          {
+            id: "claude.test",
+            path: claudePath,
+            kind: "claude-import",
+          },
+        ],
+      },
+      {
+        id: "codex",
+        name: "Codex CLI",
+        binaryCandidates: ["codex"],
+        versionArgs: ["--version"],
+        versionRegex: /(\d+\.\d+\.\d+)/,
+        knownVersion: "0.153.0",
+        minVersion: "0.150.0",
+        maxVersion: "0.160.0",
+        targets: [
+          {
+            id: "codex.test",
+            path: codexPath,
+            kind: "symlink",
+          },
+        ],
+      },
+    ];
+
     const report = await ensureHarnessAlignment({
       canonicalSource: canonicalFile,
+      specs: testSpecs,
       resolveBinary: async (bin) => {
         if (bin.includes("claude")) return "/mock/bin/claude";
         if (bin.includes("codex")) return "/mock/bin/codex";
@@ -319,6 +392,135 @@ describe("ensureHarnessAlignment", () => {
     expect(report.ok).toBe(true);
     expect(report.outOfBounds).toEqual([]);
     expect(report.summary).toContain("within known version bounds");
+    expect(await readFile(claudePath, "utf8")).toBe(`@${canonicalFile}\n`);
+    const codexStat = await lstat(codexPath);
+    expect(codexStat.isSymbolicLink()).toBe(true);
+    expect(await realpath(codexPath)).toBe(await realpath(canonicalFile));
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("fails closed when any harness encounters a version error and does not alter targets", async () => {
+    const tempDir = await createTestDir("skill-sync-ensure-verr-");
+    const canonicalFile = join(tempDir, "canonical.md");
+    await writeFile(canonicalFile, "# Canonical\n", "utf8");
+
+    const targetFile = join(tempDir, ".claude", "CLAUDE.md");
+    const testSpecs: HarnessSpec[] = [
+      {
+        id: "claude",
+        name: "Claude Code",
+        binaryCandidates: ["claude"],
+        versionArgs: ["--version"],
+        versionRegex: /(\d+\.\d+\.\d+)/,
+        knownVersion: "2.1.259",
+        minVersion: "2.0.0",
+        maxVersion: "2.3.0",
+        targets: [
+          {
+            id: "claude.test",
+            path: targetFile,
+            kind: "claude-import",
+          },
+        ],
+      },
+    ];
+
+    const report = await ensureHarnessAlignment({
+      canonicalSource: canonicalFile,
+      specs: testSpecs,
+      resolveBinary: async () => "/mock/bin/claude",
+      runVersion: async () => {
+        throw new Error("CLI crashed unexpectedly");
+      },
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.versionErrors.length).toBe(1);
+    expect(report.summary).toContain("version check error(s)");
+    expect(report.summary).toContain("CLI crashed unexpectedly");
+    expect(report.actions).toEqual([]);
+
+    let fileExists = false;
+    try {
+      await lstat(targetFile);
+      fileExists = true;
+    } catch {
+      fileExists = false;
+    }
+    expect(fileExists).toBe(false);
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("preflight aborts before mutating any targets if any target is blocked", async () => {
+    const tempDir = await createTestDir("skill-sync-ensure-two-phase-");
+    const canonicalFile = join(tempDir, "canonical.md");
+    await writeFile(canonicalFile, "# Canonical\n", "utf8");
+
+    const unblockedTarget = join(tempDir, "first", "AGENTS.md");
+    const blockedTarget = join(tempDir, "second", "AGENTS.md");
+
+    await mkdir(join(tempDir, "second"), { recursive: true });
+    await writeFile(blockedTarget, "Conflicting content", "utf8");
+
+    const testSpecs: HarnessSpec[] = [
+      {
+        id: "harness1",
+        name: "Harness 1",
+        binaryCandidates: ["h1"],
+        versionArgs: ["--version"],
+        versionRegex: /(\d+\.\d+\.\d+)/,
+        knownVersion: "1.0.0",
+        minVersion: "1.0.0",
+        maxVersion: "2.0.0",
+        targets: [
+          {
+            id: "h1.target",
+            path: unblockedTarget,
+            kind: "symlink",
+          },
+        ],
+      },
+      {
+        id: "harness2",
+        name: "Harness 2",
+        binaryCandidates: ["h2"],
+        versionArgs: ["--version"],
+        versionRegex: /(\d+\.\d+\.\d+)/,
+        knownVersion: "1.0.0",
+        minVersion: "1.0.0",
+        maxVersion: "2.0.0",
+        targets: [
+          {
+            id: "h2.target",
+            path: blockedTarget,
+            kind: "symlink",
+          },
+        ],
+      },
+    ];
+
+    const report = await ensureHarnessAlignment({
+      canonicalSource: canonicalFile,
+      specs: testSpecs,
+      resolveBinary: async () => "/mock/bin/h",
+      runVersion: async () => "1.0.0",
+      dryRun: false,
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.summary).toContain("blocked by conflicts (no files were modified)");
+    expect(report.actions).toEqual([]);
+
+    let firstExists = false;
+    try {
+      await lstat(unblockedTarget);
+      firstExists = true;
+    } catch {
+      firstExists = false;
+    }
+    expect(firstExists).toBe(false);
 
     await rm(tempDir, { recursive: true, force: true });
   });

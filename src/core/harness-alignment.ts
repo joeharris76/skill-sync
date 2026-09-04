@@ -11,7 +11,7 @@ import {
   unlink,
   writeFile,
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { delimiter, dirname, isAbsolute, join, relative } from "node:path";
 import { promisify } from "node:util";
 import { expandTilde, toTildePath } from "./paths.js";
 
@@ -44,7 +44,7 @@ export const KNOWN_HARNESS_SPECS: readonly HarnessSpec[] = [
   {
     id: "claude",
     name: "Claude Code",
-    binaryCandidates: ["claude", "/opt/homebrew/bin/claude"],
+    binaryCandidates: ["claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude"],
     versionArgs: ["--version"],
     versionRegex: /(?:^|\s|v)(\d+\.\d+\.\d+)/,
     knownVersion: "2.1.259",
@@ -55,14 +55,13 @@ export const KNOWN_HARNESS_SPECS: readonly HarnessSpec[] = [
         id: "claude.global",
         path: "~/.claude/CLAUDE.md",
         kind: "claude-import",
-        expectedContent: "@~/.agents/AGENTS.md",
       },
     ],
   },
   {
     id: "codex",
     name: "OpenAI Codex",
-    binaryCandidates: ["codex", "/opt/homebrew/bin/codex"],
+    binaryCandidates: ["codex", "/opt/homebrew/bin/codex", "/usr/local/bin/codex"],
     versionArgs: ["--version"],
     versionRegex: /(?:^|\s|v)(\d+\.\d+\.\d+)/,
     knownVersion: "0.153.0",
@@ -79,7 +78,7 @@ export const KNOWN_HARNESS_SPECS: readonly HarnessSpec[] = [
   {
     id: "agy",
     name: "Antigravity CLI",
-    binaryCandidates: ["agy", "/opt/homebrew/bin/agy"],
+    binaryCandidates: ["agy", "/opt/homebrew/bin/agy", "/usr/local/bin/agy"],
     versionArgs: ["--version"],
     versionRegex: /(?:^|\s|v)(\d+\.\d+\.\d+)/,
     knownVersion: "1.1.25",
@@ -101,7 +100,7 @@ export const KNOWN_HARNESS_SPECS: readonly HarnessSpec[] = [
   {
     id: "pi",
     name: "Pi",
-    binaryCandidates: ["pi", "/opt/homebrew/bin/pi"],
+    binaryCandidates: ["pi", "/opt/homebrew/bin/pi", "/usr/local/bin/pi"],
     versionArgs: ["--version"],
     versionRegex: /(?:^|\s|v)(\d+\.\d+\.\d+)/,
     knownVersion: "0.84.3",
@@ -118,7 +117,7 @@ export const KNOWN_HARNESS_SPECS: readonly HarnessSpec[] = [
   {
     id: "jcode",
     name: "JCode",
-    binaryCandidates: ["jcode", "/opt/homebrew/bin/jcode"],
+    binaryCandidates: ["jcode", "/opt/homebrew/bin/jcode", "/usr/local/bin/jcode"],
     versionArgs: ["--version"],
     versionRegex: /(?:^|\s|v)(\d+\.\d+\.\d+)/,
     knownVersion: "0.81.1",
@@ -135,7 +134,7 @@ export const KNOWN_HARNESS_SPECS: readonly HarnessSpec[] = [
   {
     id: "grok",
     name: "Grok Build",
-    binaryCandidates: ["grok", "~/.grok/bin/grok", "/opt/homebrew/bin/grok"],
+    binaryCandidates: ["grok", "~/.grok/bin/grok", "/opt/homebrew/bin/grok", "/usr/local/bin/grok"],
     versionArgs: ["--version"],
     versionRegex: /(?:^|\s|v)(\d+\.\d+\.\d+)/,
     knownVersion: "1.0.13",
@@ -152,7 +151,12 @@ export const KNOWN_HARNESS_SPECS: readonly HarnessSpec[] = [
   {
     id: "muse",
     name: "Muse Code",
-    binaryCandidates: ["muse", "~/.local/bin/muse", "/opt/homebrew/bin/muse"],
+    binaryCandidates: [
+      "muse",
+      "~/.local/bin/muse",
+      "/opt/homebrew/bin/muse",
+      "/usr/local/bin/muse",
+    ],
     versionArgs: ["--version"],
     versionRegex: /(?:^|\s|v)(\d+\.\d+\.\d+)/,
     knownVersion: "1.0.2",
@@ -169,7 +173,7 @@ export const KNOWN_HARNESS_SPECS: readonly HarnessSpec[] = [
   {
     id: "opencode",
     name: "OpenCode",
-    binaryCandidates: ["opencode", "/opt/homebrew/bin/opencode"],
+    binaryCandidates: ["opencode", "/opt/homebrew/bin/opencode", "/usr/local/bin/opencode"],
     versionArgs: ["--version"],
     versionRegex: /(?:^|\s|v)(\d+\.\d+\.\d+)/,
     knownVersion: "1.18.25",
@@ -262,6 +266,7 @@ export interface HarnessAlignmentReport {
   checkedAt: string;
   harnesses: HarnessAlignmentItem[];
   outOfBounds: HarnessVersionCheck[];
+  versionErrors: HarnessVersionCheck[];
   actions: string[];
   summary: string;
 }
@@ -276,6 +281,20 @@ export interface HarnessAlignmentOptions extends HarnessAlignmentDependencies {
   force?: boolean;
   canonicalSource?: string;
   alignAllTargets?: boolean;
+  specs?: readonly HarnessSpec[];
+}
+
+export function serializeHarnessReport(report: HarnessAlignmentReport) {
+  return {
+    ...report,
+    harnesses: report.harnesses.map((item) => ({
+      ...item,
+      harness: {
+        ...item.harness,
+        versionRegex: item.harness.versionRegex.source,
+      },
+    })),
+  };
 }
 
 export async function defaultResolveBinary(candidate: string): Promise<string | null> {
@@ -290,7 +309,7 @@ export async function defaultResolveBinary(candidate: string): Promise<string | 
   }
 
   const pathEnv = process.env.PATH ?? "";
-  const dirs = pathEnv.split(":");
+  const dirs = pathEnv.split(delimiter);
   for (const dir of dirs) {
     if (!dir) continue;
     const full = join(dir, candidate);
@@ -309,7 +328,7 @@ export async function defaultRunVersion(binaryPath: string, args: string[]): Pro
     timeout: 4000,
     encoding: "utf8",
   });
-  return stdout.trim() || stderr.trim();
+  return `${stdout}\n${stderr}`.trim();
 }
 
 export async function checkHarnessVersion(
@@ -444,10 +463,25 @@ export async function alignTarget(
   if (target.kind === "symlink") {
     const expectedCanonicalRealpath = await realpath(resolvedCanonical);
     const targetParent = dirname(resolvedTarget);
-    const relativeTarget = relative(targetParent, resolvedCanonical);
+    const relativeTarget = relative(targetParent, resolvedCanonical).replace(/\\/g, "/");
 
     try {
       const stat = await lstat(resolvedTarget);
+
+      if (stat.isDirectory()) {
+        return {
+          targetId: target.id,
+          path: target.path,
+          resolvedPath: resolvedTarget,
+          kind: target.kind,
+          aligned: false,
+          wouldAlign: false,
+          blocked: true,
+          actionTaken: "none",
+          message: `Target ${target.path} is a directory; cannot replace a directory with a symlink.`,
+        };
+      }
+
       if (stat.isSymbolicLink()) {
         try {
           const actualTargetRealpath = await realpath(resolvedTarget);
@@ -545,6 +579,9 @@ export async function alignTarget(
         };
       }
 
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const backupPath = `${resolvedTarget}.bak.${timestamp}`;
+
       if (options.dryRun) {
         return {
           targetId: target.id,
@@ -555,11 +592,11 @@ export async function alignTarget(
           wouldAlign: true,
           blocked: false,
           actionTaken: "none",
-          message: `Would force-backup differing file to ${target.path}.bak and create symlink`,
+          message: `Would force-backup differing file to ${target.path}.bak.${timestamp} and create symlink`,
         };
       }
 
-      await rename(resolvedTarget, `${resolvedTarget}.bak`);
+      await rename(resolvedTarget, backupPath);
       await symlink(relativeTarget, resolvedTarget);
       return {
         targetId: target.id,
@@ -570,9 +607,27 @@ export async function alignTarget(
         wouldAlign: true,
         blocked: false,
         actionTaken: "recreated-symlink",
-        message: `Backed up differing regular file to ${target.path}.bak and created symlink -> ${relativeTarget}`,
+        message: `Backed up differing regular file to ${target.path}.bak.${timestamp} and created symlink -> ${relativeTarget}`,
       };
-    } catch {
+    } catch (err: unknown) {
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? (err as { code: string }).code
+          : undefined;
+      if (code !== "ENOENT") {
+        return {
+          targetId: target.id,
+          path: target.path,
+          resolvedPath: resolvedTarget,
+          kind: target.kind,
+          aligned: false,
+          wouldAlign: false,
+          blocked: true,
+          actionTaken: "none",
+          message: `Failed to inspect target ${target.path}: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+
       // File does not exist
       if (options.dryRun) {
         return {
@@ -605,10 +660,27 @@ export async function alignTarget(
   }
 
   // target.kind === "claude-import"
-  const expectedImport = target.expectedContent ?? `@${toTildePath(resolvedCanonical)}`;
+  const expectedImport = `@${toTildePath(resolvedCanonical)}`;
   try {
+    const stat = await lstat(resolvedTarget);
+    if (stat.isDirectory()) {
+      return {
+        targetId: target.id,
+        path: target.path,
+        resolvedPath: resolvedTarget,
+        kind: target.kind,
+        aligned: false,
+        wouldAlign: false,
+        blocked: true,
+        actionTaken: "none",
+        message: `Target ${target.path} is a directory; cannot add Claude import to a directory.`,
+      };
+    }
+
     const content = await readFile(resolvedTarget, "utf8");
-    if (content.includes(expectedImport)) {
+    const escaped = expectedImport.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const lineRegex = new RegExp(`^\\s*${escaped}\\s*$`, "m");
+    if (lineRegex.test(content)) {
       return {
         targetId: target.id,
         path: target.path,
@@ -639,7 +711,11 @@ export async function alignTarget(
     const updated = content.endsWith("\n")
       ? `${content}${expectedImport}\n`
       : `${content}\n${expectedImport}\n`;
-    await writeFile(resolvedTarget, updated, "utf8");
+
+    const tempFile = `${resolvedTarget}.tmp.${Date.now()}`;
+    await writeFile(tempFile, updated, "utf8");
+    await rename(tempFile, resolvedTarget);
+
     return {
       targetId: target.id,
       path: target.path,
@@ -651,7 +727,23 @@ export async function alignTarget(
       actionTaken: "updated-import",
       message: `Appended import ${expectedImport} to ${target.path}`,
     };
-  } catch {
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === "object" && "code" in err ? (err as { code: string }).code : undefined;
+    if (code !== "ENOENT") {
+      return {
+        targetId: target.id,
+        path: target.path,
+        resolvedPath: resolvedTarget,
+        kind: target.kind,
+        aligned: false,
+        wouldAlign: false,
+        blocked: true,
+        actionTaken: "none",
+        message: `Failed to read target ${target.path}: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+
     // File does not exist
     if (options.dryRun) {
       return {
@@ -668,7 +760,10 @@ export async function alignTarget(
     }
 
     await mkdir(dirname(resolvedTarget), { recursive: true });
-    await writeFile(resolvedTarget, `${expectedImport}\n`, "utf8");
+    const tempFile = `${resolvedTarget}.tmp.${Date.now()}`;
+    await writeFile(tempFile, `${expectedImport}\n`, "utf8");
+    await rename(tempFile, resolvedTarget);
+
     return {
       targetId: target.id,
       path: target.path,
@@ -688,15 +783,19 @@ export async function alignTarget(
  *
  * Requirements:
  * 1. Check current version of each agent harness.
- * 2. If any installed harness version is outside its reasonable bounds, FAIL and do not silently apply changes.
+ * 2. If any installed harness version is outside its reasonable bounds, or fails with a version check error,
+ *    FAIL and do not silently apply changes.
  *    Requires re-confirmation of configurations and update of the version checker.
- * 3. When versions are within bounds, check and re-apply alignment as needed.
+ * 3. Pre-flight check all targets to ensure atomic execution (do not leave partial writes if any target is blocked).
+ * 4. When versions are within bounds and no targets are blocked, verify and re-apply alignment as needed.
  */
 export async function ensureHarnessAlignment(
   options: HarnessAlignmentOptions = {},
 ): Promise<HarnessAlignmentReport> {
+  const specs = options.specs ?? KNOWN_HARNESS_SPECS;
   const canonicalSource = options.canonicalSource ?? DEFAULT_CANONICAL_INSTRUCTIONS_SOURCE;
   const canonicalResolved = expandTilde(canonicalSource);
+  const checkedAt = new Date().toISOString();
 
   try {
     await access(canonicalResolved, fsConstants.R_OK);
@@ -704,46 +803,102 @@ export async function ensureHarnessAlignment(
     return {
       ok: false,
       canonicalSource,
-      checkedAt: new Date().toISOString(),
+      checkedAt,
       harnesses: [],
       outOfBounds: [],
+      versionErrors: [],
       actions: [],
       summary: `Alignment failed: Canonical instructions source ${canonicalSource} does not exist or is unreadable.`,
     };
   }
 
   // 1. Run version checks across all known harnesses
-  const versionChecks = await Promise.all(
-    KNOWN_HARNESS_SPECS.map((spec) => checkHarnessVersion(spec, options)),
-  );
+  const versionChecks = await Promise.all(specs.map((spec) => checkHarnessVersion(spec, options)));
 
   const outOfBounds = versionChecks.filter((vc) => vc.status === "out-of-bounds");
+  const versionErrors = versionChecks.filter((vc) => vc.status === "version-error");
 
-  // If any installed harness version is out of bounds, fail immediately
-  if (outOfBounds.length > 0) {
-    const errorMessages = outOfBounds.map((o) => `  - ${o.message}`).join("\n");
+  // FAIL CLOSED: If any installed harness version is out of bounds or encountered an execution/parse error,
+  // fail immediately without modifying any targets on disk.
+  if (outOfBounds.length > 0 || versionErrors.length > 0) {
+    const errorDetails: string[] = [];
+    for (const o of outOfBounds) {
+      errorDetails.push(`  - [out-of-bounds] ${o.message}`);
+    }
+    for (const e of versionErrors) {
+      errorDetails.push(`  - [version-error] ${e.message}`);
+    }
     return {
       ok: false,
       canonicalSource,
-      checkedAt: new Date().toISOString(),
-      harnesses: KNOWN_HARNESS_SPECS.map((spec, i) => ({
+      checkedAt,
+      harnesses: specs.map((spec, i) => ({
         harness: spec,
         version: versionChecks[i]!,
         targets: [],
         ok: false,
       })),
       outOfBounds,
+      versionErrors,
       actions: [],
-      summary: `Alignment check FAILED: ${outOfBounds.length} harness version(s) out of known bounds:\n${errorMessages}\nManual re-confirmation of configuration and update of version checker required.`,
+      summary: `Alignment check FAILED: ${outOfBounds.length} harness(es) out of bounds, ${versionErrors.length} version check error(s):\n${errorDetails.join("\n")}\nManual re-confirmation of configuration and update of version checker required.`,
     };
   }
 
-  // 2. For all harnesses, verify and apply target alignments
+  // 2. Pre-flight check all targets (two-phase safety)
+  // Ensure no target is blocked by conflicting un-forced files or directories before mutating
+  const preflightStatuses: Map<string, TargetAlignmentStatus[]> = new Map();
+  const preflightBlocked: string[] = [];
+
+  for (let i = 0; i < specs.length; i++) {
+    const spec = specs[i]!;
+    const version = versionChecks[i]!;
+
+    if (!version.installed && !options.alignAllTargets) {
+      preflightStatuses.set(spec.id, []);
+      continue;
+    }
+
+    const targetStatuses: TargetAlignmentStatus[] = [];
+    for (const target of spec.targets) {
+      const status = await alignTarget(target, canonicalSource, { ...options, dryRun: true });
+      targetStatuses.push(status);
+      if (status.blocked) {
+        preflightBlocked.push(`  - [${spec.id}] ${status.message}`);
+      }
+    }
+    preflightStatuses.set(spec.id, targetStatuses);
+  }
+
+  if (preflightBlocked.length > 0 && !options.dryRun) {
+    const harnessReports: HarnessAlignmentItem[] = specs.map((spec, i) => {
+      const targets = preflightStatuses.get(spec.id) ?? [];
+      return {
+        harness: spec,
+        version: versionChecks[i]!,
+        targets,
+        ok: !targets.some((t) => t.blocked),
+      };
+    });
+
+    return {
+      ok: false,
+      canonicalSource,
+      checkedAt,
+      harnesses: harnessReports,
+      outOfBounds: [],
+      versionErrors: [],
+      actions: [],
+      summary: `Alignment aborted: ${preflightBlocked.length} target(s) blocked by conflicts (no files were modified):\n${preflightBlocked.join("\n")}`,
+    };
+  }
+
+  // 3. For all harnesses, verify and apply target alignments
   const actions: string[] = [];
   const harnessReports: HarnessAlignmentItem[] = [];
 
-  for (let i = 0; i < KNOWN_HARNESS_SPECS.length; i++) {
-    const spec = KNOWN_HARNESS_SPECS[i]!;
+  for (let i = 0; i < specs.length; i++) {
+    const spec = specs[i]!;
     const version = versionChecks[i]!;
 
     if (!version.installed && !options.alignAllTargets) {
@@ -772,7 +927,7 @@ export async function ensureHarnessAlignment(
       harness: spec,
       version,
       targets: targetStatuses,
-      ok: allTargetsOk && version.status !== "version-error",
+      ok: allTargetsOk,
     });
   }
 
@@ -781,7 +936,11 @@ export async function ensureHarnessAlignment(
 
   let summary: string;
   if (!allOk) {
-    summary = `Alignment incomplete: one or more targets could not be aligned.`;
+    const failedTargets = harnessReports
+      .flatMap((h) => h.targets)
+      .filter((t) => (options.dryRun ? t.blocked || (!t.aligned && !t.wouldAlign) : !t.aligned))
+      .map((t) => `  - ${t.message}`);
+    summary = `Alignment incomplete: one or more targets could not be aligned:\n${failedTargets.join("\n")}`;
   } else if (actions.length > 0) {
     summary = `Successfully aligned ${actions.length} target(s) across ${installedCount} detected harness(es) (all within known version bounds).`;
   } else if (installedCount === 0) {
@@ -793,9 +952,10 @@ export async function ensureHarnessAlignment(
   return {
     ok: allOk,
     canonicalSource,
-    checkedAt: new Date().toISOString(),
+    checkedAt,
     harnesses: harnessReports,
     outOfBounds: [],
+    versionErrors: [],
     actions,
     summary,
   };

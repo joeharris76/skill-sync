@@ -66,12 +66,12 @@ export const COMMANDS: Record<string, { description: string; usage: string }> = 
   },
   "align-agents": {
     description: "Verify agent harness versions and align global instruction files",
-    usage: "skill-sync align-agents [--dry-run] [--force] [--json]",
+    usage: "skill-sync align-agents [--canonical-source <path>] [--dry-run] [--force] [--json]",
   },
   "agent-config": {
     description: "Capture, validate, or restore local instruction files, or align global harnesses",
     usage:
-      "skill-sync agent-config <capture|validate|restore|align> [--dry-run] [--force] [--json]",
+      "skill-sync agent-config <capture|validate|restore|align> [--canonical-source <path>] [--dry-run] [--force] [--json]",
   },
 };
 
