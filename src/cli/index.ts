@@ -2,6 +2,7 @@
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { agentConfigCommand } from "./commands/agent-config.js";
+import { alignAgentsCommand } from "./commands/align-agents.js";
 import { diffCommand } from "./commands/diff.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { pinCommand, unpinCommand } from "./commands/pin.js";
@@ -63,9 +64,14 @@ export const COMMANDS: Record<string, { description: string; usage: string }> = 
     usage:
       "skill-sync settings <subcommand> [--agent <name>] [--json]\n\nSubcommands:\n  generate   Print suggested settings fragment for installed skills",
   },
+  "align-agents": {
+    description: "Verify agent harness versions and align global instruction files",
+    usage: "skill-sync align-agents [--dry-run] [--force] [--json]",
+  },
   "agent-config": {
-    description: "Capture, validate, or restore the six local Markdown instruction files",
-    usage: "skill-sync agent-config <capture|validate|restore> [--dry-run] [--force] [--json]",
+    description: "Capture, validate, or restore local instruction files, or align global harnesses",
+    usage:
+      "skill-sync agent-config <capture|validate|restore|align> [--dry-run] [--force] [--json]",
   },
 };
 
@@ -157,6 +163,8 @@ export async function runCli(argv: string[]): Promise<CliResult> {
       return promoteCommand(parsed);
     case "settings":
       return settingsCommand(parsed);
+    case "align-agents":
+      return alignAgentsCommand(parsed);
     case "agent-config":
       return agentConfigCommand(parsed);
     default:

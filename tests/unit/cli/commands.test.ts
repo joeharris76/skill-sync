@@ -1707,4 +1707,33 @@ describe("skill-sync sync/status — tilde target resolution", () => {
       await rm(base, { recursive: true, force: true });
     }
   });
+
+  it("runs align-agents command with --dry-run", async () => {
+    const result = await runCli(["align-agents", "--dry-run"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Canonical instructions source");
+  });
+
+  it("runs align-agents command with --json", async () => {
+    const result = await runCli(["align-agents", "--dry-run", "--json"]);
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.canonicalSource).toBeDefined();
+    expect(Array.isArray(parsed.harnesses)).toBe(true);
+    expect(Array.isArray(parsed.outOfBounds)).toBe(true);
+  });
+
+  it("supports agent-config align subcommand", async () => {
+    const result = await runCli(["agent-config", "align", "--dry-run", "--json"]);
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed.ok).toBe(true);
+  });
+
+  it("shows updated usage for agent-config on invalid action", async () => {
+    const result = await runCli(["agent-config", "invalid-action"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("<capture|validate|restore|align>");
+  });
 });

@@ -19,6 +19,8 @@ import { captureAgentConfig, restoreAgentConfig, validateAgentConfig } from "./a
 import { generateConfig, writeProjectConfig } from "./config-generator.js";
 import { detectDrift, detectTargetReadiness, listInstalledSkillNames } from "./drift.js";
 import { applyGitTracking } from "./gitignore.js";
+import type { HarnessAlignmentOptions } from "./harness-alignment.js";
+import { ensureHarnessAlignment } from "./harness-alignment.js";
 import { hashSkillDirectory } from "./hasher.js";
 import { auditInstructions } from "./instruction-audit.js";
 import { isInstructionAgent } from "./instruction-targets.js";
@@ -563,6 +565,14 @@ export function agentConfigValidateOperation(opts: AgentConfigOptions) {
 
 export function agentConfigRestoreOperation(opts: AgentConfigRestoreOptions) {
   return restoreAgentConfig(opts);
+}
+
+// ---------------------------------------------------------------------------
+// Harness alignment
+// ---------------------------------------------------------------------------
+
+export function harnessAlignmentOperation(opts?: HarnessAlignmentOptions) {
+  return ensureHarnessAlignment(opts);
 }
 
 // ---------------------------------------------------------------------------
