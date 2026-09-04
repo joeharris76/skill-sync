@@ -66,4 +66,13 @@ describe("public package exports", () => {
     expect(typeof core.sha256).toBe("function");
     expect(typeof core.hashSkillDirectory).toBe("function");
   });
+
+  it("exports harness alignment functions", () => {
+    expect(typeof core.ensureHarnessAlignment).toBe("function");
+    expect(typeof core.checkHarnessVersion).toBe("function");
+    expect(typeof core.alignTarget).toBe("function");
+    expect(typeof core.harnessAlignmentOperation).toBe("function");
+    expect(core.KNOWN_HARNESS_SPECS).toBeDefined();
+    expect(core.DEFAULT_CANONICAL_INSTRUCTIONS_SOURCE).toBeDefined();
+  });
 });

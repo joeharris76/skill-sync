@@ -1707,4 +1707,48 @@ describe("skill-sync sync/status — tilde target resolution", () => {
       await rm(base, { recursive: true, force: true });
     }
   });
+
+  it("runs align-agents command with --dry-run", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "skill-sync-cli-align-"));
+    const canonical = join(tempDir, "AGENTS.md");
+    await writeFile(canonical, "# Canonical instructions\n", "utf8");
+
+    const result = await runCli(["align-agents", "--canonical-source", canonical, "--dry-run"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Canonical instructions source");
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("runs align-agents command with --json", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "skill-sync-cli-align-json-"));
+    const canonical = join(tempDir, "AGENTS.md");
+    await writeFile(canonical, "# Canonical instructions\n", "utf8");
+
+    const result = await runCli(["align-agents", "--canonical-source", canonical, "--dry-run", "--json"]);
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.canonicalSource).toBe(canonical);
+    expect(Array.isArray(parsed.harnesses)).toBe(true);
+    expect(Array.isArray(parsed.outOfBounds)).toBe(true);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("supports agent-config align subcommand", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "skill-sync-cli-align-sub-"));
+    const canonical = join(tempDir, "AGENTS.md");
+    await writeFile(canonical, "# Canonical instructions\n", "utf8");
+
+    const result = await runCli(["agent-config", "align", "--canonical-source", canonical, "--dry-run", "--json"]);
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout!);
+    expect(parsed.ok).toBe(true);
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("shows updated usage for agent-config on invalid action", async () => {
+    const result = await runCli(["agent-config", "invalid-action"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("<capture|validate|restore|align>");
+  });
 });

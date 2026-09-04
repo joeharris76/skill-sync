@@ -45,6 +45,32 @@ export { detectDrift } from "./drift.js";
 export type { GitTrackingPlan, GitTrackingReport } from "./gitignore.js";
 // Runtime exports — git tracking (managed .gitignore / .gitattributes)
 export { applyGitTracking, applyManagedBlock, planGitTracking } from "./gitignore.js";
+export type {
+  HarnessAlignmentDependencies,
+  HarnessAlignmentItem,
+  HarnessAlignmentOptions,
+  HarnessAlignmentReport,
+  HarnessSpec,
+  HarnessTarget,
+  HarnessTargetKind,
+  HarnessVersionCheck,
+  SemverTuple,
+  TargetAlignmentStatus,
+} from "./harness-alignment.js";
+// Runtime exports — harness alignment
+export {
+  alignTarget,
+  checkHarnessVersion,
+  compareSemver,
+  DEFAULT_CANONICAL_INSTRUCTIONS_SOURCE,
+  defaultResolveBinary,
+  defaultRunVersion,
+  ensureHarnessAlignment,
+  isVersionInBounds,
+  KNOWN_HARNESS_SPECS,
+  parseSemver,
+  serializeHarnessReport,
+} from "./harness-alignment.js";
 // Runtime exports — hasher
 export { hashSkillDirectory, sha256, sha256File } from "./hasher.js";
 // Runtime exports — instruction audit
@@ -93,6 +119,7 @@ export {
   agentConfigCaptureOperation,
   agentConfigRestoreOperation,
   agentConfigValidateOperation,
+  harnessAlignmentOperation,
   instructionAuditOperation,
   pinOperation,
   pruneOperation,

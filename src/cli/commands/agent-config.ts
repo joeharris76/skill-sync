@@ -12,25 +12,34 @@ import {
 import { formatOutput } from "../output.js";
 import type { CliResult, OutputMode, ParsedArgs } from "../types.js";
 
+import { alignAgentsCommand } from "./align-agents.js";
+
 const USAGE =
-  "Usage: skill-sync agent-config <capture|validate|restore> [--dry-run] [--force] [--json]";
+  "Usage: skill-sync agent-config <capture|validate|restore|align> [--canonical-source <path>] [--dry-run] [--force] [--json]";
 
 export async function agentConfigCommand(args: ParsedArgs): Promise<CliResult> {
   const action = args.positionals[0];
   const mode: OutputMode = args.flags.json ? "json" : "text";
   const projectRoot = resolve(String(args.flags.project ?? "."));
 
-  if (action !== "capture" && action !== "validate" && action !== "restore") {
+  if (action !== "capture" && action !== "validate" && action !== "restore" && action !== "align") {
     return {
       exitCode: 1,
       stderr: `${USAGE}\nUnknown agent-config action: ${action ?? "(missing)"}`,
     };
   }
-  if (args.flags.force && action !== "restore") {
-    return { exitCode: 1, stderr: "The --force flag is only supported by agent-config restore." };
+  if (args.flags.force && action !== "restore" && action !== "align") {
+    return {
+      exitCode: 1,
+      stderr: "The --force flag is only supported by agent-config restore and align.",
+    };
   }
 
   try {
+    if (action === "align") {
+      return alignAgentsCommand(args);
+    }
+
     if (action === "capture") {
       const result = await agentConfigCaptureOperation({
         projectRoot,

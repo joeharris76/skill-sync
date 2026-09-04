@@ -145,7 +145,21 @@ previously captured local snapshot.
 skill-sync agent-config capture [--dry-run] [--json]
 skill-sync agent-config validate [--json]
 skill-sync agent-config restore [--dry-run] [--force] [--json]
+skill-sync agent-config align [--canonical-source <path>] [--dry-run] [--force] [--json]
 ```
+
+### `skill-sync align-agents`
+
+Verify installed agent harness versions against known bounds and align global
+instruction files to `~/.agents/AGENTS.md` (or `--canonical-source`).
+
+```bash
+skill-sync align-agents [--canonical-source <path>] [--dry-run] [--force] [--json]
+```
+
+Supports `claude`, `codex`, `agy`, `pi`, `jcode`, `grok`, `muse`, and `opencode`.
+Fails closed with exit code 1 if any installed harness version drifts outside allowed
+bounds or encounters execution errors, preventing outdated configuration assumptions.
 
 The allowlist is deliberately exact:
 
