@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "todo-db": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "../BenchBox/_project/scripts",
+        "--locked",
+        "--",
+        "todo-db-mcp",
+        "--allow-hosted"
+      ],
+      "env": {}
+    }
+  }
+}

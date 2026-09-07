@@ -3,7 +3,9 @@ dist/
 coverage/
 .DS_Store
 tests/.tmp/
-.todo-db/
+.todo-db/*
+!.todo-db/config.json
+!.todo-db/.gitignore
 .skill-sync/agent-config.lock
 .skill-sync/agent-config-capture.json
 *.tsbuildinfo
