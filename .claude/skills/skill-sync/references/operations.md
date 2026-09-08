@@ -52,6 +52,14 @@ config no longer selects.
 project is in sync. It needs the catalog checkout, so it belongs in a local
 pre-commit check, not in a CI job on a machine without the catalog.
 
+`verify` is the offline gate. It reads only committed project files — no catalog,
+no network, no rsync — and fails when a recorded file is missing, its bytes or
+executable bit differ, something extra sits inside a managed skill directory, a
+managed path is a symlink, or the receipt and manifest disagree about which
+skills the target holds. It proves the payload is what `apply` wrote; it cannot
+prove the recorded revision is the intended one. Use it in CI; use `check` where
+the catalog exists.
+
 `apply` performs the copy. It refuses when:
 
 - a destination resolves through a symlinked ancestor, which would put writes
@@ -80,7 +88,9 @@ Each target gets a `skill-sync.receipt` recording, per source, the repository
 identity, the resolved commit, and the selected skills, followed by every file
 skill-sync wrote. It carries no timestamp, so a repeated sync of the same
 revision produces no Git diff, and no hashes, so it attests nothing about the
-current contents. The `file` lines are an ownership record: they are what lets
+current contents. `skill-sync.manifest` beside it carries the SHA-256 and mode of
+each of those files, and is what `verify` reads. The `file` lines are an
+ownership record: they are what lets
 `apply` refuse to overwrite or delete content it did not write, including content
 Git ignores and therefore never reports.
 

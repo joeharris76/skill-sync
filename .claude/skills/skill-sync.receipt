@@ -17,7 +17,7 @@ skill = tidy-perms
 skill = todo
 
 source = https://github.com/joeharris76/skill-sync.git
-rev = 9c2bffe44ce25f1b413d42f80a5f1e718c758e6f
+rev = 4c5abe5c7a96f955b7c04754e9830f157864af7b
 dir = skills
 skill = skill-sync
 
