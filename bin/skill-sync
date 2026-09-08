@@ -359,7 +359,7 @@ do_apply() {
 # --- main ------------------------------------------------------------------
 
 CMD=${1:-help}
-[ $# -gt 0 ] && shift || true
+[ $# -eq 0 ] || shift
 case $CMD in
 help | --help | -h) usage; exit 0 ;;
 version | --version) printf '%s %s\n' "$PROG" "$VERSION"; exit 0 ;;
@@ -416,7 +416,10 @@ fi
 
 case $CMD in
 preview) exit 0 ;;
-check) [ -s "$WORK/plan" ] && exit 3 || exit 0 ;;
+check)
+	if [ -s "$WORK/plan" ]; then exit 3; fi
+	exit 0
+	;;
 apply)
 	[ -s "$WORK/plan" ] || exit 0
 	do_apply
