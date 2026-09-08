@@ -43,9 +43,26 @@ npm ci && npm run build
 Both paths were exercised on 2026-09-08: the bundle verified as a complete
 history, cloned cleanly, built, and produced a working `skill-sync --help`.
 
+## Retained installation
+
+A built copy is kept at `/Users/joe/Developer/skill-sync-archive/typescript`
+(detached at `archive/typescript-v0.1.0`, `npm ci --ignore-scripts && npm run
+build`), so local callers of the old CLI have a stable path that does not depend
+on this repository's working checkout:
+
+```
+SKILL_SYNC=/Users/joe/Developer/skill-sync-archive/typescript/dist/cli/index.js
+```
+
 ## Consumers still pinned to it
 
 `BenchBox`, `todo-db`, and `Oxbow` each pin this repository at an older commit
-for their bundled `skill-sync` operator skill, and drive the Node CLI from their
-own build files. They keep working against the archived implementation until
-they are migrated deliberately. See [MIGRATION.md](MIGRATION.md).
+for their bundled `skill-sync` operator skill. That pin covers the operator
+instructions only — it does not pin the CLI they execute, which several of them
+resolve inside this repository's checkout. They need the retained installation
+above until they are migrated deliberately.
+
+BenchBox's integrity verifier is separately pinned to
+`6d09682dabe2ff0d68f400d60f8ba8b87f8c02aa` and clones it from the remote on every
+run; that revision is preserved on `origin` and in the bundle. See
+[MIGRATION.md](MIGRATION.md).

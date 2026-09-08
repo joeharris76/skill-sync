@@ -83,12 +83,43 @@ longer supported**; use WSL, or any environment providing `rsync`. CI now runs
 the suite on Ubuntu (GNU rsync) and macOS (Apple's `openrsync`) instead of
 Ubuntu and Windows. That is a deliberate reduction in coverage, not parity.
 
+## Before this lands: keep the old CLI reachable
+
+A project's `product` source pin controls the bundled operator skill. **It does
+not pin the executable.** BenchBox's `make skill-sync` and `make skill-sync-check`
+default to `SKILL_SYNC ?= /Users/joe/Developer/skill-sync/dist/cli/index.js` —
+inside this repository's own checkout. Once that checkout holds v1.0.0 there is
+no `package.json` to rebuild `dist/` from, and any `dist/` left behind is a stale
+artifact, not a reproducible installation. A clean checkout of the replacement
+leaves those recipes printing "skill-sync not installed" and silently skipping.
+
+So before replacing the product checkout, build the archived implementation
+somewhere stable and point local callers at it:
+
+```bash
+git clone https://github.com/joeharris76/skill-sync.git ~/Developer/skill-sync-archive/typescript
+cd ~/Developer/skill-sync-archive/typescript
+git checkout --detach archive/typescript-v0.1.0
+npm ci --ignore-scripts && npm run build
+```
+
+Then set, in each legacy caller's environment or make invocation:
+
+```
+SKILL_SYNC=~/Developer/skill-sync-archive/typescript/dist/cli/index.js
+```
+
+BenchBox's `skill-integrity-check` is a different case and needs nothing: it
+clones and builds `VERIFIER_REF` (`6d09682dabe2ff0d68f400d60f8ba8b87f8c02aa`,
+`scripts/skill_sync_ci_policy.py`) from the remote on every run, and that
+revision is preserved on `origin` and in the archive bundle.
+
 ## Consumers not migrated by this change
 
-None of the projects below were touched. Each keeps working against the archived
-implementation, which they already pin. Bump a project's `product` source ref to
-v1.0.0 only in the same change that migrates its tooling — otherwise it installs
-an operator skill describing a CLI it does not have.
+None of the projects below were touched. Their pinned operator-skill content is
+unaffected; their local CLI needs the override above. Bump a project's `product`
+source ref to v1.0.0 only in the same change that migrates its tooling —
+otherwise it installs an operator skill describing a CLI it does not have.
 
 ### BenchBox (`~/Developer/BenchBox`)
 
@@ -97,9 +128,9 @@ an operator skill describing a CLI it does not have.
 | `skill-sync.yaml` (3 git sources: catalog, todo-db, product) + `skill-sync.lock` | `skill-sync.conf` with three `source` groups pointing at local checkouts of each repository |
 | `targets.claude.ignore: [blog]` | `.gitignore` entry for `.claude/skills/blog/` |
 | `config.code.*`, `config.test.*` in the manifest | Move verbatim into `.claude/skills/skill-sync.config.yaml` and `.agents/skills/skill-sync.config.yaml` |
-| `Makefile: node $(SKILL_SYNC) sync` | `skill-sync apply` (repoint `SKILL_SYNC` at `bin/skill-sync`) |
-| `Makefile: node $(SKILL_SYNC) doctor` (`skill-sync-check`) | `skill-sync check` |
-| `Makefile: skill-integrity-check` — clones a pinned verifier, `npm ci && npm run build`, runs `verify --project` under an empty `HOME` | No equivalent. Either keep pinning `archive/typescript-v0.1.0` for this job, or drop the job and rely on PR review of the payload diff plus `scripts/check_untracked_skill_mirrors.sh`. This is the one capability whose loss is material to BenchBox. |
+| `Makefile: node $(SKILL_SYNC) sync` — `SKILL_SYNC` defaults into the product checkout's `dist/`, which the replacement removes | `skill-sync apply`, with `SKILL_SYNC` repointed at `bin/skill-sync`. Until then, override it to the retained archive build above. |
+| `Makefile: node $(SKILL_SYNC) doctor` (`skill-sync-check`) | `skill-sync check`, same override in the meantime |
+| `Makefile: skill-integrity-check` — clones and builds `VERIFIER_REF` from the remote, runs `verify --project` under an empty `HOME` | Genuinely pinned and unaffected by this change. It has no equivalent under the wrapper, so keep it on `VERIFIER_REF` (or `archive/typescript-v0.1.0`) until BenchBox has another gate. This is the one capability whose loss would be material to BenchBox. |
 | `scripts/skill_sync_ci_policy.py` (`validate --manifest`, `VERIFIER_REF`) | Rework or retire alongside the job above |
 
 ### todo-db (`~/Developer/todo-db`)
