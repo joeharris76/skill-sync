@@ -2,6 +2,11 @@
 .claude/settings.local.json
 /.antigravitycli
 
+# Build output of the archived TypeScript implementation. Consumers that still
+# pin it build it in place; keep the artifacts out of git status.
+node_modules/
+dist/
+
 .todo-db/*
 !.todo-db/config.json
 !.todo-db/.gitignore
