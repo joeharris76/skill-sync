@@ -1,0 +1,420 @@
+#!/bin/sh
+# skill-sync — copy selected skill packages from Git catalogs into a project.
+#
+# rsync copies the payload; Git supplies history, review, and rollback. There is
+# no registry, resolver, lockfile, or dependency solver: the config names every
+# skill and the exact commit it comes from.
+
+set -eu
+
+PROG=skill-sync
+VERSION=1.0.0
+RECEIPT=skill-sync.receipt
+RSYNC=${SKILL_SYNC_RSYNC:-rsync}
+
+die() { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
+usage_err() { printf '%s: %s\n\n' "$PROG" "$*" >&2; usage >&2; exit 2; }
+
+usage() {
+	cat <<'USAGE'
+skill-sync — copy selected skill packages from Git catalogs into a project.
+
+Usage:
+  skill-sync preview [-C DIR] [-f CONFIG]   Show what apply would change (read-only)
+  skill-sync check   [-C DIR] [-f CONFIG]   Like preview, but exit 3 if changes are pending
+  skill-sync apply   [-C DIR] [-f CONFIG]   Copy the payload into the project
+  skill-sync help
+  skill-sync version
+
+Options:
+  -C, --project DIR   Project root (default: current directory)
+  -f, --config FILE   Config file (default: PROJECT/skill-sync.conf)
+
+Exit codes:
+  0  success            2  usage error
+  1  error              3  changes pending (check only)
+USAGE
+}
+
+# --- validation ------------------------------------------------------------
+
+check_skill_name() {
+	case $1 in
+	'' | .* | */*) die "$2: invalid skill name \"$1\": must be a single path segment not starting with \".\"" ;;
+	*[!A-Za-z0-9._-]*) die "$2: invalid skill name \"$1\": allowed characters are letters, digits, \".\", \"_\", \"-\"" ;;
+	esac
+}
+
+check_relpath() {
+	case $1 in
+	'') die "$2: empty path" ;;
+	/*) die "$2: must be a relative path, got \"$1\"" ;;
+	.. | ../* | */../* | */..) die "$2: path must not contain \"..\": $1" ;;
+	esac
+}
+
+expand_tilde() {
+	# shellcheck disable=SC2088  # the quoted "~" is a literal pattern, by design
+	case $1 in
+	'~') printf '%s\n' "$HOME" ;;
+	'~/'*) printf '%s\n' "$HOME/${1#\~/}" ;;
+	*) printf '%s\n' "$1" ;;
+	esac
+}
+
+# --- config / receipt parser -----------------------------------------------
+#
+# Both the project config and the generated receipt use the same grammar:
+#
+#   target = .claude/skills          (config only; must precede every source)
+#   source = ../skill-sync-skills    opens a group
+#   rev    = <commit-ish>            required, one per group
+#   dir    = skills                  optional, defaults to "skills"
+#   skill  = code                    one or more per group
+#
+# Output: WORK/targets, WORK/groups, WORK/g<N>.{source,rev,dir,skills}
+
+parse_conf() {
+	_cf=$1
+	_w=$2
+	_allow_target=$3
+	_gi=0
+	: >"$_w/targets"
+	: >"$_w/groups"
+	: >"$_w/allskills"
+	_ln=0
+	while IFS= read -r _raw || [ -n "$_raw" ]; do
+		_ln=$((_ln + 1))
+		_line=${_raw%%#*}
+		_line=$(printf '%s\n' "$_line" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+		[ -n "$_line" ] || continue
+		case $_line in
+		*=*) ;;
+		*) die "$_cf:$_ln: expected \"key = value\", got: $_line" ;;
+		esac
+		_key=$(printf '%s\n' "${_line%%=*}" | sed 's/[[:space:]]*$//')
+		_val=$(printf '%s\n' "${_line#*=}" | sed 's/^[[:space:]]*//')
+		case $_key in
+		target)
+			[ "$_allow_target" = yes ] || die "$_cf:$_ln: \"target\" is not valid in a receipt"
+			[ "$_gi" -eq 0 ] || die "$_cf:$_ln: every \"target\" line must come before the first \"source\""
+			check_relpath "$_val" "$_cf:$_ln target"
+			printf '%s\n' "$_val" >>"$_w/targets"
+			;;
+		source)
+			[ -n "$_val" ] || die "$_cf:$_ln: empty source"
+			_gi=$((_gi + 1))
+			printf '%s\n' "$_gi" >>"$_w/groups"
+			printf '%s\n' "$_val" >"$_w/g$_gi.source"
+			: >"$_w/g$_gi.rev"
+			printf '%s\n' "skills" >"$_w/g$_gi.dir"
+			: >"$_w/g$_gi.skills"
+			;;
+		rev | dir | skill)
+			[ "$_gi" -gt 0 ] || die "$_cf:$_ln: \"$_key\" must follow a \"source\" line"
+			case $_key in
+			rev)
+				[ -n "$_val" ] || die "$_cf:$_ln: empty rev"
+				printf '%s\n' "$_val" >"$_w/g$_gi.rev"
+				;;
+			dir)
+				check_relpath "$_val" "$_cf:$_ln dir"
+				printf '%s\n' "$_val" >"$_w/g$_gi.dir"
+				;;
+			skill)
+				check_skill_name "$_val" "$_cf:$_ln"
+				if grep -qxF "$_val" "$_w/allskills"; then
+					die "$_cf:$_ln: skill \"$_val\" is listed more than once; each skill has exactly one source"
+				fi
+				printf '%s\n' "$_val" >>"$_w/allskills"
+				printf '%s\n' "$_val" >>"$_w/g$_gi.skills"
+				;;
+			esac
+			;;
+		*) die "$_cf:$_ln: unknown key \"$_key\" (expected target, source, rev, dir, skill)" ;;
+		esac
+	done <"$_cf"
+
+	while IFS= read -r _g; do
+		[ -s "$_w/g$_g.rev" ] || die "$_cf: source \"$(cat "$_w/g$_g.source")\" has no \"rev\" line"
+		[ -s "$_w/g$_g.skills" ] || die "$_cf: source \"$(cat "$_w/g$_g.source")\" has no \"skill\" lines"
+	done <"$_w/groups"
+}
+
+# --- source export ---------------------------------------------------------
+#
+# Bytes always come from `git archive` of one resolved commit, so an untracked
+# or modified working tree in the catalog can never be labelled with a clean
+# commit SHA, and the catalog's .git directory can never be copied.
+
+export_group() {
+	_g=$1
+	_src=$(expand_tilde "$(cat "$WORK/g$_g.source")")
+	case $_src in /*) ;; *) _src="$PROJECT/$_src" ;; esac
+	[ -d "$_src" ] || die "source \"$_src\" does not exist"
+	git -C "$_src" rev-parse --git-dir >/dev/null 2>&1 ||
+		die "source \"$_src\" is not a Git repository"
+
+	_rev=$(cat "$WORK/g$_g.rev")
+	_sha=$(git -C "$_src" rev-parse --verify --quiet "$_rev^{commit}") ||
+		die "source \"$_src\": revision \"$_rev\" is not present locally; fetch it, then re-run"
+	_url=$(git -C "$_src" config --get remote.origin.url 2>/dev/null || true)
+	[ -n "$_url" ] || _url="local:$_src"
+	printf '%s\n' "$_sha" >"$WORK/g$_g.sha"
+	printf '%s\n' "$_url" >"$WORK/g$_g.url"
+
+	_dir=$(cat "$WORK/g$_g.dir")
+	mkdir -p "$WORK/export/$_g"
+	set --
+	while IFS= read -r _s; do set -- "$@" "$_dir/$_s"; done <"$WORK/g$_g.skills"
+	git -C "$_src" archive --format=tar "$_sha" -- "$@" >"$WORK/ar.tar" 2>"$WORK/ar.err" ||
+		die "source \"$_src\": cannot export at $_sha: $(cat "$WORK/ar.err")"
+	(cd "$WORK/export/$_g" && tar -xf "$WORK/ar.tar")
+	rm -f "$WORK/ar.tar" "$WORK/ar.err"
+
+	while IFS= read -r _s; do
+		[ -d "$WORK/export/$_g/$_dir/$_s" ] ||
+			die "source \"$_src\": \"$_dir/$_s\" is not a directory at $_sha"
+	done <"$WORK/g$_g.skills"
+}
+
+# Locate a skill's exported payload directory. Prints nothing if unknown.
+skill_payload() {
+	while IFS= read -r _g; do
+		if grep -qxF "$1" "$WORK/g$_g.skills"; then
+			printf '%s\n' "$WORK/export/$_g/$(cat "$WORK/g$_g.dir")/$1"
+			return 0
+		fi
+	done <"$WORK/groups"
+	return 1
+}
+
+# --- planning --------------------------------------------------------------
+#
+# Normalised plan lines, one per changed path:
+#   A <path>   add        M <path>   modify
+#   D <path>   delete     R <path>   remove a skill directory that is no longer selected
+
+plan_skill() {
+	_t=$1
+	_s=$2
+	_pay=$3
+	_dest="$PROJECT/$_t/$_s"
+	if [ -d "$_dest" ] && [ ! -L "$_dest" ]; then
+		# Itemised output, read the same way for openrsync (9-character codes)
+		# and GNU rsync (11-character codes, space-padded deletion lines).
+		# Directory entries and attribute-only fix-ups (update type ".") are
+		# dropped: Git tracks neither.
+		"$RSYNC" -a -c -n -i --delete "$_pay/" "$_dest/" |
+			awk -v p="$_t/$_s/" '
+				/^\*deleting/ {
+					rest = $0; sub(/^\*deleting[ \t]+/, "", rest)
+					print "D " p rest; next
+				}
+				/^[<>ch][fdLDS]/ {
+					code = $1
+					if (substr(code, 2, 1) != "f") next
+					rest = $0; sub(/^[^ ]+ /, "", rest)
+					print (substr(code, 3, 7) == "+++++++" ? "A " : "M ") p rest
+				}'
+	else
+		(cd "$_pay" && find . -type f -print) |
+			sed "s|^\./|A $_t/$_s/|" | LC_ALL=C sort
+	fi
+}
+
+render_receipt() {
+	printf '# Generated by skill-sync. Records what was copied into this directory.\n'
+	printf '# Provenance only: this is a record of the copy, not an integrity audit.\n'
+	while IFS= read -r _g; do
+		printf '\nsource = %s\n' "$(cat "$WORK/g$_g.url")"
+		printf 'rev = %s\n' "$(cat "$WORK/g$_g.sha")"
+		printf 'dir = %s\n' "$(cat "$WORK/g$_g.dir")"
+		LC_ALL=C sort "$WORK/g$_g.skills" | sed 's/^/skill = /'
+	done <"$WORK/groups"
+}
+
+# Skills recorded in a target's existing receipt (empty if there is none).
+previous_skills() {
+	_r="$PROJECT/$1/$RECEIPT"
+	[ -f "$_r" ] || return 0
+	mkdir -p "$WORK/prev"
+	rm -f "$WORK/prev"/*
+	parse_conf "$_r" "$WORK/prev" no
+	LC_ALL=C sort "$WORK/prev/allskills"
+}
+
+build_plan() {
+	: >"$WORK/plan"
+	_ti=0
+	while IFS= read -r _t; do
+		_ti=$((_ti + 1))
+		printf '%s\n' "$_t" >>"$WORK/targetlist"
+		previous_skills "$_t" >"$WORK/t$_ti.prev"
+
+		while IFS= read -r _s; do
+			_pay=$(skill_payload "$_s")
+			plan_skill "$_t" "$_s" "$_pay" >"$WORK/t$_ti.plan.$_s"
+			cat "$WORK/t$_ti.plan.$_s" >>"$WORK/plan"
+		done <"$WORK/allskills"
+
+		# Previously managed, now deselected: the receipt proves we own it.
+		while IFS= read -r _s; do
+			[ -n "$_s" ] || continue
+			if ! grep -qxF "$_s" "$WORK/allskills" && [ -e "$PROJECT/$_t/$_s" ]; then
+				printf 'R %s\n' "$_t/$_s" >>"$WORK/plan"
+			fi
+		done <"$WORK/t$_ti.prev"
+
+		render_receipt >"$WORK/t$_ti.receipt"
+		if [ ! -f "$PROJECT/$_t/$RECEIPT" ]; then
+			printf 'A %s\n' "$_t/$RECEIPT" >>"$WORK/plan"
+		elif ! cmp -s "$WORK/t$_ti.receipt" "$PROJECT/$_t/$RECEIPT"; then
+			printf 'M %s\n' "$_t/$RECEIPT" >>"$WORK/plan"
+		fi
+	done <"$WORK/targets"
+}
+
+# --- apply guards ----------------------------------------------------------
+
+refuse_unmanaged_collisions() {
+	_ti=0
+	while IFS= read -r _t; do
+		_ti=$((_ti + 1))
+		while IFS= read -r _s; do
+			_dest="$PROJECT/$_t/$_s"
+			[ -e "$_dest" ] || continue
+			grep -qxF "$_s" "$WORK/t$_ti.prev" && continue
+			if [ -L "$_dest" ]; then
+				die "\"$_t/$_s\" is a symlink. skill-sync writes real files; remove it and re-run."
+			fi
+			# Content that already matches the source is adopted; anything else
+			# is unmanaged content this run would silently overwrite.
+			[ -s "$WORK/t$_ti.plan.$_s" ] || continue
+			die "\"$_t/$_s\" already exists but is not recorded in $_t/$RECEIPT.
+Review it, then remove the directory (git rm -r \"$_t/$_s\") and re-run apply so
+the change is a reviewable Git diff."
+		done <"$WORK/allskills"
+	done <"$WORK/targets"
+}
+
+# Only the paths this run would actually rewrite are checked. Uncommitted work
+# elsewhere in the project — including under a target directory this run does
+# not touch — is none of skill-sync's business.
+refuse_dirty_destinations() {
+	git -C "$PROJECT" rev-parse --git-dir >/dev/null 2>&1 || {
+		printf '%s: warning: %s is not a Git repository; skipping the dirty-destination check\n' \
+			"$PROG" "$PROJECT" >&2
+		return 0
+	}
+	set --
+	while IFS= read -r _line; do set -- "$@" "${_line#? }"; done <"$WORK/plan"
+	[ $# -gt 0 ] || return 0
+	_dirty=$(git -C "$PROJECT" status --porcelain -- "$@")
+	[ -z "$_dirty" ] || die "these files have uncommitted changes and this sync would rewrite them:
+$_dirty
+Commit or discard them first so the sync lands as a reviewable diff."
+}
+
+# --- apply -----------------------------------------------------------------
+
+do_apply() {
+	refuse_unmanaged_collisions
+	refuse_dirty_destinations
+
+	_ti=0
+	while IFS= read -r _t; do
+		_ti=$((_ti + 1))
+		mkdir -p "$PROJECT/$_t"
+		while IFS= read -r _s; do
+			_pay=$(skill_payload "$_s")
+			mkdir -p "$PROJECT/$_t/$_s"
+			# --delete is scoped to one skill directory, so unmanaged siblings,
+			# the project's skill-sync.config.yaml, and loader-owned paths such
+			# as .system are never in range. --checksum is required for
+			# correctness: git archive stamps every file with the commit time,
+			# so two commits made in the same second defeat rsync's default
+			# size-and-mtime quick check.
+			"$RSYNC" -a -c --delete "$_pay/" "$PROJECT/$_t/$_s/" >/dev/null
+		done <"$WORK/allskills"
+
+		while IFS= read -r _s; do
+			[ -n "$_s" ] || continue
+			if ! grep -qxF "$_s" "$WORK/allskills" && [ -e "$PROJECT/$_t/$_s" ]; then
+				rm -rf "${PROJECT:?}/$_t/${_s:?}"
+			fi
+		done <"$WORK/t$_ti.prev"
+
+		# Written last: a failed run leaves the previous provenance in place
+		# rather than claiming a sync that did not complete.
+		cp "$WORK/t$_ti.receipt" "$PROJECT/$_t/$RECEIPT"
+	done <"$WORK/targets"
+}
+
+# --- main ------------------------------------------------------------------
+
+CMD=${1:-help}
+[ $# -gt 0 ] && shift || true
+case $CMD in
+help | --help | -h) usage; exit 0 ;;
+version | --version) printf '%s %s\n' "$PROG" "$VERSION"; exit 0 ;;
+preview | check | apply) ;;
+sync | status | validate | verify | diff | doctor | pin | unpin | prune | promote | settings | align-agents | agent-config)
+	die "\"$CMD\" belonged to the TypeScript implementation and was retired in $PROG $VERSION.
+See MIGRATION.md for the replacement, or use the archived version at the Git tag
+archive/typescript-v0.1.0." ;;
+*) usage_err "unknown command \"$CMD\"" ;;
+esac
+
+PROJECT=.
+CONFIG=
+while [ $# -gt 0 ]; do
+	case $1 in
+	-C | --project) [ $# -ge 2 ] || usage_err "$1 needs a directory"; PROJECT=$2; shift 2 ;;
+	-f | --config) [ $# -ge 2 ] || usage_err "$1 needs a file"; CONFIG=$2; shift 2 ;;
+	-h | --help) usage; exit 0 ;;
+	*) usage_err "unexpected argument \"$1\"" ;;
+	esac
+done
+
+[ -d "$PROJECT" ] || die "project directory \"$PROJECT\" does not exist"
+PROJECT=$(cd "$PROJECT" && pwd)
+[ -n "$CONFIG" ] || CONFIG="$PROJECT/skill-sync.conf"
+[ -f "$CONFIG" ] || die "config file \"$CONFIG\" not found"
+command -v "$RSYNC" >/dev/null 2>&1 ||
+	die "rsync not found. skill-sync needs rsync on PATH (macOS and Linux ship it; on Windows use WSL)."
+command -v git >/dev/null 2>&1 || die "git not found"
+
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/skill-sync.XXXXXX")
+trap 'rm -rf "$WORK"' EXIT INT HUP TERM
+
+parse_conf "$CONFIG" "$WORK" yes
+[ -s "$WORK/targets" ] || die "$CONFIG: no \"target\" lines"
+[ -s "$WORK/groups" ] || die "$CONFIG: no \"source\" lines"
+
+while IFS= read -r g; do export_group "$g"; done <"$WORK/groups"
+
+bad=$(find "$WORK/export" \( -type l -o -type p -o -type s -o -type b -o -type c \) -print | head -3)
+[ -z "$bad" ] || die "the selected skills contain symlinks or special files, which do not
+survive as committable project files:
+$(printf '%s\n' "$bad" | sed "s|$WORK/export/[0-9]*/|  |")
+Replace them with regular files in the catalog, or deselect the skill."
+
+: >"$WORK/targetlist"
+build_plan
+
+if [ -s "$WORK/plan" ]; then
+	LC_ALL=C sort -k2 "$WORK/plan"
+else
+	printf 'Already up to date.\n'
+fi
+
+case $CMD in
+preview) exit 0 ;;
+check) [ -s "$WORK/plan" ] && exit 3 || exit 0 ;;
+apply)
+	[ -s "$WORK/plan" ] || exit 0
+	do_apply
+	printf '\nApplied %s change(s). Review and commit them with Git.\n' "$(wc -l <"$WORK/plan" | tr -d ' ')"
+	;;
+esac
