@@ -177,8 +177,15 @@ commit_all "$P" 'sync skills'
 printf 'hand edited\n' >"$P/.claude/skills/alpha/SKILL.md"
 run "$SS" apply -C "$P"
 assert_eq "apply refuses" "$RC" 1
-assert_has "refusal names the problem" "$OUT" "uncommitted changes"
+assert_has "refusal names the local change" "$OUT" "differs from the revision"
 assert_eq "hand edit left intact" "$(cat "$P/.claude/skills/alpha/SKILL.md")" "hand edited"
+printf 'beta v2\n' >"$C/skills/beta/SKILL.md"
+g -C "$C" add skills
+g -C "$C" commit -qm 'catalog: unrelated edit'
+run "$SS" apply -C "$P"
+assert_eq "apply still refuses once the catalog moves on" "$RC" 1
+assert_has "refusal names the uncommitted change" "$OUT" "uncommitted changes"
+assert_eq "hand edit still intact" "$(cat "$P/.claude/skills/alpha/SKILL.md")" "hand edited"
 printf 'unrelated\n' >"$P/NOTES.md"
 g -C "$P" checkout -q -- .claude
 run "$SS" apply -C "$P"
@@ -379,6 +386,147 @@ assert_file "catalog skill in second target" "$P/.agents/skills/alpha/SKILL.md"
 assert_file "project skill in first target" "$P/.claude/skills/local-only/SKILL.md"
 assert_file "project skill in second target" "$P/.agents/skills/local-only/SKILL.md"
 assert_has "receipt records both sources" "$(cat "$P/.agents/skills/skill-sync.receipt")" "skill = local-only"
+
+# ---------------------------------------------------------------------------
+case_ "refuses a destination that leaves the project through a symlink"
+D=$(new c16); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+conf "$P" "$C" main alpha
+"$SS" apply -C "$P" >/dev/null
+commit_all "$P" 'sync skills'
+mkdir -p "$D/outside"
+mv "$P/.claude" "$D/outside/claude"
+ln -s "$D/outside/claude" "$P/.claude"
+printf 'the only copy\n' >"$D/outside/claude/skills/alpha/precious.txt"
+printf 'alpha v2\n' >"$C/skills/alpha/SKILL.md"
+g -C "$C" add skills
+g -C "$C" commit -qm 'catalog: v2'
+run "$SS" preview -C "$P"
+assert_eq "preview refuses" "$RC" 1
+assert_has "refusal names the symlink" "$OUT" "resolves through a symlink"
+run "$SS" apply -C "$P"
+assert_eq "apply refuses" "$RC" 1
+assert_file "external file untouched" "$D/outside/claude/skills/alpha/precious.txt"
+assert_eq "external payload untouched" "$(cat "$D/outside/claude/skills/alpha/SKILL.md")" "alpha"
+rm "$P/.claude"
+mkdir -p "$P/.claude/skills"
+ln -s "$D/outside/claude/skills/alpha" "$P/.claude/skills/alpha"
+run "$SS" apply -C "$P"
+assert_eq "a symlinked skill directory is refused too" "$RC" 1
+assert_eq "external payload still untouched" "$(cat "$D/outside/claude/skills/alpha/SKILL.md")" "alpha"
+
+# ---------------------------------------------------------------------------
+case_ "protects ignored files that Git cannot restore"
+D=$(new c17); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+conf "$P" "$C" main alpha
+"$SS" apply -C "$P" >/dev/null
+commit_all "$P" 'sync skills'
+printf '*.scratch\n' >"$P/.git/info/exclude"
+printf 'the only copy of my draft\n' >"$P/.claude/skills/alpha/local.scratch"
+assert_eq "Git reports nothing for the ignored file" "$(g -C "$P" status --porcelain)" ""
+printf 'alpha v2\n' >"$C/skills/alpha/SKILL.md"
+g -C "$C" add skills
+g -C "$C" commit -qm 'catalog: v2'
+run "$SS" apply -C "$P"
+assert_eq "apply refuses" "$RC" 1
+assert_has "refusal names the unowned file" "$OUT" "records skill-sync writing it"
+assert_eq "ignored draft survives" "$(cat "$P/.claude/skills/alpha/local.scratch")" "the only copy of my draft"
+mv "$P/.claude/skills/alpha/local.scratch" "$P/local.scratch"
+run "$SS" apply -C "$P"
+assert_eq "apply succeeds once the file is moved out" "$RC" 0
+assert_eq "catalog edit applied" "$(cat "$P/.claude/skills/alpha/SKILL.md")" "alpha v2"
+
+# ---------------------------------------------------------------------------
+case_ "protects a wholly ignored target from silent overwrites"
+D=$(new c18); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+{ printf 'target = .agents/skills\n\n'; printf 'source = %s\nrev = main\ndir = skills\nskill = alpha\n' "$C"; } >"$P/skill-sync.conf"
+printf '/.agents/skills/\n' >"$P/.gitignore"
+g -C "$P" add .gitignore
+g -C "$P" commit -qm 'project: ignore the mirror'
+"$SS" apply -C "$P" >/dev/null
+assert_eq "Git reports nothing for the ignored mirror" "$(g -C "$P" status --porcelain -- .agents)" ""
+printf 'my local edit, never committed anywhere\n' >"$P/.agents/skills/alpha/SKILL.md"
+run "$SS" apply -C "$P"
+assert_eq "apply refuses" "$RC" 1
+assert_has "refusal names the drift" "$OUT" "differs from the revision"
+assert_eq "local edit survives" "$(cat "$P/.agents/skills/alpha/SKILL.md")" "my local edit, never committed anywhere"
+rm "$P/.agents/skills/alpha/SKILL.md"
+run "$SS" apply -C "$P"
+assert_eq "deleting the file restores it" "$RC" 0
+assert_eq "restored from the recorded revision" "$(cat "$P/.agents/skills/alpha/SKILL.md")" "alpha"
+printf 'alpha v2\n' >"$C/skills/alpha/SKILL.md"
+g -C "$C" add skills
+g -C "$C" commit -qm 'catalog: v2'
+run "$SS" apply -C "$P"
+assert_eq "a genuine catalog update still applies to the mirror" "$RC" 0
+assert_eq "mirror updated" "$(cat "$P/.agents/skills/alpha/SKILL.md")" "alpha v2"
+
+# ---------------------------------------------------------------------------
+case_ "refuses to remove a deselected skill holding unowned files"
+D=$(new c19); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+conf "$P" "$C" main alpha beta
+"$SS" apply -C "$P" >/dev/null
+commit_all "$P" 'sync skills'
+printf '*.scratch\n' >"$P/.git/info/exclude"
+printf 'draft\n' >"$P/.claude/skills/beta/notes.scratch"
+conf "$P" "$C" main alpha
+run "$SS" apply -C "$P"
+assert_eq "apply refuses" "$RC" 1
+assert_has "refusal names the deselected skill" "$OUT" "deselected skill"
+assert_file "unowned file survives" "$P/.claude/skills/beta/notes.scratch"
+rm "$P/.claude/skills/beta/notes.scratch"
+run "$SS" apply -C "$P"
+assert_eq "removal proceeds once it is gone" "$RC" 0
+assert_absent "deselected skill removed" "$P/.claude/skills/beta"
+
+# ---------------------------------------------------------------------------
+case_ "reports a failing rsync instead of an empty plan"
+D=$(new c20); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+conf "$P" "$C" main alpha
+"$SS" apply -C "$P" >/dev/null
+commit_all "$P" 'sync skills'
+printf 'locally changed\n' >"$P/.claude/skills/alpha/SKILL.md"
+printf '#!/bin/sh\necho "rsync: fatal error" >&2\nexit 23\n' >"$D/fake-rsync"
+chmod +x "$D/fake-rsync"
+run env SKILL_SYNC_RSYNC="$D/fake-rsync" "$SS" check -C "$P"
+assert_eq "check fails" "$RC" 1
+assert_lacks "check does not claim to be up to date" "$OUT" "Already up to date"
+assert_has "check reports the rsync exit status" "$OUT" "exit 23"
+run env SKILL_SYNC_RSYNC="$D/fake-rsync" "$SS" apply -C "$P"
+assert_eq "apply fails" "$RC" 1
+assert_lacks "apply does not claim to be up to date" "$OUT" "Already up to date"
+
+# ---------------------------------------------------------------------------
+case_ "plans executable-bit changes, which Git tracks"
+D=$(new c21); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+conf "$P" "$C" main alpha
+"$SS" apply -C "$P" >/dev/null
+commit_all "$P" 'sync skills'
+chmod -x "$P/.claude/skills/alpha/scripts/run.sh"
+assert_has "Git sees the mode change" "$(g -C "$P" status --porcelain)" "scripts/run.sh"
+run "$SS" check -C "$P"
+assert_eq "check reports pending changes" "$RC" 3
+assert_has "the mode change is in the plan" "$OUT" "M .claude/skills/alpha/scripts/run.sh"
+run "$SS" apply -C "$P"
+assert_eq "apply refuses to overwrite the local mode change" "$RC" 1
+if [ -x "$P/.claude/skills/alpha/scripts/run.sh" ]; then no "local mode change preserved"; else ok "local mode change preserved"; fi
+printf 'alpha v2\n' >"$C/skills/alpha/SKILL.md"
+g -C "$C" add skills
+g -C "$C" commit -qm 'catalog: unrelated edit'
+run "$SS" apply -C "$P"
+assert_eq "an unrelated catalog update does not sneak the mode back" "$RC" 1
+if [ -x "$P/.claude/skills/alpha/scripts/run.sh" ]; then no "local mode change still preserved"; else ok "local mode change still preserved"; fi
+g -C "$P" checkout -q -- .claude
+g -C "$C" update-index --chmod=-x skills/alpha/scripts/run.sh
+g -C "$C" commit -qm 'catalog: drop the executable bit'
+run "$SS" apply -C "$P"
+assert_eq "a catalog mode change applies" "$RC" 0
+if [ -x "$P/.claude/skills/alpha/scripts/run.sh" ]; then no "executable bit cleared from the catalog"; else ok "executable bit cleared from the catalog"; fi
 
 printf '\n%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
