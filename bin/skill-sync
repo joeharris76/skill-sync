@@ -301,6 +301,10 @@ the change is a reviewable Git diff."
 # Only the paths this run would actually rewrite are checked. Uncommitted work
 # elsewhere in the project — including under a target directory this run does
 # not touch — is none of skill-sync's business.
+#
+# A pending deletion is not work at risk: Git still holds the content, and
+# deleting a directory is how an unmanaged one is handed over to skill-sync.
+# Every other pending state is the only copy of something and blocks the sync.
 refuse_dirty_destinations() {
 	git -C "$PROJECT" rev-parse --git-dir >/dev/null 2>&1 || {
 		printf '%s: warning: %s is not a Git repository; skipping the dirty-destination check\n' \
@@ -310,7 +314,8 @@ refuse_dirty_destinations() {
 	set --
 	while IFS= read -r _line; do set -- "$@" "${_line#? }"; done <"$WORK/plan"
 	[ $# -gt 0 ] || return 0
-	_dirty=$(git -C "$PROJECT" status --porcelain -- "$@")
+	_dirty=$(git -C "$PROJECT" status --porcelain -- "$@" |
+		awk '{ c = substr($0, 1, 2); gsub(/ /, "", c); if (c ~ /^D+$/) next; print }')
 	[ -z "$_dirty" ] || die "these files have uncommitted changes and this sync would rewrite them:
 $_dirty
 Commit or discard them first so the sync lands as a reviewable diff."

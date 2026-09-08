@@ -204,6 +204,28 @@ assert_eq "identical content is adopted" "$RC" 0
 assert_file "receipt now claims it" "$P/.claude/skills/skill-sync.receipt"
 
 # ---------------------------------------------------------------------------
+case_ "hands a committed unmanaged directory over once it is deleted"
+D=$(new c7b); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+mkdir -p "$P/.claude/skills/alpha"
+printf 'an older hand-written version\n' >"$P/.claude/skills/alpha/SKILL.md"
+g -C "$P" add .claude
+g -C "$P" commit -qm 'project: hand-written skill'
+conf "$P" "$C" main alpha
+run "$SS" apply -C "$P"
+assert_eq "committed unmanaged content is still refused" "$RC" 1
+assert_has "refusal points at the receipt" "$OUT" "not recorded in"
+g -C "$P" rm -r -q .claude/skills/alpha
+run "$SS" apply -C "$P"
+assert_eq "apply succeeds after the directory is removed" "$RC" 0
+assert_eq "payload now comes from the catalog" "$(cat "$P/.claude/skills/alpha/SKILL.md")" "alpha"
+assert_file "receipt now claims the skill" "$P/.claude/skills/skill-sync.receipt"
+commit_all "$P" 'adopt alpha'
+run "$SS" check -C "$P"
+assert_eq "project is in sync afterwards" "$RC" 0
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 case_ "copies the recorded revision, never the working tree"
 D=$(new c8); C=$D/catalog; P=$D/project
 make_catalog "$C"; make_project "$P"
