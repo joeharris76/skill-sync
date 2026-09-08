@@ -1,16 +1,16 @@
-node_modules/
-dist/
-coverage/
 .DS_Store
-tests/.tmp/
-.todo-db/
-.skill-sync/agent-config.lock
-.skill-sync/agent-config-capture.json
-*.tsbuildinfo
 .claude/settings.local.json
 /.antigravitycli
 
-# >>> skill-sync managed (do not edit) >>>
+# Build output of the archived TypeScript implementation. Consumers that still
+# pin it build it in place; keep the artifacts out of git status.
+node_modules/
+dist/
+
+.todo-db/*
+!.todo-db/config.json
+!.todo-db/.gitignore
+
+# Generated skill mirrors. Regenerated locally with `skill-sync apply`.
 /.agents/skills/
 /.claude/skills/.system/
-# <<< skill-sync managed <<<

@@ -1,5 +1,4 @@
 * text=auto eol=lf
 
-# >>> skill-sync managed (do not edit) >>>
+# Committed skill payloads are byte-exact copies of a catalog revision.
 /.claude/skills/** -text
-# <<< skill-sync managed <<<

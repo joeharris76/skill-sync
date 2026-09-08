@@ -1,0 +1,5 @@
+{
+  "db": ".todo-db/standalone.sqlite",
+  "project_id": "skill-sync",
+  "repository": "https://github.com/joeharris76/skill-sync"
+}

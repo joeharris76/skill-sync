@@ -6,20 +6,29 @@ on:
   pull_request:
 
 jobs:
+  # Windows is not covered: skill-sync needs rsync and a POSIX shell. See
+  # MIGRATION.md, "Environment support".
   test:
+    name: tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        node-version: [20, 22]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run check
-      - run: npm run test:run
+      - name: rsync implementation under test
+        run: rsync --version | head -2
+      - name: Shell syntax
+        run: |
+          sh -n bin/skill-sync
+          sh -n tests/run.sh
+      - name: Integration tests
+        run: sh tests/run.sh
+
+  lint:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck -s sh bin/skill-sync tests/run.sh
