@@ -33,14 +33,16 @@ before acting.
 | Show what a sync would change | `skill-sync preview` |
 | Fail if a sync is pending | `skill-sync check` (exit 3 when changes are pending) |
 | Copy the payload into the project | `skill-sync apply` |
+| Gate a committed payload offline | `skill-sync verify` |
 
-All three take `-C DIR` (project root, default `.`) and `-f FILE` (config,
-default `PROJECT/skill-sync.conf`).
+All four take `-C DIR` (project root, default `.`) and `-f FILE` (config,
+default `PROJECT/skill-sync.conf`). `preview`, `check`, and `apply` need the
+catalog checkout; `verify` reads only committed project files.
 
 ## Retired commands
 
-`sync`, `status`, `validate`, `verify`, `diff`, `doctor`, `pin`, `unpin`,
-`prune`, `promote`, `settings`, `align-agents`, and `agent-config` belonged to
-the TypeScript implementation. The CLI rejects them with a pointer to
+`sync`, `status`, `validate`, `diff`, `doctor`, `pin`, `unpin`, `prune`,
+`promote`, `settings`, `align-agents`, and `agent-config` belonged to the
+TypeScript implementation. The CLI rejects them with a pointer to
 `MIGRATION.md`. Do not reintroduce them; read `references/operations.md` for
 what replaced each one.

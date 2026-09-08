@@ -64,10 +64,15 @@ There is no dependency resolution: list shared prerequisites explicitly.
 skill-sync preview   # what would change; touches nothing
 skill-sync check     # same report, exit 3 if changes are pending
 skill-sync apply     # copy the payload, then review and commit the diff
+skill-sync verify    # offline gate: is the committed payload what was written?
 ```
 
-All three accept `-C DIR` (project root, default `.`) and `-f FILE` (config
-file, default `PROJECT/skill-sync.conf`).
+All four accept `-C DIR` (project root, default `.`) and `-f FILE` (config file,
+default `PROJECT/skill-sync.conf`).
+
+`preview`, `check`, and `apply` need the catalog checkout. `verify` does not: it
+reads only what is committed in the project, so it runs in CI with no catalog,
+no network, and no rsync.
 
 `preview` output is one line per changed path:
 
@@ -109,6 +114,11 @@ selects; `apply` removes it.
 - **Honest failure.** A failed run exits nonzero and leaves the previous receipt
   in place rather than recording a sync that did not finish. A failing `rsync`
   or `git` is reported, never mistaken for an empty plan.
+- **An offline gate.** `verify` proves the committed payload is exactly what
+  `apply` wrote: every recorded file present with matching bytes and executable
+  bit, nothing extra inside a managed skill directory, no symlinks, and a
+  receipt and manifest that agree. It is fail-closed and needs nothing but the
+  repository.
 
 ## Provenance receipt
 
@@ -130,6 +140,11 @@ file = code/skill.yaml
 file = test/SKILL.md
 ```
 
+Alongside it, `skill-sync.manifest` records a SHA-256 and mode for each of those
+files. The split is deliberate: the receipt says where the payload came from and
+what skill-sync owns, and the manifest is the only thing that makes a claim about
+bytes. `verify` reads the manifest; the guards read the receipt.
+
 The `file` lines are what makes overwrite protection work where Git cannot help:
 anything under a skill directory that is not listed is somebody else's, and
 `apply` refuses to overwrite or delete it. The receipt carries no hashes and does
@@ -148,9 +163,10 @@ maintain it by hand, next to the payload it configures.
 - One selection shared by every target. Per-target selection is a `.gitignore`
   entry, not a feature.
 - No dependency resolution, version solving, pinning commands, or lockfile.
-- No integrity gate. The old implementation could verify a committed snapshot
-  offline against SHA-256 hashes; the receipt does not replace that. See
-  [MIGRATION.md](MIGRATION.md).
+- `verify` proves the payload is what `apply` wrote; it cannot prove the
+  recorded revision is the one you meant, because that claim lives in the
+  receipt and nothing offline can check it. `check`, against the catalog, is
+  what ties the payload to a revision.
 - Overwrite protection for a gitignored target is bounded by what can be known
   without hashes. A local edit to a generated file is caught while the recorded
   revision still stands, because the payload should still match. Once the

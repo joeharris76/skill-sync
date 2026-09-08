@@ -333,7 +333,7 @@ case_ "retired and unknown commands fail clearly"
 D=$(new c13); C=$D/catalog; P=$D/project
 make_catalog "$C"; make_project "$P"
 conf "$P" "$C" main alpha
-for cmd in sync status validate verify doctor prune promote align-agents agent-config; do
+for cmd in sync status validate doctor prune promote align-agents agent-config; do
 	run "$SS" "$cmd" -C "$P"
 	[ "$RC" = 1 ] || no "retired \"$cmd\" exits 1" "got $RC"
 	case $OUT in *"was retired"*) ;; *) no "retired \"$cmd\" explains itself" "$OUT" ;; esac
@@ -527,6 +527,91 @@ g -C "$C" commit -qm 'catalog: drop the executable bit'
 run "$SS" apply -C "$P"
 assert_eq "a catalog mode change applies" "$RC" 0
 if [ -x "$P/.claude/skills/alpha/scripts/run.sh" ]; then no "executable bit cleared from the catalog"; else ok "executable bit cleared from the catalog"; fi
+
+# ---------------------------------------------------------------------------
+case_ "verifies a committed payload offline"
+D=$(new c22); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+conf "$P" "$C" main alpha
+"$SS" apply -C "$P" >/dev/null
+commit_all "$P" 'sync skills'
+assert_file "manifest written" "$P/.claude/skills/skill-sync.manifest"
+run "$SS" verify -C "$P"
+assert_eq "verify passes on a clean payload" "$RC" 0
+assert_has "verify says what it checked" "$OUT" "Verified 1 target"
+assert_has "manifest records the executable bit" "$(cat "$P/.claude/skills/skill-sync.manifest")" " 755 alpha/scripts/run.sh"
+assert_has "manifest records a plain file" "$(cat "$P/.claude/skills/skill-sync.manifest")" " 644 alpha/SKILL.md"
+
+mv "$C" "$C.gone"
+run env SKILL_SYNC_RSYNC="$D/no-such-rsync" "$SS" verify -C "$P"
+assert_eq "verify needs no catalog and no rsync" "$RC" 0
+mv "$C.gone" "$C"
+
+printf 'tampered\n' >"$P/.claude/skills/alpha/SKILL.md"
+run "$SS" verify -C "$P"
+assert_eq "a modified file fails" "$RC" 1
+assert_has "the modified file is named" "$OUT" "alpha/SKILL.md: content does not match"
+g -C "$P" checkout -q -- .claude
+
+printf 'extra\n' >"$P/.claude/skills/alpha/EXTRA.md"
+run "$SS" verify -C "$P"
+assert_eq "an added file fails" "$RC" 1
+assert_has "the extra file is named" "$OUT" "alpha/EXTRA.md: present but not recorded"
+rm "$P/.claude/skills/alpha/EXTRA.md"
+
+rm "$P/.claude/skills/alpha/references/guide.md"
+run "$SS" verify -C "$P"
+assert_eq "a removed file fails" "$RC" 1
+assert_has "the missing file is named" "$OUT" "alpha/references/guide.md: missing"
+g -C "$P" checkout -q -- .claude
+
+chmod -x "$P/.claude/skills/alpha/scripts/run.sh"
+run "$SS" verify -C "$P"
+assert_eq "a changed executable bit fails" "$RC" 1
+assert_has "the mode change is named" "$OUT" "manifest records 755"
+chmod +x "$P/.claude/skills/alpha/scripts/run.sh"
+
+rm "$P/.claude/skills/alpha/SKILL.md"
+ln -s references/guide.md "$P/.claude/skills/alpha/SKILL.md"
+run "$SS" verify -C "$P"
+assert_eq "a symlinked managed file fails" "$RC" 1
+assert_has "the symlink is named" "$OUT" "alpha/SKILL.md: is a symlink"
+rm "$P/.claude/skills/alpha/SKILL.md"
+g -C "$P" checkout -q -- .claude
+
+run "$SS" verify -C "$P"
+assert_eq "verify passes again once restored" "$RC" 0
+
+mv "$P/.claude/skills/skill-sync.manifest" "$D/manifest.bak"
+run "$SS" verify -C "$P"
+assert_eq "a missing manifest fails" "$RC" 1
+assert_has "the missing manifest is named" "$OUT" "skill-sync.manifest: missing"
+mv "$D/manifest.bak" "$P/.claude/skills/skill-sync.manifest"
+
+printf 'skill = ghost\n' >>"$P/.claude/skills/skill-sync.receipt"
+run "$SS" verify -C "$P"
+assert_eq "a receipt that disagrees with the manifest fails" "$RC" 1
+assert_has "the disagreement is named" "$OUT" "disagree about which skills"
+
+# ---------------------------------------------------------------------------
+case_ "keeps the manifest in step with the payload"
+D=$(new c23); C=$D/catalog; P=$D/project
+make_catalog "$C"; make_project "$P"
+conf "$P" "$C" main alpha
+"$SS" apply -C "$P" >/dev/null
+commit_all "$P" 'sync skills'
+printf '#!/bin/sh\necho bye\n' >"$C/skills/alpha/scripts/run.sh"
+chmod -x "$C/skills/alpha/scripts/run.sh"
+g -C "$C" add skills
+g -C "$C" commit -qm 'catalog: rewrite the script and drop its executable bit'
+run "$SS" apply -C "$P"
+assert_eq "apply succeeds" "$RC" 0
+run "$SS" verify -C "$P"
+assert_eq "verify passes on the new payload" "$RC" 0
+assert_has "manifest follows the mode change" "$(cat "$P/.claude/skills/skill-sync.manifest")" " 644 alpha/scripts/run.sh"
+commit_all "$P" 'sync skills'
+run "$SS" check -C "$P"
+assert_eq "check is clean after committing" "$RC" 0
 
 printf '\n%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

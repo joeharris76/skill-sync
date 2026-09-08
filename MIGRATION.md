@@ -15,7 +15,7 @@ than appearing to succeed.
 | `skill-sync sync --dry-run`, `diff` | `skill-sync preview` | |
 | `skill-sync status` | `skill-sync preview` | Reports pending changes rather than installed state. |
 | `skill-sync validate` | `skill-sync preview` | A malformed config is a hard error on every command. |
-| `skill-sync verify` | **Not replaced.** | See "Retired without a replacement". |
+| `skill-sync verify` | `skill-sync verify` | Same name, smaller guarantee: it checks the committed payload against `skill-sync.manifest` offline. It no longer byte-compares a generated config, because the config is now hand-maintained. |
 | `skill-sync doctor` | `skill-sync preview` | |
 | `skill-sync pin`, `unpin` | Edit `rev` in `skill-sync.conf` | Every source is pinned by construction. |
 | `skill-sync prune` | Remove the `skill` line, then `apply` | The receipt proves ownership before deletion. |
@@ -27,8 +27,19 @@ than appearing to succeed.
 | `import { … } from "skill-sync/core"` | **Not replaced.** | There is no library surface. |
 
 New: `skill-sync check` prints the `preview` report and exits 3 when a sync is
-pending. It needs the catalog checkout, so it is a local pre-commit check, not a
-CI job on a machine without the catalog.
+pending. It needs the catalog checkout, so it is a local pre-commit check.
+`skill-sync verify` is the CI half: it reads only committed project files and
+needs no catalog, no network, and no rsync.
+
+The two gates prove different things, and a consumer that had `verify` in CI
+wants the new `verify`:
+
+| | `verify` | `check` |
+|---|---|---|
+| Needs the catalog | no | yes |
+| The payload is exactly what `apply` wrote | yes | no |
+| The payload matches the configured revision | no | yes |
+| Catches hand-edits, extra files, mode changes, symlinks | yes | yes |
 
 ## Manifest
 
@@ -49,7 +60,7 @@ Delete both once the project is migrated; the new CLI ignores them.
 | `install_mode: symlink` | Removed. Symlinked package content is rejected. |
 | `config:` | Move the values into `<target>/skill-sync.config.yaml` and maintain them by hand. skill-sync no longer generates that file, and no longer overwrites it. |
 | `projects:` | Removed. Run `skill-sync apply -C <project>` per project. |
-| `skill-sync.lock` | Replaced by `<target>/skill-sync.receipt`, which records repository identity, commit, and selection — but no file hashes. |
+| `skill-sync.lock` | Split in two: `<target>/skill-sync.receipt` records repository identity, commit, selection, and file ownership; `<target>/skill-sync.manifest` records a SHA-256 and mode per file for `verify`. Neither drives resolution. |
 
 Skill names must now be a single path segment: the old nested form
 `SHARED/change-framework` is `shared-change-framework`.
@@ -58,13 +69,11 @@ Skill names must now be a single path segment: the old nested form
 
 Per capability, what is gone and what stands in its place:
 
-- **`verify` — offline snapshot integrity.** The old gate re-hashed every
-  committed file against the lock and byte-compared the generated config, with
-  no access to the source. The receipt does not do this: it records what was
-  copied, not that the files still match. The standing controls are review of
-  the payload's Git diff in the pull request, and `skill-sync check` on a
-  machine that has the catalog. A project that needs a hash-based gate in CI
-  should keep pinning the archived implementation until it has one.
+- **The generated `skill-sync.config.yaml` byte-comparison.** The old `verify`
+  regenerated the project config and compared it byte for byte against the
+  committed one. That config is now hand-maintained, so there is nothing to
+  regenerate. A consumer that needs its settings checked must assert what it
+  actually cares about — for example that every configured skill is installed.
 - **`align-agents` and `agent-config`.** Harness version checks and global
   instruction capture/restore were never about distributing skills. Nothing here
   replaces them; the archived implementation still performs them.
@@ -130,7 +139,7 @@ otherwise it installs an operator skill describing a CLI it does not have.
 | `config.code.*`, `config.test.*` in the manifest | Move verbatim into `.claude/skills/skill-sync.config.yaml` and `.agents/skills/skill-sync.config.yaml` |
 | `Makefile: node $(SKILL_SYNC) sync` — `SKILL_SYNC` defaults into the product checkout's `dist/`, which the replacement removes | `skill-sync apply`, with `SKILL_SYNC` repointed at `bin/skill-sync`. Until then, override it to the retained archive build above. |
 | `Makefile: node $(SKILL_SYNC) doctor` (`skill-sync-check`) | `skill-sync check`, same override in the meantime |
-| `Makefile: skill-integrity-check` — clones and builds `VERIFIER_REF` from the remote, runs `verify --project` under an empty `HOME` | Genuinely pinned and unaffected by this change. It has no equivalent under the wrapper, so keep it on `VERIFIER_REF` (or `archive/typescript-v0.1.0`) until BenchBox has another gate. This is the one capability whose loss would be material to BenchBox. |
+| `Makefile: skill-integrity-check` — clones and builds `VERIFIER_REF` from the remote, runs `verify --project` under an empty `HOME` | `skill-sync verify`, which needs no bootstrap, no Node, and no network. |
 | `scripts/skill_sync_ci_policy.py` (`validate --manifest`, `VERIFIER_REF`) | Rework or retire alongside the job above |
 
 ### todo-db (`~/Developer/todo-db`)
