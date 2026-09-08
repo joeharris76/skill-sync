@@ -16,9 +16,13 @@ skill  = code
 skill  = test
 
 source = .
-rev    = HEAD
+rev    = 0ae997e41ce9e129fb74c894f6b14dbc8059fa7a
 skill  = my-project-skill
 ```
+
+A source may be the project's own checkout. Pin it to a commit like any other:
+`rev = HEAD` re-records the project's commit on every sync, so `check` reports a
+pending receipt update after every commit.
 
 - `target` — project-relative directory that receives the skills. Every target
   gets the same selection. All `target` lines must precede the first `source`.

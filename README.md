@@ -134,9 +134,10 @@ maintain it by hand, next to the payload it configures.
 - No integrity gate. The old implementation could verify a committed snapshot
   offline against SHA-256 hashes; the receipt does not replace that. See
   [MIGRATION.md](MIGRATION.md).
-- `rev = HEAD` against the project's own checkout re-records the project's
-  commit on every sync, so the receipt lags one commit behind. Pin a fixed
-  revision if that churn matters.
+- `rev` is a plain commit-ish, so `rev = HEAD` against the project's own
+  checkout re-records the project's commit on every sync and leaves `check`
+  reporting a pending receipt update after every commit. Pin a fixed revision
+  for a self-source unless that churn is acceptable.
 
 ## Development
 
