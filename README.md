@@ -1,191 +1,156 @@
 # skill-sync
 
-`skill-sync` is a local-first skill distribution system for AI agents.
+Copy selected skill packages from Git-managed catalogs into a project, as
+ordinary committable files.
 
-It provides:
-- a CLI for syncing, validating, and inspecting shared skills
-- an MCP server for discovering and consuming locally installed skills
-- a portable local store that keeps shared skills usable across projects, CI, and web-based agent contexts
+rsync copies the payload; Git supplies history, review, and rollback. There is
+no registry, resolver, lockfile, dependency solver, or daemon — the config names
+every skill and the exact commit it comes from, and the result is a Git diff you
+review like any other change.
 
-The goal is simple: make skills easy to share between projects without making
-them dependent on one developer's home-directory setup.
+## Requirements
 
-Additional documentation:
-- [Documentation Index](docs/index.md)
-- [Architecture Specification](docs/specs/architecture-v0.md)
-- [Manifest Specification](docs/specs/manifest-v0.md)
-- [Sync Model and Lockfile](docs/sync-model.md)
-- [CLI Reference](docs/cli.md)
-- [MCP Server](docs/mcp.md)
-- [Portability and Overrides](docs/portability.md)
-- [Security and Trust](docs/security.md)
+- POSIX `sh`, `git`, `rsync`, `tar`, `awk`, `sed`, `find`.
+- A local checkout of each catalog you sync from. skill-sync never fetches.
 
-## Problem
+Supported and tested on macOS (Apple's `openrsync`, rsync 2.6.9 compatible) and
+Linux (GNU rsync); CI runs the suite on both. Windows is not supported natively:
+run it under WSL, or in any environment that provides `rsync` and a POSIX shell.
 
-Shared skills are useful, but the current ecosystem is fragile:
-- some skills live in machine-global directories and break in web or CI contexts
-- projects often fork shared skills just to change local paths or config
-- sync behavior is frequently ad hoc, with no lockfile, provenance, or drift reporting
-- CLI and MCP access are usually separate integrations over the same underlying files
+## Install
 
-`skill-sync` solves those issues with one consistent model.
-
-## Quick Start
-
-The fastest way to get started is with the bundled skill wrapper. Copy it into
-your agent's skill directory:
+`bin/skill-sync` is a single self-contained script. Copy it onto `PATH`, or call
+it by path:
 
 ```bash
-npm install skill-sync
-mkdir -p .claude/skills/skill-sync
-cp -R node_modules/skill-sync/skills/skill-sync/. .claude/skills/skill-sync/
+install -m 0755 bin/skill-sync /usr/local/bin/skill-sync
 ```
 
-Then ask your agent: *"Set up skill-sync for this project."* It will scan your
-existing skills, generate a manifest, and run the first sync automatically.
+## Configure
 
-See [Getting Started](docs/getting-started.md) for the full guide.
+Create `skill-sync.conf` at the project root:
 
-## What It Does
+```
+# Every target receives the same selection.
+target = .claude/skills
+target = .agents/skills
 
-`skill-sync` lets a project declare one or more skill sources, materialize them
-locally, and expose the resulting skill set through both a CLI and MCP server.
+source = ~/Developer/skill-sync-skills
+rev    = d22ea7fab6b7b9608e54a3910ab4dfa9bb407d42
+dir    = skills
+skill  = code
+skill  = test
+skill  = shared-review-protocol
 
-Core capabilities:
-- shared skills have a canonical package model with metadata, compatibility data, and provenance
-- installs are deterministic and recorded in a lockfile
-- projects can choose install modes: `copy`, `symlink`, or `mirror`
-- local project configuration can customize shared skills without forcing a full fork
-- portable installs do not require runtime access to `~/.claude`, `~/.codex`, or similar machine-local roots
-- the MCP server and CLI both operate on the same installed local store
-- validation, trust checks, and diagnostics are built in rather than bolted on later
-
-## What A Skill Looks Like
-
-`skill-sync` manages skill packages that contain:
-- a primary `SKILL.md`
-- package metadata and compatibility declarations
-- references, assets, helper scripts, and examples
-- source, revision, and optional repository-subdirectory information
-- optional local override layers or project-specific configuration inputs
-
-Internally, the library uses a canonical skill model so that one skill can
-be adapted to multiple environments without treating one vendor format as the
-system's source of truth.
-
-## Sync Model
-
-The sync engine pulls skills from multiple source types and installs them into
-a local managed store.
-
-Supported sources:
-- local filesystem paths
-- git repositories
-- curated registries (planned for v0.2)
-
-Sync behavior:
-- dry-run before apply
-- explicit lockfile with source, revision, install mode, and content digest
-- drift detection between upstream, installed, and locally modified state
-- conflict reporting before overwrite
-- plan-then-apply model with lock file updated after successful materialization
-- promotion workflows for moving project-local refinements back to a shared source
-
-The exact top-level `.system/` namespace is reserved for loader-owned content.
-Skill-sync preserves it and excludes it from managed inventory, drift, pruning,
-and tracked-snapshot verification; managed skill packages remain exact. Case
-variants remain visible to read-side checks but are rejected as managed names
-before any write.
-
-## Portability And Overrides
-
-Portability is a first-class requirement.
-
-`skill-sync` supports:
-- repo-local materialization for web-safe and CI-safe use
-- compatibility mapping across Claude-style, Codex-style, and generic MCP-facing skill consumers
-- project-local config injection for paths, commands, fixtures, modules, or other environment-specific values
-- narrow override layers so projects do not need to duplicate the entire upstream skill package
-
-The design target is "shared source of truth, local usable result."
-
-## CLI
-
-The CLI is the main operational surface for developers and projects.
-
-Commands:
-- `skill-sync sync` — resolve, plan, and apply skill installation
-- `skill-sync status` — report drift, lockfile alignment, and validation state
-- `skill-sync validate` — check manifests, paths, portability, and compatibility
-- `skill-sync diff` — preview changes without applying (dry-run)
-- `skill-sync doctor` — comprehensive health diagnostics
-- `skill-sync pin <skill>` — lock a skill to its current revision
-- `skill-sync unpin <skill>` — allow a pinned skill to float for updates
-- `skill-sync prune` — remove skills not declared in the manifest
-- `skill-sync promote` — guidance for promoting local changes back upstream (manual in v0)
-- `skill-sync verify` — prove committed tracked snapshots match the lock + config (offline CI gate)
-
-All commands support `--json` for machine-readable output and `--project`/`-p`
-to specify the project root.
-
-### Verifying committed snapshots in CI
-
-When a consumer marks a target `tracked: true`, its materialized skills + injected
-config are committed to git so they reach cloud/CI/fresh clones. `skill-sync verify`
-is the offline gate that proves the committed snapshot still matches the lock + the
-regenerated config — it needs **no skills source**, so it runs in any environment.
-
-A consumer's CI does not need skill-sync installed or on npm. Run it straight from
-git with a pinned commit (Node 18+ required for `npx`):
-
-```sh
-# exits 0 if the committed snapshot is clean, 1 on any drift / hand-edit / stale config
-npx -y github:joeharris76/skill-sync#<commit-sha> verify --project .
+# A second group: skills this project authors itself.
+source = .
+rev    = HEAD
+skill  = my-project-skill
 ```
 
-`npx` clones the pinned ref, builds `dist/` via the package's `prepare` script, and
-runs `verify`. Pin a `<commit-sha>` (or tag) for reproducibility. Once skill-sync is
-published to npm this becomes `npx -y skill-sync@<version> verify`.
+| Key | Meaning |
+|---|---|
+| `target` | Project-relative directory that receives the skills. Must precede the first `source`. |
+| `source` | Path to a local Git checkout. `~` expands; relative paths resolve against the project root. |
+| `rev` | Required. Any commit-ish present in that checkout. |
+| `dir` | Subdirectory holding skill packages. Default `skills`. |
+| `skill` | One skill package. Each skill may appear once in the whole file. |
 
-## MCP Server
+There is no dependency resolution: list shared prerequisites explicitly.
 
-The MCP server exposes the local `skill-sync` store so agent clients can
-discover and consume installed skills without filesystem-specific glue code.
+## Use
 
-The v0 server provides the same capabilities as the CLI:
-- **Resources:** `skill://list`, `skill://{name}`, `skill://{name}/{+path}`
-- **Tools:** `search-skills`, `skill-status`, `validate-skills`, `sync-skills`, `pin-skill`, `unpin-skill`, `prune-skills`, `promote-skill`
-- **Prompts:** `use-skill`
+```bash
+skill-sync preview   # what would change; touches nothing
+skill-sync check     # same report, exit 3 if changes are pending
+skill-sync apply     # copy the payload, then review and commit the diff
+```
 
-## Validation And Trust
+All three accept `-C DIR` (project root, default `.`) and `-f FILE` (config
+file, default `PROJECT/skill-sync.conf`).
 
-`skill-sync` includes validation and trust controls covering:
-- manifest/schema validation
-- broken reference and path checks
-- compatibility validation for requested targets
-- provenance reporting for installed skills
-- trust policies and source allowlists
-- warnings or policy gates around executable scripts and unsafe operations
-- actionable diagnostics instead of generic parse failures
+`preview` output is one line per changed path:
 
-## Architecture
+```
+A .claude/skills/code/references/analysis.md
+M .claude/skills/code/SKILL.md
+D .claude/skills/code/references/retired.md
+R .claude/skills/blog
+```
 
-The implementation has three layers:
-- a shared **core library** (`src/core/`) for skill models, sources, sync logic, lockfiles, and validation
-- a thin **CLI layer** (`src/cli/`) over the core library
-- a thin **MCP adapter** (`src/mcp/`) exposing the same installed state and operations
+`R` marks a skill directory that the receipt records but the config no longer
+selects; `apply` removes it.
 
-The CLI and MCP server share one implementation — neither invents its own
-business logic over the same files.
+## What it guarantees
 
-## Current Status
+- **Bytes match the recorded commit.** Payloads come from `git archive` of the
+  resolved commit, so a modified or untracked catalog working tree is never
+  labelled with a clean commit SHA, and the catalog's `.git` is never copied.
+- **Real files.** Symlinked or special package content is rejected rather than
+  copied, so a fresh clone works without the catalog or your home directory.
+- **Scoped deletion.** `--delete` runs against one skill directory at a time.
+  Project-owned skills, `skill-sync.config.yaml`, and loader-owned `.system/`
+  are never in range.
+- **Idempotence.** Re-applying the same revision and selection produces no Git
+  diff. The receipt carries no timestamp.
+- **No surprise overwrites.** `apply` refuses when it would rewrite a file with
+  uncommitted changes, when a target skill directory exists that no receipt
+  claims and whose content differs from the source, or when a target skill
+  directory is a symlink. There is no force flag.
+- **Honest failure.** A failed run exits nonzero and leaves the previous receipt
+  in place rather than recording a sync that did not finish.
 
-v0 implementation is **feature-complete**:
-- 166 tests passing (unit, contract, integration)
-- All 9 CLI commands implemented
-- Bundled skill wrapper for agent-driven bootstrapping
-- MCP server with full CLI-equivalent resources, tools, and prompts
-- Local and git source adapters
-- Multi-target materialization (Claude, Codex, generic MCP)
+## Provenance receipt
 
-Known limitations are documented in [docs/release-v0.md](docs/release-v0.md).
+Each target gets a `skill-sync.receipt`:
+
+```
+# Generated by skill-sync. Records what was copied into this directory.
+# Provenance only: this is a record of the copy, not an integrity audit.
+
+source = https://github.com/joeharris76/skill-sync-skills.git
+rev = d22ea7fab6b7b9608e54a3910ab4dfa9bb407d42
+dir = skills
+skill = code
+skill = test
+```
+
+It records what was copied and lets `apply` tell managed content from unmanaged
+content. It does not attest that the files still match the source — that is what
+reviewing the Git diff is for.
+
+## Project settings
+
+Skills read `<target>/skill-sync.config.yaml` for project-specific values such
+as lint and test commands. skill-sync neither generates nor overwrites it:
+maintain it by hand, next to the payload it configures.
+
+## Deliberate limits
+
+- One local checkout per source. No cloning, fetching, caching, or registries.
+- One selection shared by every target. Per-target selection is a `.gitignore`
+  entry, not a feature.
+- No dependency resolution, version solving, pinning commands, or lockfile.
+- No integrity gate. The old implementation could verify a committed snapshot
+  offline against SHA-256 hashes; the receipt does not replace that. See
+  [MIGRATION.md](MIGRATION.md).
+- `rev = HEAD` against the project's own checkout re-records the project's
+  commit on every sync, so the receipt lags one commit behind. Pin a fixed
+  revision if that churn matters.
+
+## Development
+
+```bash
+sh tests/run.sh                              # integration tests
+shellcheck -s sh bin/skill-sync tests/run.sh # lint
+```
+
+Tests build throwaway Git repositories under a temporary directory; no real
+catalog or consumer project is touched.
+
+## History
+
+Before v1.0.0 skill-sync was a TypeScript/Node CLI with a resolver, lockfile,
+config generator, and MCP server. That implementation is preserved — see
+[ARCHIVE.md](ARCHIVE.md) — and [MIGRATION.md](MIGRATION.md) maps every old
+command to its replacement.
