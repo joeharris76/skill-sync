@@ -2,8 +2,8 @@
 
 Review completed work skeptically and use evidence for every conclusion.
 This is read-only under `shared-review-protocol/SKILL.md`
-[REVIEW-AUTH-001]. Report findings without editing files, closing tracker
-items, committing, or publishing. A later user message must authorize fixes.
+[REVIEW-AUTH-001] when the user asks only for the review: report findings without editing files, closing tracker
+items, committing, or publishing, with fixes requiring a later user message authorizing them. A request that explicitly asks for both review and remediation authorizes both in the same turn.
 
 ## Scope
 
@@ -44,5 +44,6 @@ with evidence about value, complexity, maintenance cost, and alternatives.
 4. L2 blind spots and any L3 reframe.
 5. What is done well.
 
-Route defects through [REVIEW-DEFECT-001] and capture through
+Route defects through [REVIEW-DEFECT-001], solution-fit findings without
+accompanying defect as action items under [REVIEW-FIT-001], and capture through
 [REVIEW-CAPTURE-001].

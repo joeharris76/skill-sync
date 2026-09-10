@@ -1,25 +1,32 @@
-# Implement TODOs
+# Implement a TODO
 
-## Steps
+Drive a claimed tracker item from start to completion using MCP tools.
 
-1. Run `todo ready`, then `todo claim <id>` for the full work order: scope,
-   must-preserve notes, anti-patterns, verification, ready units, and deferrals.
-   If `ready` warns about findings, run `todo finding candidates` and
-   `todo finding triage <id> ...` before choosing new work. Findings are not
-   claimable items.
-2. For each work unit: run `todo start <id> <wid>` (optional), apply
-   `shared-change-framework/SKILL.md` Section 1 before source-code edits,
-   implement the unit, then run `todo done <id> <wid> --evidence "<command or commit or PR>"`.
-3. Defer out-of-scope work immediately with
-   `todo defer <id> --summary "..." --reason "..."`.
-4. Before committing, run `todo check-scope <id>` and
-   `todo verify <id> --run [seq]`.
-5. Resolve every deferral with `todo promote <deferral-id> --to-item <slug>` or
-   `todo dismiss <deferral-id> --reason "..."`. Then run
-   `todo complete <id> --pr <n>`; it refuses unresolved deferrals.
+## The implementation sequence
 
-## Findings
+### 1. Claim the work
 
-Use `todo finding candidates`, `todo finding triage`, `todo finding sync`, and
-`todo finding promote` as documented in tracker help. Findings never enter the
-ready queue.
+1. Call `list_items(ready_only=true)` to find claimable work.
+2. Call `take(id=...)` to claim the item. Store the returned `generation`. The
+   response already carries the context to begin: title, priority, needs, unmet
+   needs, and a description excerpt.
+3. Call `show_item(id=...)` only if you need sections beyond the excerpt.
+
+### 2. Do the work
+
+Apply `shared-change-framework/SKILL.md` Section 1 before editing source code.
+Then edit, test locally, and keep the change focused on the task. There are no
+work units to tick off and no scope gate to satisfy — the task description and
+your judgment define the work.
+
+If the claim may outlast its lease (default 24h), call
+`renew(id=..., generation=...)`. Same generation, no milestones needed.
+
+### 3. Finish or hand back
+
+1. Call `finish(id=..., generation=...)` to close the item.
+2. If you must abandon work, call `release(id=..., generation=...)` so the task
+   returns to the ready queue.
+
+If you find necessary work outside the task, `create_item` a follow-up with
+`needs` pointing at the current item rather than widening scope silently.
