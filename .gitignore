@@ -9,7 +9,6 @@ dist/
 
 .todo-db/*
 !.todo-db/config.json
-!.todo-db/.gitignore
 
 # Generated skill mirrors. Regenerated locally with `skill-sync apply`.
 /.agents/skills/
