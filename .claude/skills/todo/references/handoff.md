@@ -29,3 +29,7 @@ Include these sections in order:
 
 Do not claim work is committed, tested, pushed, merged, or complete unless it
 was verified while writing the handoff. Separate confirmed facts from advice.
+
+Keep the handoff concise. Omit raw diffs, verbose test output, and
+conversational history; the next session needs the conclusion and the evidence
+pointer, not the transcript that produced it.

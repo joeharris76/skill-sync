@@ -1,7 +1,7 @@
 ---
 name: todo
-description: Use when the user asks to "ideate on an idea", "refine an idea", "brainstorm", "write a spec", "create a specification", "create a TODO", "show TODO items", "manage TODOs", "prioritize TODOs", "top N most important todos", "rank the backlog", "what should we work on", "implement a TODO", "implement a batch of TODOs", "complete a TODO", "cleanup TODOs", "review TODO quality", "claim a TODO", "what's ready" / "ready queue", "block"/"unblock a TODO", "create TODOs from a spec", "create a batch handoff", or "close out a reviewed batch". Covers the lifecycle from idea to specification, implementation, and completion.
-version: 2.0.0
+description: Use when the user asks to "ideate on an idea", "refine an idea", "brainstorm", "write a spec", "create a specification", "create a TODO", "show TODO items", "manage TODOs", "prioritize TODOs", "top N most important todos", "rank the backlog", "what should we work on", "what should I work on", "implement a TODO", "implement a batch of TODOs", "complete a TODO", "finish an item", "release my claim", "why did finish fail", "cleanup TODOs", "review TODO quality", "claim a TODO", "what's ready" / "ready queue", "block"/"unblock a TODO", "create TODOs from a spec", "create a batch handoff", or "close out a reviewed batch". Covers the lifecycle from idea to specification, implementation, and completion.
+version: 3.0.0
 tools: Bash, Read, Edit, Write, Task
 ---
 
@@ -13,6 +13,11 @@ per item) published on a dedicated Git state branch, one commit per operation.
 The `todo-db` CLI keeps bootstrap, validation, migration, and recovery for
 humans and CI (listed at the end of this page). Never hand-edit state-branch
 files; every change goes through a tool so publication stays atomic.
+
+This is the only tracker skill. There is no separate `todo-db` skill: `todo-db`
+is the *product* this skill drives — the MCP server named `todo-db` and the CLI
+of the same name. Do not author a second skill for it, in this catalog or in
+the product repository.
 
 ## Critical rules
 
