@@ -1,41 +1,39 @@
-# TODO Queries and Updates
+# TODO queries and item management
 
-## Create and update
+Inspect, filter, and read tracker items with bounded output. Filtering,
+sorting, readiness, and unlock counts run inside the program — never scan
+history yourself.
 
-- Create with `todo create --title ... --worktree ... --priority ...` or JSON
-  through `--from -`. Code items need scope rules, must-preserve notes,
-  anti-patterns, and verification steps.
-- Update with `todo update <id>`. It accepts `--title`, `--description`,
-  `--priority`, `--worktree`, `--add-work`, `--edit-work`, `--add-verify`, and
-  `--drop-verify SEQ --reason ...`.
-- Edit work units only while pending. Done units are immutable because they
-  carry evidence.
-- Each update records one audit event with before-and-after differences. Give
-  `--reason` when editing done or dropped items.
-- `update` cannot change an item's id, state, or identity. Use lifecycle
-  commands for state and prefer updates over dropping and recreating items.
+## Query patterns
 
-## Inspect
+| Goal | Tool call | Notes |
+|---|---|---|
+| Ready work | `list_items(ready_only=true)` | `open`, unclaimed, dependencies all `done`. |
+| List or search | `list_items(status=..., priority=..., text=...)` | Brief rows; default 5 per page. |
+| Inspect one task | `show_item(id=...)` | Needs, unmet needs, unlock count, sections. |
+| Next page | `list_items(cursor=<next_cursor>)` | Cursors bind to a state revision. |
 
-* `todo list [filters]` — list items
-* `todo show <id> [--json]` — show one item
-* `todo stats` — counts by state, priority, worktree, and deferral
-* `todo deps <id>` — show dependencies
-- `todo export` — write a deterministic JSONL snapshot and Markdown index. This
-  CLI output differs from `_project/todo-db-export/`, which `write_export`
-  commits. Prefer live `list`, `show`, and `stats`; use the committed snapshot
-  only for offline review.
+## Create and amend
 
-## Rank and group
+- `create_item(id=..., title=..., priority=..., description=..., needs=[...], acceptance=..., links=..., context=...)`
+  — `priority` defaults to `medium`; IDs use `a-z0-9-`; titles are 1–200
+  characters. Creation rejects a dependency cycle.
+- `update_item(id=..., ...)` — amends `title` / `priority` / `description` /
+  `needs` / sections, or moves `status` between `open` and `blocked`. Give a
+  `reason` when the change is not self-evident.
+- Closing goes through `finish`. Dropping is a human decision reported to the
+  user (`drop` needs the `generation` if the task is claimed).
 
-Follow `references/prioritize.md`; there is no `prioritize` CLI command.
+## Managing output limits
 
-## Block, release, and drop
+Responses are capped at 16 KiB at their final serialization.
 
-* `todo block <id> --reason ...` — mark blocked
-* `todo unblock <id>` — clear the blocked flag
-- `todo release <id>` — release your claim. It does nothing when unclaimed and
-  exits 2 for another actor's claim. `todo show --json` can race. For another
-  actor's expired claim, use `todo claim` to take it over or `todo sweep-stale`.
-* `todo sweep-stale` — release expired claims
-* `todo drop <id> --reason ...` — drop an item
+- Page with `limit` + `cursor`. Every page with items remaining carries
+  `next_cursor`; an empty page means you are done.
+- `E_CURSOR_STALE` means the branch moved under you. Restart without a cursor;
+  never skip ahead.
+- Large fields arrive as section reads:
+  `show_item(id=..., field="description", offset=0, budget=6000)`. Follow
+  `continuation` until it disappears; each step is guaranteed to make progress.
+- There is no full-dump tool. If the nine tools omit data you need, report the
+  gap instead of probing for an export.

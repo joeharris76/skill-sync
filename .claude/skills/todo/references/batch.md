@@ -1,4 +1,4 @@
-# Batch Implementation
+# Batch implementation
 
 Use `batch` to implement an explicit named TODO set in dependency order. It
 authorizes implementation, branches, commits, and PRs only for that set;
@@ -13,9 +13,10 @@ Git, PR service, CI, artifacts, and human decisions remain authoritative.
 1. Read repository instructions, `references/implement.md`,
    `shared-change-framework/SKILL.md`, and `shared-review-protocol/SKILL.md` as
    required for the next action; do not copy their rules into the ledger.
-2. Run required tracker `--help` checks and `todo doctor`, using the wrapper and
-   global-flag ordering from `SKILL.md`. Fix or report any failure and stop
-   before claiming or editing; follow that contract on authentication failure.
+2. Call `get_instructions`, then `list_items(ready_only=true)` to confirm
+   identity and live state. Fix or report any failure and stop before claiming
+   or editing. With multiple linked worktrees, ensure each worktree has its own
+   client session or explicit `--repo-root` (one server instance per worktree).
 3. Confirm the exact TODO set, dependencies, integration branch, and existing
    claims, branches, worktrees, and PRs. Reconcile rather than duplicate work.
 4. Run any required repository write preflight; fix or report failure and stop.
@@ -34,6 +35,7 @@ the complete file. Only the serial controller writes it; concurrency is unsuppor
 TODO: <id>
 STATUS: pending|in_progress|pr_open|waiting|done|blocked
 TRACKER_STATE: <observed state>
+GENERATION: <claim generation or none>
 BRANCH: <branch or none>
 WORKTREE: <path or none>
 PR: <number or none>
@@ -59,8 +61,8 @@ trivial items may share a context while their combined history remains small.
 At each scheduler boundary:
 
 1. Read the ledger once and refresh only state needed to select the next item.
-2. Mark missing, malformed, or cyclic items `blocked` with a reason. Record a
-   hard tracker blocker through the documented tracker command.
+2. Mark missing, malformed, or cyclic items `blocked` with a reason:
+   `update_item(id=..., status="blocked", reason=...)`.
 3. Select an item only when its dependencies, including required integration
    merges, are satisfied, tracker state permits claim or resume, and no existing
    branch, worktree, or PR must be reconciled first.
@@ -76,12 +78,12 @@ turn repeated invocations into an implicit polling loop.
 
 ## Worker closeout
 
-Follow implementation, verification, commit, PR, deferral, and completion
-contracts by reference. Before commit or PR, run the required internal review,
-resolve Critical and Required findings, disposition optional findings under
-repository policy, and re-verify substantive fixes.
+Follow implementation, verification, commit, PR, and completion contracts by
+reference. Before commit or PR, run the required `shared-review-protocol`
+review, resolve Critical and Required findings, disposition optional findings
+under repository policy, and re-verify substantive fixes.
 
-Do not return full work orders, diffs, logs, or source dumps. Keep long output
+Do not return full task bodies, diffs, logs, or source dumps. Keep long output
 in a temporary artifact and return only its result, short tail, link, or digest.
 Return the envelope above:
 
@@ -94,8 +96,8 @@ acknowledgements. After an unexpected end, inspect authoritative live state
 before retrying an operation with an unknown outcome.
 
 When another item depends on the PR, leave it `pr_open` or `waiting` until
-verified merged. Otherwise use the terminal tracker state after PR creation and
-completion. An open or green PR is not proof of merge.
+verified merged. Otherwise close it with `finish(id=..., generation=...)` after
+PR creation and completion. An open or green PR is not proof of merge.
 
 ## CI and external waits
 
@@ -104,8 +106,9 @@ one concise snapshot per gate, store it in the item envelope, and do not query i
 again before the invocation ends. Use bounded fields; keep verbose output
 outside context and retain only pending/failing names, links, and next action.
 
-If a gate remains pending, record `waiting`, follow the documented claim
-lifecycle, checkpoint, and end the worker. Continue independent eligible work
+If a gate remains pending, record `waiting`. If the claim lease might expire
+first, `renew(id=..., generation=...)`, or `release` it so other workers are
+not blocked. Checkpoint and end the worker. Continue independent eligible work
 without retaining that history; if all work waits, end the invocation. Never
 sleep or poll in an implementation context.
 
@@ -115,16 +118,16 @@ At every substantial-item boundary, persist the envelope and discard the worker
 transcript. Rotate or compact the controller too; its handoff preserves the
 exact TODO set and ledger path, not logs, readiness output, or discussion.
 
-If fresh contexts are unavailable, checkpoint and compact at a safe item or
-work-unit boundary. Do not measure occupancy or compact uncheckpointed work. If
-neither option exists and history grows large, stop with the ledger and resume action.
+If fresh contexts are unavailable, checkpoint and compact at a safe item
+boundary. Do not measure occupancy or compact uncheckpointed work. If neither
+option exists and history grows large, stop with the ledger and resume action.
 
 A resumed context must:
 
 1. confirm that the requested TODO set exactly matches the ledger;
 2. read the ledger once and select its current item and `NEXT_ACTION`;
 3. revalidate only the live facts required by that action; and
-4. continue without replaying completed work orders, logs, or discussion.
+4. continue without replaying completed items, logs, or discussion.
 
 ## Final report
 
