@@ -28,6 +28,11 @@ Record changed or superseded findings. Do not silently apply a stale review.
 
 ## Phase 2 — remediate
 
+Disposition every finding in the report using
+`shared-review-protocol/references/review-response.md` before editing. Record
+the evidence that disposition requires; a finding you cannot classify becomes
+a verification item, not a dismissal.
+
 1. Fix every Critical and Required finding that still applies, or record the
    evidence that disproves it.
 2. Follow `references/batch.md` for worktrees, verification, explicit staging,
@@ -48,5 +53,6 @@ Record changed or superseded findings. Do not silently apply a stale review.
 
 ## Report
 
-Report `TODO | finding | disposition | evidence | PR` for each item. Include
-remaining blockers and state whether the named batch is fully closed.
+Report `TODO | finding | disposition | evidence | PR` for each item, using the
+shared disposition vocabulary. Include remaining blockers and state whether the
+named batch is fully closed.

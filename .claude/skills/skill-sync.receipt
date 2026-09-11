@@ -3,7 +3,7 @@
 # carries no hashes and attests nothing about the current contents.
 
 source = https://github.com/joeharris76/skill-sync-skills.git
-rev = 872689923e9f707a44e0aff0c71ac7a7e98d28be
+rev = 6e88497695c51adb7cb4049e177984bc6035e458
 dir = skills
 skill = blog
 skill = bossmode
@@ -63,6 +63,7 @@ file = shared-investigation-framework/SKILL.md
 file = shared-investigation-framework/skill.yaml
 file = shared-review-protocol/SKILL.md
 file = shared-review-protocol/references/adversarial-review.md
+file = shared-review-protocol/references/review-response.md
 file = shared-review-protocol/skill.yaml
 file = skill-sync/SKILL.md
 file = skill-sync/references/operations.md
