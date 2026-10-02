@@ -19,16 +19,24 @@ from flag drift. Do not run those checks proactively.
 - **codex**
   - Worker (Write): `codex exec -C "$WORKSPACE" --model "$MODEL" --sandbox workspace-write "$PROMPT"`
   - Reviewer (Hard Read-Only): `codex exec -C "$WORKSPACE" --model "$MODEL" --sandbox read-only "$PROMPT"`
-  - Known-good models: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`
+  - Known-good models: `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-luna`
   - Effort: Optional `-c model_reasoning_effort="<level>"`
 - **claude**
   - Worker (Write): `(cd "$WORKSPACE" && claude --print --model "$MODEL" --effort "$EFFORT" "$PROMPT")`
   - Reviewer (Hard Read-Only): `(cd "$WORKSPACE" && claude --print --tools Read,Grep,Glob --model "$MODEL" --effort "$EFFORT" "$PROMPT")`
-  - Known-good models: `claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`
+  - Known-good models: `claude-fable-5`, `claude-opus-5-5`, `claude-sonnet-5-5`
 - **agy**
-  - Worker (Write): `(cd "$WORKSPACE" && agy --model "$MODEL" --effort "$EFFORT" --print="$PROMPT")`
-  - Reviewer (Soft Read-Only): `(cd "$WORKSPACE" && agy --model "$MODEL" --effort "$EFFORT" --mode plan --print="$PROMPT")`
-  - Known-good models: `gemini-3.7-flash-high`, `gemini-3.7-flash-medium`, `gemini-3.7-flash-low`
+  - Worker (Write): `(cd "$WORKSPACE" && agy --model "$MODEL" --print="$PROMPT")`
+  - Reviewer (Soft Read-Only): `(cd "$WORKSPACE" && agy --model "$MODEL" --mode plan --print="$PROMPT")`
+  - Known-good models: `gemini-3.8-flash-high`, `gemini-3.8-flash-medium`, `gemini-3.8-flash-low`
+  - Note: Tier is the `-low` / `-medium` / `-high` model suffix. Never pass
+    `--effort` alongside a suffixed model: `agy` rejects the pair
+    (`--model X conflicts with --effort=Y`), including `--effort max`.
+  - Note: Headless `--print` runs cannot approve tool use. A prompt that needs
+    the reviewer to run commands (read the repo, run `git`) is auto-denied and
+    returns nothing with exit 0, so keep `agy` prompts self-contained with the
+    evidence inline. Live repo access needs a pre-authorized allow-rule in
+    `settings.json`; never `--dangerously-skip-permissions` on a Reviewer.
 - **grok**
   - Worker (Write): `grok --cwd "$WORKSPACE" --single "$PROMPT" --model "$MODEL" --reasoning-effort "$EFFORT"`
   - Reviewer (Soft Read-Only): `grok --cwd "$WORKSPACE" --single "$PROMPT" --model "$MODEL" --reasoning-effort "$EFFORT" --permission-mode plan`
@@ -36,7 +44,7 @@ from flag drift. Do not run those checks proactively.
 - **muse**
   - Worker (Write): `muse exec --workspace "$WORKSPACE" --disable-approval --model "$MODEL" --reasoning-effort "$EFFORT" "$PROMPT"`
   - Reviewer (Hard Read-Only): `muse exec --workspace "$WORKSPACE" --disable-approval --disable-write --disable-shell --model "$MODEL" --reasoning-effort "$EFFORT" "$PROMPT"`
-  - Known-good models: `muse-spark-1.2-contributor`, `muse-spark-1.2`
+  - Known-good models: `muse-spark-1.3-contributor`, `muse-spark-1.3`
   - Note: Unset invalid credentials with `env -u META_API_KEY` before execution.
 
 ## Extensible and Community Harnesses
@@ -44,11 +52,13 @@ from flag drift. Do not run those checks proactively.
 - **pi**
   - Worker (Write): `(cd "$WORKSPACE" && pi --print --model "$MODEL" --thinking "$EFFORT" "$PROMPT")`
   - Reviewer (Hard Read-Only): `(cd "$WORKSPACE" && pi --print --tools read,grep,find,ls --model "$MODEL" --thinking "$EFFORT" "$PROMPT")`
-  - Known-good models: `openai-codex/gpt-5.6-sol`, `openai-codex/gpt-5.6-terra`, `openai-codex/gpt-5.6-luna`, `anthropic/claude-fable-5`, `anthropic/claude-opus-5`, `anthropic/claude-sonnet-5`, `xai/grok-4.6`, `xai/grok-4.5`, `muse-spark/muse-spark-1.2-contributor`
+  - Known-good models: `openai-codex/gpt-6-astra`, `openai-codex/gpt-6-sol`, `openai-codex/gpt-6-luna`, `anthropic/claude-fable-5`, `anthropic/claude-opus-5-5`, `anthropic/claude-sonnet-5`, `xai/grok-4.6`, `xai/grok-4.5`, `muse-spark/muse-spark-1.2-contributor`
+  - Note: pi's catalog lags the native CLIs. Use only IDs that
+    `pi --list-models` reports.
 - **jcode**
   - Worker (Write): `jcode run -C "$WORKSPACE" --model "$MODEL" "$PROMPT"`
   - Reviewer (Hard Read-Only): `jcode run -C "$WORKSPACE" --disable-base-tools --tools read --model "$MODEL" "$PROMPT"`
-  - Known-good models: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`, `gemini-3.7-flash-tiered`, `muse-spark-1.2-contributor`
+  - Known-good models: `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-luna`, `claude-fable-5`, `claude-opus-5-5`, `claude-sonnet-5-5`, `gemini-3.8-flash-tiered`, `muse-spark-1.3-contributor`
 - **goose**
   - Worker (Write): `(cd "$WORKSPACE" && goose run --text "$PROMPT" --no-session --provider "$PROVIDER" --model "$MODEL")`
   - Reviewer (Soft Read-Only): `(cd "$WORKSPACE" && goose review --prompt "$CRITERIA_FILE" --model "$MODEL")`
@@ -88,27 +98,45 @@ same worktree at the same time. Create the isolation worktree from the exact
 revision under review and remove it after the panel reports:
 
 ```bash
-REVIEW_WT="$WORKSPACE/.wt-review-$(date +%s)"
+# Create isolation worktree outside the repository to prevent nesting and collisions:
+REVIEW_WT=$(mktemp -d "${TMPDIR:-/tmp}/review-wt.XXXXXX")
 git -C "$WORKSPACE" worktree add --detach "$REVIEW_WT" "$REVISION"
 
-# Dispatch Soft Read-Only member in background and capture PID:
-# (cd "$REVIEW_WT" && ...) &
-# REVIEW_PID=$!
+# Dispatch Soft Read-Only member in background in its own process group:
+set -m
+(cd "$REVIEW_WT" && ...) &
+REVIEW_PID=$!
+set +m
+
+# Wait with timeout or handle termination:
 # wait "$REVIEW_PID" || true
 
-# Terminate process before worktree removal to prevent file descriptor races:
+# Terminate entire process tree before worktree removal to prevent file descriptor races:
 if [ -n "$REVIEW_PID" ] && kill -0 "$REVIEW_PID" 2>/dev/null; then
-    kill -TERM "$REVIEW_PID" 2>/dev/null
-    sleep 1
-    kill -0 "$REVIEW_PID" 2>/dev/null && kill -KILL "$REVIEW_PID" 2>/dev/null
+    PGID=$(ps -o pgid= -p "$REVIEW_PID" 2>/dev/null | tr -d ' ')
+    if [ -n "$PGID" ]; then
+        kill -TERM "-$PGID" 2>/dev/null || true
+        for _ in $(seq 1 5); do
+            kill -0 "-$PGID" 2>/dev/null || break
+            sleep 1
+        done
+        kill -KILL "-$PGID" 2>/dev/null || true
+    fi
     wait "$REVIEW_PID" 2>/dev/null || true
+fi
+
+# Verify the reviewer respected read-only boundaries before cleanup:
+if [ -n "$(git -C "$REVIEW_WT" status --porcelain 2>/dev/null)" ]; then
+    echo "Warning: Soft Read-Only member modified files in $REVIEW_WT; dropping its findings."
 fi
 
 git -C "$WORKSPACE" worktree remove --force "$REVIEW_WT"
 ```
 
-Members must stay inside the worktree they were given. A member that cannot be
-constrained to findings-only output is dropped from the panel rather than
+Members must confine their working directory and tool writes to the worktree
+they were given; read-only inputs (brief path, diff patch) may reside outside
+the worktree. A member that cannot be constrained to findings-only output or
+that writes files to the worktree is dropped from the panel rather than
 re-dispatched with weaker boundaries.
 
 ### Diversity
@@ -126,7 +154,7 @@ chat plan. Serialize what the member must judge to an atomically created,
 private file and pass the path:
 
 ```bash
-BRIEF=$(mktemp /tmp/review-brief.XXXXXX.md)
+BRIEF=$(mktemp "${TMPDIR:-/tmp}/review-brief.XXXXXX")
 chmod 0600 "$BRIEF"
 # write brief content to "$BRIEF"
 # pass "$BRIEF" to reviewer commands
@@ -143,11 +171,13 @@ conclusions.
 ### Failure and quorum
 
 Dispatch members in parallel and bound each with a timeout. A member that
-fails, times out, or returns no findings is reported as absent, not as
-agreeing. State which members reported and which did not. When the user asked
-for a specific reviewer, a missing member is a blocker to report rather than a
-reason to substitute a different model silently; offer the substitution and
-continue with the members that reported.
+fails, crashes, times out, or is excluded for safety is reported as absent.
+A member that completes its review and reports no defects (verdict Ship, empty
+severity table) is a clean pass, not an absent reviewer. State which members
+reported and which did not. When the user asked for a specific named reviewer
+who is absent, report this missing reviewer as a gate blocker. Do not silently
+substitute another model; offer the substitution to the user, and report
+findings from the remaining reviewers who responded.
 
 Attribution, consensus, and dissent handling for the merged report are owned by
 `shared-review-protocol/references/adversarial-review.md`.
