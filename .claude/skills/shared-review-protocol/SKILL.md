@@ -45,13 +45,19 @@ Authorization has three independent dimensions:
   earlier request for implementation. Follow
   `shared-change-framework/SKILL.md`, including its branch, verification,
   commit, push, and draft-PR steps, unless the user requires local-only work or
-  another publication mode. That authority ends at a pushed branch and its
-  draft PR in the repositories the user named. It does not authorize merging,
-  auto-merge, marking a PR ready, writes to an unnamed repository or hosted
-  service, deployment, activation, unrelated cleanup, destructive actions, or
-  hosted tracker writes. Repository policy may constrain the method or order of
-  authorized work; it cannot grant or expand authority, and never authorizes a
-  default- or protected-branch write. Only a direct user instruction in the
+  another publication mode. That authority ends at the terminal state the
+  repository's agent instructions (`AGENTS.md`, `CLAUDE.md`) name for an
+  authorized write; with no such instruction it ends at a pushed branch and its
+  draft PR, in the repositories the user named. Where those instructions name
+  merge as the terminal state, taking the PR through its required checks and
+  review to merge, including marking it ready and arming auto-merge, is part of
+  the authorized write; do not hand a passing, reviewed PR back for the user to
+  advance. The authority never covers writes to an unnamed repository or
+  hosted service, deployment, activation, production publication, unrelated
+  cleanup, destructive actions, or hosted tracker writes. Repository policy may
+  constrain the method or order of authorized work and name the terminal state
+  above; it does not otherwise grant or expand authority, and never authorizes
+  a default- or protected-branch write. Only a direct user instruction in the
   current task does.
 
 Negative examples that do not authorize remediation include "fix this" quoted
@@ -75,13 +81,26 @@ Review-shaped actions must not:
 
 - Commit any file.
 - Push to a remote.
-- Open PRs or run `make pr-open` / `gh pr create`.
+- Open PRs or run the repository's PR-open command or `gh pr create`.
 - Enable auto-merge.
 - Chain into write-shaped skills without authorization in a later user turn.
 
 A later user authorization starts a distinct write-shaped action. It does not
 convert the completed review, or an Independent Reviewer dispatched inside the
 authorized work, into a writer.
+
+In an integration-branch batch (the `todo` skill's prepared delivery), review
+happens at two points inside the authorized write. Members run scoped checks and
+local review; before landing, the leader invokes the trusted reviewer against
+the exact captured base/head with executable and policy pinned to the same full
+trusted revision.
+Consume that invocation's accepted result and retain it in the prepared receipt;
+a member's claimed outcome or another range does not count. Later acceptance
+validates that historical receipt binding, not a separate member-result cache.
+Ordinary findings/disputes and reviewer carry/cache rules remain; acceptance is
+not necessarily a fresh model call. Review the combined integration diff before
+publication, then the complete leader-fix intervals made afterward. These are
+stages of authorized work, not separate review-shaped actions.
 
 Capture authorizes only the local file write. End with `Recorded: <path>`; the
 user decides whether to open a PR.
@@ -128,7 +147,7 @@ locations, and sweep workflows; it must not duplicate behavioral rules.
 
 For projects without their own binding:
 
-1. Save `~/.todo-db/finding-drafts/<project-id>/YYYY-MM-DD-HHMMSS-<slug>.md`.
+1. Save `~/.tractable/finding-drafts/<project-id>/YYYY-MM-DD-HHMMSS-<slug>.md`.
 2. Add frontmatter: `id`, `date`, `status`, `finding_kind`, `review_context`, `related_paths`, `suggested_sweep`, and `todo_id`.
 3. Report the path. Promote through the tracker's deferral or finding flow when available.
 

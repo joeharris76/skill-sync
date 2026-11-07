@@ -3,10 +3,9 @@
 # carries no hashes and attests nothing about the current contents.
 
 source = https://github.com/joeharris76/skill-sync-skills.git
-rev = 6e88497695c51adb7cb4049e177984bc6035e458
+rev = cc8adf58ed39893418cbfa9d209d367a784819de
 dir = skills
 skill = blog
-skill = bossmode
 skill = code
 skill = docs
 skill = shared-change-framework
@@ -15,6 +14,11 @@ skill = shared-review-protocol
 skill = test
 skill = tidy-perms
 skill = todo
+
+source = https://github.com/joeharris76/skill-sync-skills.git
+rev = 6e88497695c51adb7cb4049e177984bc6035e458
+dir = skills
+skill = bossmode
 
 source = https://github.com/joeharris76/skill-sync-skills.git
 rev = 48be0487de361c0f12e0b5ac5bc84cf832da1dd0
