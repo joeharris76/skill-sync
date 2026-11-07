@@ -7,8 +7,8 @@
 node_modules/
 dist/
 
-.todo-db/*
-!.todo-db/config.json
+.tractable/*
+!.tractable/config.json
 
 # Generated skill mirrors. Regenerated locally with `skill-sync apply`.
 /.agents/skills/
