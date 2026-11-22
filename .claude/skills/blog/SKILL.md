@@ -11,16 +11,18 @@ Route the request below. Resolve voice before drafting or editing.
 
 ## Guides
 
+Where posts, outlines, and research live is set by the project's blog layout
+document (`_blog/README.md`) when one exists. Default layout is stage-first:
+`drafts/{series}/`, `outlines/{series}/`, `research/{series}/`.
+
 Read project `_blog/STYLE_GUIDE.md` and `_blog/VOICE_REFERENCE.md` when they
 exist. If they exist, do not load `~/.claude/blog/*`. If they do not exist,
 read global `~/.claude/blog/*`. If neither exists, proceed and note the gap.
 
 ## Critical rules
 
-- After cleanup, repository write actions use
-  `shared-change-framework/SKILL.md` with prefix `docs(blog)` for the required
-  named branch, verification, commit, and approved-plan PR. The `cleanup`
-  action handles existing blog changes.
+- Repository writes, including `cleanup`, go through
+  `shared-change-framework/SKILL.md` Section 4 with prefix `docs(blog)`.
 - `critique`, `editorial-review`, `audit`, and `deformulize` follow
   `shared-review-protocol/SKILL.md` [REVIEW-AUTH-001]. After findings,
   `critique`, `editorial-review`, and `audit` apply its L2 audit.
