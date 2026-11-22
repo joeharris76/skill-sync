@@ -1,7 +1,5 @@
 # Blog Critique Reference
 
-Use for adversarial draft review.
-
 Apply `shared-review-protocol/references/adversarial-review.md` with `change`
 scope. This file adds the blog-specific rubric and readiness score.
 
@@ -13,7 +11,7 @@ scope. This file adds the blog-specific rubric and readiness score.
 | Audience | Is the reader clear, and are prerequisites handled? |
 | Evidence | Are technical claims sourced, measured, or reproducible? |
 | Structure | Does each section advance the argument without boilerplate? |
-| Voice | Does the section lead with its purpose and state it once? Does each negative sentence add a fact, legal boundary, or scope condition? Do qualifications sit where they change interpretation? Do repeated caveats serve a new reader job? Identity, neutrality, and no superlatives still apply. |
+| Voice | Does the section lead with its purpose and state it once? Does each negative sentence add a fact, legal boundary, or scope condition? Do qualifications sit where they change interpretation? Do repeated caveats serve a new reader job? The resolved voice guide's identity, stance, and banned patterns still apply. |
 | Utility | Does the reader leave with a usable insight, command, or decision? |
 | Risk | What could be misleading, stale, partisan, overclaimed, or underqualified? |
 | Shelf-life | For vendor-response posts, compare outline and source dates; flag a response window beyond the typical 1-2 weeks. |
@@ -25,9 +23,8 @@ A single redundant denial ("X is Y. X is not Z") is a Voice fail. A negation tha
 Apply only when a post responds to a vendor or source author.
 
 - **Currency (Risk lane):** verify blocked TODOs, deferrals, and "not yet
-  shipped" claims
-  against `git log`, `todo list`, and `todo show <id>`. Flag work shipped after
-  the outline date.
+  shipped" claims against `git log` and the tracker (the `todo` skill's
+  `list_items` and `show_item`). Flag work shipped after the outline date.
 - **Partisan reader (Voice lane):** flag contrasts such as boring/novel,
   surface/hidden, and obvious/clever when the source's team could find them
   dismissive. Replace rankings with the exact API, benchmark coverage, or
@@ -44,6 +41,6 @@ readiness. Separate factual corrections from taste.
 
 ## Authorized follow-up fixes
 
-After later authorization, fix only broken links, formatting, obvious factual
+When fixes are authorized (in the same request or a later one), fix only broken links, formatting, obvious factual
 errors, and local wording. Leave thesis, framing, and controversial judgments
-to the user.
+to the author.
